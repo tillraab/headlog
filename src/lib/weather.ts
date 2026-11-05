@@ -8,8 +8,15 @@ export interface Place {
   longitude: number;
 }
 
-/** A pressure drop of this many hPa within 24 hours counts as a notable weather change. */
-export const PRESSURE_DROP_HPA = 6;
+/**
+ * A fall of the daily mean pressure by more than this many hPa from the day before is a known
+ * migraine trigger (Kimoto et al. 2011, Intern Med 50:1923–1928).
+ */
+export const PRESSURE_DROP_HPA = 5;
+
+export function isPressureDrop(drop: number): boolean {
+  return drop > PRESSURE_DROP_HPA;
+}
 
 /** The archive lags a few days behind; newer days come from the forecast API. */
 const ARCHIVE_DELAY_DAYS = 6;
@@ -40,32 +47,30 @@ interface OpenMeteo {
   };
 }
 
-/** Daily values from an Open-Meteo answer. The first day only supplies pressure history and is left out. */
+/**
+ * Daily values from an Open-Meteo answer. The pressure drop is how far the daily mean fell from the
+ * day before; the first day only supplies that previous mean and is left out.
+ */
 export function toWeatherDays(json: OpenMeteo): WeatherDay[] {
-  const pressure = new Map<string, number>();
-  json.hourly.time.forEach((time, i) => {
-    const p = json.hourly.pressure_msl[i];
-    if (p !== null) pressure.set(time, p);
-  });
   const hours = json.hourly.time;
+  const meanOf = (day: string) => {
+    const values = hours.flatMap((h, i) => (h.startsWith(day) && json.hourly.pressure_msl[i] !== null ? [json.hourly.pressure_msl[i]!] : []));
+    return values.length ? avg(values) : null;
+  };
   return json.daily.time.slice(1).flatMap((day, index) => {
     const i = index + 1;
     const dayHours = hours.filter((h) => h.startsWith(day));
-    const values = dayHours.map((h) => pressure.get(h)).filter((p): p is number => p !== undefined);
-    if (!values.length || json.daily.temperature_2m_max[i] === null) return [];
-    let drop = 0;
-    for (const h of dayHours) {
-      const now = pressure.get(h);
-      const before = pressure.get(shiftHour(h, -24));
-      if (now !== undefined && before !== undefined) drop = Math.max(drop, before - now);
-    }
+    const mean = meanOf(day);
+    if (mean === null || json.daily.temperature_2m_max[i] === null) return [];
+    const before = meanOf(json.daily.time[i - 1]);
+    const drop = before === null ? 0 : Math.max(0, before - mean);
     const humidity = dayHours
       .map((h) => json.hourly.relative_humidity_2m[hours.indexOf(h)])
       .filter((v): v is number => v !== null);
     return [
       {
         day,
-        pressure: round(avg(values)),
+        pressure: round(mean),
         pressureDrop: round(drop),
         tempMax: json.daily.temperature_2m_max[i]!,
         tempMin: json.daily.temperature_2m_min[i] ?? json.daily.temperature_2m_max[i]!,
@@ -77,11 +82,6 @@ export function toWeatherDays(json: OpenMeteo): WeatherDay[] {
   });
 }
 
-function shiftHour(iso: string, hours: number): string {
-  const d = new Date(`${iso}:00Z`);
-  d.setUTCHours(d.getUTCHours() + hours);
-  return d.toISOString().slice(0, 13) + ':00';
-}
 
 function avg(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;

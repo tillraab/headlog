@@ -7,7 +7,7 @@
   import { fmt, t, tagLabel } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { hydrationBefore } from '$lib/analysis';
-  import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
+  import { isPressureDrop, weatherEmoji } from '$lib/weather';
   import Sheet from './Sheet.svelte';
 
   let { day }: { day: string } = $props();
@@ -42,7 +42,7 @@
         <span class="text-lg">{weatherEmoji(weather.code)}</span>
         <span>{Math.round(weather.tempMin)}–{Math.round(weather.tempMax)} °C</span>
         <span class="text-muted">·</span>
-        <span class={weather.pressureDrop >= PRESSURE_DROP_HPA ? 'font-semibold text-over' : ''}>
+        <span class={isPressureDrop(weather.pressureDrop) ? 'font-semibold text-over' : ''}>
           {Math.round(weather.pressure)} hPa{weather.pressureDrop >= 1 ? ` (−${Math.round(weather.pressureDrop)})` : ''}
         </span>
         {#if weather.humidity !== null}<span class="text-muted">·</span><span>{weather.humidity} %</span>{/if}

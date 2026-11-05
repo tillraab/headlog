@@ -68,7 +68,7 @@ export interface WeatherDay {
   day: string;
   /** Mean sea-level pressure in hPa. */
   pressure: number;
-  /** Largest fall of pressure within 24 hours ending on this day, in hPa. */
+  /** How far the daily mean pressure fell from the day before, in hPa; 0 when it rose. */
   pressureDrop: number;
   tempMax: number;
   tempMin: number;

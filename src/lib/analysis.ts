@@ -1,6 +1,7 @@
 import { addDays, endOfMonth, getDay, getHours, startOfMonth } from 'date-fns';
 import { ACUTE_CATEGORIES, hydrationMl, type Drink, type Episode, type Intake, type MedCategory, type Medication, type Night, type WeatherDay } from './db';
 import { dayKey, dayRange, keyToDate, lastDays } from './days';
+import { isPressureDrop } from './weather';
 
 /** Peak intensity per day touched by a headache. Ongoing episodes run until `now`. */
 export function headacheDays(episodes: Episode[], now: number): Map<string, number> {
@@ -337,14 +338,13 @@ export const MIN_COMPARISON_DAYS = 3;
 
 /**
  * Compares the days a headache started with days without headache: hydration, caffeine and
- * alcohol the day before, sleep the night before, and how often the pressure fell by `dropHpa`
- * or more on the day itself. Today is left out because it is not over.
+ * alcohol the day before, sleep the night before, and how often the pressure dropped on the day
+ * itself. Today is left out because it is not over.
  */
 export function compareDays(
   data: { episodes: Episode[]; drinks: Drink[]; sleep: Map<string, Night>; weather: Map<string, WeatherDay> },
   keys: string[],
-  now: number,
-  dropHpa: number
+  now: number
 ): Comparison[] {
   const pain = headacheDays(data.episodes, now);
   const starts = new Set(data.episodes.map((e) => dayKey(e.start)));
@@ -363,7 +363,7 @@ export function compareDays(
     ['hydration', (k) => water.get(before(k)) ?? null],
     ['sleep', (k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / 3600000 : null)],
     ['caffeine', (k) => (tracksCaffeine && water.has(before(k)) ? (caffeine.get(before(k)) ?? 0) : null)],
-    ['pressure', (k) => (data.weather.has(k) ? (data.weather.get(k)!.pressureDrop >= dropHpa ? 1 : 0) : null)],
+    ['pressure', (k) => (data.weather.has(k) ? (isPressureDrop(data.weather.get(k)!.pressureDrop) ? 1 : 0) : null)],
     ['alcohol', (k) => (tracksAlcohol && water.has(before(k)) ? (alcohol.has(before(k)) ? 1 : 0) : null)]
   ];
 

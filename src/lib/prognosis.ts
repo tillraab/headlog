@@ -2,6 +2,7 @@ import { addDays, getHours, getMinutes } from 'date-fns';
 import { alcoholDays, caffeineByDay, firstDrinkDay, waterByDay } from './analysis';
 import type { Drink, Night, WeatherDay } from './db';
 import { dayKey, lastDays } from './days';
+import { isPressureDrop } from './weather';
 
 export type Light = 'green' | 'yellow' | 'red';
 export type FactorKey = 'weather' | 'hydration' | 'sleep' | 'alcohol' | 'caffeine';
@@ -25,7 +26,6 @@ export interface PrognosisInput {
   sleep: Map<string, Night>;
   weather: Map<string, WeatherDay>;
   goalMl: number;
-  dropHpa: number;
 }
 
 export interface Prognosis {
@@ -59,7 +59,7 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   const todayWeather = input.weather.get(today);
   const tomorrowWeather = input.weather.get(tomorrow);
   const drop = Math.max(todayWeather?.pressureDrop ?? 0, tomorrowWeather?.pressureDrop ?? 0);
-  const weatherStatus: Status = !todayWeather && !tomorrowWeather ? 'unknown' : drop >= input.dropHpa ? 'bad' : 'ok';
+  const weatherStatus: Status = !todayWeather && !tomorrowWeather ? 'unknown' : isPressureDrop(drop) ? 'bad' : 'ok';
 
   const water = waterByDay(input.drinks);
   const first = firstDrinkDay(input.drinks);

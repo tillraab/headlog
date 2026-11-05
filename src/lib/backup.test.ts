@@ -88,8 +88,7 @@ describe('demo data', () => {
         drinks: await db.drinks.toArray(),
         sleep: new Map((await db.sleep.toArray()).map((n) => [n.day, n])),
         weather: new Map((await db.weather.toArray()).map((w) => [w.day, w])),
-        goalMl: 2000,
-        dropHpa: 6
+        goalMl: 2000
       },
       now
     );

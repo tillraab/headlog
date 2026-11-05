@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HeadLogDb } from './db';
-import { syncWeather, toWeatherDays } from './weather';
+import { isPressureDrop, syncWeather, toWeatherDays } from './weather';
 
-/** Two days of hourly data: steady 1015 hPa on day one, falling 0.5 hPa per hour on day two. */
+/** Three days of hourly data: steady 1015 hPa on the first two, falling 0.5 hPa per hour on the third. */
 function sample(days = ['2026-03-01', '2026-03-02', '2026-03-03']) {
   const time: string[] = [];
   const pressure: number[] = [];
@@ -31,9 +31,15 @@ describe('toWeatherDays', () => {
     expect(toWeatherDays(sample()).map((d) => d.day)).toEqual(['2026-03-02', '2026-03-03']);
   });
 
-  it('finds the largest 24-hour pressure drop of a day', () => {
+  it('measures the drop as the daily mean against the day before', () => {
     const [, falling] = toWeatherDays(sample());
-    expect([falling.pressureDrop, falling.pressure]).toEqual([12, 1008.8]);
+    expect([falling.pressure, falling.pressureDrop]).toEqual([1008.8, 6.3]);
+  });
+
+  it('records no drop when the pressure rises', () => {
+    const rising = sample();
+    rising.hourly.pressure_msl = rising.hourly.pressure_msl.map((p, i) => (i < 24 ? p : p + 20));
+    expect(toWeatherDays(rising)[0].pressureDrop).toBe(0);
   });
 
   it('keeps temperature, humidity, rain and weather code', () => {
@@ -67,5 +73,14 @@ describe('syncWeather', () => {
     const urls = capture();
     await syncWeather(db, place, '2026-03-02', today);
     expect(urls.map((u) => u.hostname)).toEqual(['api.open-meteo.com']);
+  });
+});
+
+describe('isPressureDrop', () => {
+  it.each([
+    [5, false],
+    [5.1, true]
+  ])('%s hPa counts as a drop: %s', (drop, expected) => {
+    expect(isPressureDrop(drop)).toBe(expected);
   });
 });

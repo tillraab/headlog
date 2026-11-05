@@ -14,7 +14,6 @@ function input(overrides: Partial<PrognosisInput> = {}): PrognosisInput {
     sleep: new Map([['2026-03-10', night(7.5)]]),
     weather: new Map([['2026-03-10', weather('2026-03-10', 1)], ['2026-03-11', weather('2026-03-11', 2)]]),
     goalMl: 2000,
-    dropHpa: 6,
     ...overrides
   };
 }

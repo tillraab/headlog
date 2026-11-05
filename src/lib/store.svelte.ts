@@ -213,11 +213,18 @@ export async function deleteDrinkPreset(id: number) {
 
 const WEATHER_SYNC_KEY = 'headlog.weatherSync';
 const WEATHER_SYNC_HOURS = 3;
+const WEATHER_METRIC = 'weatherDailyMeanDrop';
 
 /** Fetches missing and recent weather, at most every few hours unless `force`. */
 export async function updateWeather(force = false) {
   const { enabled, place } = data.settings.weather;
   if (!enabled || !place) return;
+  // Weather stored before the daily-mean pressure drop is fetched again once.
+  if (!(await db.settings.get(WEATHER_METRIC))) {
+    await db.weather.clear();
+    await db.settings.put({ key: WEATHER_METRIC, value: true });
+    force = true;
+  }
   const last = Number(localStorage.getItem(WEATHER_SYNC_KEY) ?? 0);
   if (!force && Date.now() - last < WEATHER_SYNC_HOURS * 3600000) return;
   const times = [...data.episodes.map((e) => e.start), ...data.intakes.map((i) => i.time), ...data.drinks.map((d) => d.time)];

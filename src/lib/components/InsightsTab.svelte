@@ -6,7 +6,7 @@
   import { openSheet } from '$lib/ui.svelte';
   import { fmt, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
-  import { PRESSURE_DROP_HPA } from '$lib/weather';
+  import { isPressureDrop, PRESSURE_DROP_HPA } from '$lib/weather';
   import BarChart from './BarChart.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
   import ReportSheet from './ReportSheet.svelte';
@@ -70,7 +70,7 @@
       });
     }
     if (known(series.pressure).length) {
-      const marks = series.pressureDrop.map((d) => d !== null && d >= PRESSURE_DROP_HPA);
+      const marks = series.pressureDrop.map((d) => d !== null && isPressureDrop(d));
       result.push({
         label: t('tl.pressure'),
         summary: t('tl.pressureSummary', { n: marks.filter(Boolean).length, hpa: PRESSURE_DROP_HPA }),
@@ -99,7 +99,7 @@
     return lines;
   }
 
-  const comparisons = $derived(compareDays(data, keys, clock.now, PRESSURE_DROP_HPA));
+  const comparisons = $derived(compareDays(data, keys, clock.now));
   const percent = (v: number) => `${Math.round(v * 100)} %`;
   const FORMAT: Record<ComparisonKey, (v: number) => string> = {
     hydration: formatLiters,
