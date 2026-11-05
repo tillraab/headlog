@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- Forecast on Today: a traffic light for the headache risk with tiles for weather, hydration and sleep. Weather (pressure drop today or tomorrow), hydration (yesterday, or behind today's pace), sleep (under 6 h), alcohol and caffeine each count when unfavourable: green up to one, yellow with two, red with three or more. Tap for the exact numbers, wake breaks, your sleep average, alcohol and caffeine, your personal estimate and a tip.
+
+### Changed
+
+- The forecast replaces the sleep card and the separate risk warnings on Today.
+- The medication badge on Today is shorter and stays on one line.
+
 ## [0.11.0] - 2026-11-05
 
 ### Added

@@ -8,10 +8,7 @@
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
   import { celebrate, openSheet, tap, toast } from '$lib/ui.svelte';
-  import { dayKey } from '$lib/days';
-  import { assessRisk } from '$lib/risk';
-  import { PRESSURE_DROP_HPA } from '$lib/weather';
-  import RiskCard from './RiskCard.svelte';
+  import PrognosisCard from './PrognosisCard.svelte';
   import WelcomeCard from './WelcomeCard.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
@@ -19,12 +16,6 @@
   let { onOpenTab }: { onOpenTab: (tab: 'meds') => void } = $props();
 
   const ongoing = $derived(ongoingEpisode());
-  const lastNight = $derived(data.settings.sleep.enabled ? data.sleep.get(dayKey(clock.now)) : undefined);
-  const risks = $derived(
-    (['today', 'tomorrow'] as const)
-      .map((day) => assessRisk(data, { dropHpa: PRESSURE_DROP_HPA, goalMl: data.settings.waterGoalMl }, clock.now, day))
-      .filter((r) => r.level !== 'none')
-  );
   const dayStart = $derived(startOfDay(clock.now).getTime());
   const rule = $derived(tenTwenty(new Set(intakeDays(data.intakes).keys()), clock.now, data.settings.limit));
   const streak = $derived(periodStats(data, clock.now, 1).clearStreak);
@@ -240,9 +231,6 @@
 
   <WelcomeCard />
 
-  {#each risks as risk (risk.day)}
-    <RiskCard {risk} />
-  {/each}
 
   {#if unrated}
     <section class="card flex flex-col gap-3 bg-med-soft p-4">
@@ -271,21 +259,7 @@
     {@render medsCard()}
   {/if}
 
-  {#if lastNight}
-    <button class="card press flex items-center gap-3 p-3 text-left" onclick={() => edit({ kind: 'sleep', item: lastNight })}>
-      <span class="grid size-10 place-items-center rounded-full bg-surface-2 text-xl">😴</span>
-      <span class="flex flex-1 flex-col">
-        <span class="text-xs text-muted">{t('sleep.lastNight')}</span>
-        <span class="font-semibold tabular">{formatDuration(lastNight.asleepMs)}</span>
-      </span>
-      <span class="text-right text-xs text-muted tabular">
-        {t('sleep.summary', { from: hm(lastNight.start), to: hm(lastNight.end) })}
-        {#if lastNight.breaks.length}
-          <br />{t('sleep.breaks', { n: lastNight.breaks.length, d: formatDuration(lastNight.breaks.reduce((s, b) => s + b.end - b.start, 0)) })}
-        {/if}
-      </span>
-    </button>
-  {/if}
+  <PrognosisCard />
 
   <section class="card p-2">
     <h2 class="px-2 pt-2 pb-1 font-semibold">{t('today.log')}</h2>
