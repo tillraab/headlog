@@ -1,7 +1,8 @@
 <script lang="ts">
   import { FileText } from '@lucide/svelte';
   import { alcoholDays, caffeineByDay, compareDays, hydrationStreak, monthlyCounts, periodStats, timeline, type ComparisonKey } from '$lib/analysis';
-  import { formatDuration, formatLiters, keyToDate, lastDays } from '$lib/days';
+  import { format } from 'date-fns';
+  import { dayKey, formatDuration, formatLiters, lastDays } from '$lib/days';
   import { openSheet } from '$lib/ui.svelte';
   import { fmt, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -39,7 +40,7 @@
 
   const rows = $derived.by(() => {
     const result: Row[] = [
-      { label: t('tl.headache'), summary: t('tl.days', { n: stats.headacheDays }), values: series.headache, color: 'var(--color-pain)', kind: 'bars' }
+      { label: t('tl.headache'), summary: t('tl.days', { n: stats.headacheDays }), values: series.headache, color: 'var(--color-pain)', kind: 'bars', format: (v) => (v ? `${Math.round(v)}/10` : '–') }
     ];
     const water = known(series.hydration);
     if (water.length) {
@@ -52,6 +53,7 @@
         values: series.hydration,
         color: 'var(--color-water)',
         kind: 'bars',
+        format: formatLiters,
         reference: data.settings.waterGoalMl
       });
     }
@@ -63,6 +65,7 @@
         values: series.sleepHours,
         color: 'var(--color-primary)',
         kind: 'bars',
+        format: (v) => `${(Math.round(v * 10) / 10).toLocaleString()} h`,
         reference: SLEEP_REFERENCE_HOURS
       });
     }
@@ -74,6 +77,7 @@
         values: series.pressure,
         color: 'var(--color-muted)',
         kind: 'line',
+        format: (v) => String(Math.round(v)),
         marks,
         markColor: 'var(--color-caution)'
       });
@@ -81,11 +85,19 @@
     return result;
   });
 
-  const timelineLabels = $derived([
-    fmt(keyToDate(keys[0]), 'd. MMM'),
-    fmt(keyToDate(keys[Math.floor(keys.length / 2)]), 'd. MMM'),
-    fmt(keyToDate(keys[keys.length - 1]), 'd. MMM')
-  ] as [string, string, string]);
+  /** Extra lines for the selected day: headaches with times, medication, the pressure drop. */
+  function dayDetails(index: number): string[] {
+    const key = keys[index];
+    const lines: string[] = [];
+    for (const e of data.episodes.filter((ep) => dayKey(ep.start) === key)) {
+      lines.push(t('tl.detailHeadache', { from: format(e.start, 'HH:mm'), to: e.end ? format(e.end, 'HH:mm') : '…', n: e.intensity }));
+    }
+    const meds = data.intakes.filter((i) => dayKey(i.time) === key);
+    if (meds.length) lines.push(`💊 ${meds.map((i) => `${i.name} ${format(i.time, 'HH:mm')}`).join(', ')}`);
+    const drop = series.pressureDrop[index];
+    if (drop !== null && drop >= 1) lines.push(t('tl.detailDrop', { n: Math.round(drop) }));
+    return lines;
+  }
 
   const comparisons = $derived(compareDays(data, keys, clock.now, PRESSURE_DROP_HPA));
   const percent = (v: number) => `${Math.round(v * 100)} %`;
@@ -160,7 +172,7 @@
     <section class="card p-4">
       <h2 class="text-sm font-semibold">{t('tl.title')}</h2>
       <p class="mb-3 text-xs text-muted">{t('tl.hint')}</p>
-      <TimelineChart {rows} bands={series.headache.map((v) => v > 0)} labels={timelineLabels} />
+      <TimelineChart {rows} {keys} bands={series.headache.map((v) => v > 0)} details={dayDetails} />
     </section>
 
     <section class="card p-4">
