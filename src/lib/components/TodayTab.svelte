@@ -1,12 +1,12 @@
 <script lang="ts">
   import { Droplets, Pill, Zap } from '@lucide/svelte';
   import { format, isToday, startOfDay } from 'date-fns';
-  import { intakeDays, medicationLimits, periodStats, tenTwenty } from '$lib/analysis';
+  import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty } from '$lib/analysis';
   import { formatDuration, formatLiters } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
-  import { tap, toast } from '$lib/ui.svelte';
+  import { celebrate, tap, toast } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
 
@@ -23,6 +23,7 @@
   const todayDrinks = $derived(data.drinks.filter((d) => d.time >= dayStart));
   const waterMl = $derived(todayDrinks.reduce((sum, d) => sum + d.ml, 0));
   const waterPct = $derived(Math.min(1, waterMl / data.settings.waterGoalMl));
+  const hydration = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
   const unrated = $derived(
     data.intakes.findLast((i) => i.relief === null && clock.now - i.time > (data.settings.reliefCheckMinutes || 60) * 60000 && clock.now - i.time < 12 * 3600000)
   );
@@ -56,6 +57,13 @@
 
   function earlier() {
     edit({ kind: 'episode', item: { start: Date.now() - 30 * 60000, end: null, intensity: 5, tags: [], note: '' } });
+  }
+
+  /** Celebrates reaching today's hydration goal, with the streak it extends. */
+  function cheer() {
+    const days = hydrationStreak(data.drinks, data.settings.waterGoalMl, Date.now()).current;
+    const milestone = [3, 7, 14, 21, 30, 50, 100].includes(days);
+    celebrate(t('streak.goal'), days > 1 ? t(milestone ? 'streak.milestone' : 'streak.days', { n: days }) : t('streak.first'));
   }
 
   function hm(time: number) {
@@ -135,7 +143,15 @@
 
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-center justify-between">
-      <h2 class="flex items-center gap-2 font-semibold"><Droplets size={18} class="text-water" /> {t('today.water')}</h2>
+      <h2 class="flex items-center gap-2 font-semibold">
+        <Droplets size={18} class="text-water" />
+        {t('today.water')}
+        {#if hydration.current > 1}
+          <span class="rounded-full bg-water-soft px-2 py-0.5 text-xs font-semibold text-water tabular" title={t('streak.best', { n: hydration.best })}>
+            🔥 {hydration.current}
+          </span>
+        {/if}
+      </h2>
       <p class="text-sm tabular">
         <span class="font-semibold">{formatLiters(waterMl)}</span>
         <span class="text-muted">{waterPct >= 1 ? `· ${t('today.goalReached')} 🎉` : t('today.goal', { goal: formatLiters(data.settings.waterGoalMl) })}</span>
@@ -150,7 +166,9 @@
           class="press flex flex-col items-center gap-0.5 rounded-2xl bg-surface-2 py-2.5"
           onclick={async () => {
             tap();
+            const before = waterMl;
             const id = await logDrink(preset);
+            if (before < data.settings.waterGoalMl && before + preset.ml >= data.settings.waterGoalMl) cheer();
             toast(t('toast.drink', { ml: preset.ml }) + ` ${preset.emoji}`, undoFor('drinks', id));
           }}
         >

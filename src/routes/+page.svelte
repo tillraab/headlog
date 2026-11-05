@@ -4,6 +4,7 @@
   import { CalendarDays, ChartColumn, House, Pill, Settings } from '@lucide/svelte';
   import { onMount } from 'svelte';
   import CalendarTab from '$lib/components/CalendarTab.svelte';
+  import Celebration from '$lib/components/Celebration.svelte';
   import EditorSheet from '$lib/components/EditorSheet.svelte';
   import InsightsTab from '$lib/components/InsightsTab.svelte';
   import MedsTab from '$lib/components/MedsTab.svelte';
@@ -150,3 +151,4 @@
 <SettingsSheet />
 <VersionsSheet />
 <Toasts />
+<Celebration />

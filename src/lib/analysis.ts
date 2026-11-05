@@ -35,6 +35,33 @@ export function waterByDay(drinks: Drink[]): Map<string, number> {
   return days;
 }
 
+export interface Streak {
+  /** Days in a row with the goal reached, up to yesterday, plus today once reached. */
+  current: number;
+  best: number;
+  todayReached: boolean;
+}
+
+/** Hydration goal streak. Today does not break the streak before it is over. */
+export function hydrationStreak(drinks: Drink[], goalMl: number, today: number | Date): Streak {
+  const water = waterByDay(drinks);
+  const reached = (key: string) => (water.get(key) ?? 0) >= goalMl;
+  const todayKey = dayKey(today);
+  const todayReached = reached(todayKey);
+  let current = todayReached ? 1 : 0;
+  for (let d = addDays(today, -1); reached(dayKey(d)); d = addDays(d, -1)) current++;
+
+  let best = 0;
+  let run = 0;
+  let previous: string | null = null;
+  for (const key of [...water.keys()].filter(reached).sort()) {
+    run = previous && dayKey(addDays(keyToDate(previous), 1)) === key ? run + 1 : 1;
+    best = Math.max(best, run);
+    previous = key;
+  }
+  return { current, best: Math.max(best, current), todayReached };
+}
+
 export type RuleStatus = 'ok' | 'caution' | 'over';
 
 export interface TenTwenty {
