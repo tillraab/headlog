@@ -134,6 +134,8 @@ export async function cancelReliefCheck(intakeId: number) {
 }
 
 export interface NotificationAnswers {
+  /** Any tap on a notification or one of its buttons. */
+  opened: () => void;
   relief: (intakeId: number, relief: number) => void;
   headacheGone: (episodeId: number) => void;
   drink: (presetId: number) => void;
@@ -143,6 +145,7 @@ export interface NotificationAnswers {
 export function onNotificationAction(answers: NotificationAnswers) {
   if (!Capacitor.isNativePlatform()) return () => {};
   const handle = LocalNotifications.addListener('localNotificationActionPerformed', ({ actionId, notification }) => {
+    answers.opened();
     const extra = notification.extra as { intakeId?: number; episodeId?: number } | undefined;
     const relief = /^relief-(\d)$/.exec(actionId);
     if (relief && extra?.intakeId !== undefined) answers.relief(extra.intakeId, Number(relief[1]));

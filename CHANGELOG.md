@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Tapping a notification or one of its buttons always opens Today, not the screen the app was left on.
+
 ## [0.7.0] - 2026-11-05
 
 ### Added
