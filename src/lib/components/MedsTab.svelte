@@ -2,15 +2,16 @@
   import { Info, Pencil } from '@lucide/svelte';
   import { edit } from '$lib/editor.svelte';
   import { openSheet } from '$lib/ui.svelte';
-  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, rollingMedDays, tenTwenty, type RuleStatus } from '$lib/analysis';
+  import TimelineChart from './TimelineChart.svelte';
+  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, rollingMedDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
   import { dayKey, keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
 
+  const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   const medDays = $derived(new Set(intakeDays(data.intakes).keys()));
   const rule = $derived(tenTwenty(medDays, clock.now, data.settings.limit));
   const rolling = $derived(rollingMedDays(medDays, clock.now, 90));
-  const max = $derived(Math.max(rule.limit + 4, ...rolling.map((r) => r.count)));
   const monthly = $derived(monthlyCategoryDays(data.intakes, new Date(clock.now)));
   const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
   const reliefLabels = $derived([t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')]);
@@ -33,8 +34,7 @@
   });
   const recent = $derived([...data.intakes].sort((a, b) => b.time - a.time).slice(0, 8));
   const personal = $derived(medicationLimits(data.intakes, data.medications, clock.now));
-  const toneOf = (status: RuleStatus) => ({ ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' })[status];
-  const tone = $derived({ ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' }[rule.status]);
+  const tone = $derived(STATUS_COLOR[rule.status]);
   const label = $derived({ ok: t('tenTwenty.ok'), caution: t('tenTwenty.caution'), over: t('tenTwenty.over') }[rule.status]);
   const colorOf = (name: string) => data.medications.find((m) => m.name === name)?.color ?? 'var(--color-med)';
 
@@ -121,11 +121,11 @@
             <div class="flex items-center gap-2">
               <span class="size-3 rounded-full" style:background-color={med.color}></span>
               <span class="flex-1 font-medium">{med.name}</span>
-              <span class="font-semibold tabular" style:color={toneOf(r.status)}>{t('tenTwenty.limitCount', { n: r.count, limit: r.limit, window: r.window })}</span>
+              <span class="font-semibold tabular" style:color={STATUS_COLOR[r.status]}>{t('tenTwenty.limitCount', { n: r.count, limit: r.limit, window: r.window })}</span>
             </div>
             <div class="flex gap-0.5">
               {#each { length: r.limit } as _, i (i)}
-                <div class="h-2 flex-1 rounded-full" style:background-color={i < r.count ? toneOf(r.status) : 'var(--color-surface-2)'}></div>
+                <div class="h-2 flex-1 rounded-full" style:background-color={i < r.count ? STATUS_COLOR[r.status] : 'var(--color-surface-2)'}></div>
               {/each}
               {#each { length: Math.max(0, r.count - r.limit) } as _, i (i)}
                 <div class="h-2 flex-1 rounded-full bg-over"></div>
@@ -156,23 +156,22 @@
 
   <section class="card p-4">
     <h2 class="mb-3 text-sm font-semibold">{t('tenTwenty.trend')}</h2>
-    <svg viewBox="0 0 90 32" preserveAspectRatio="none" class="h-28 w-full">
-      <line x1="0" x2="90" y1={32 - (rule.limit / max) * 32} y2={32 - (rule.limit / max) * 32} stroke="var(--color-over)" stroke-width="0.4" stroke-dasharray="1.5 1" vector-effect="non-scaling-stroke" />
-      {#each rolling as r, i (r.key)}
-        <rect
-          x={i + 0.1}
-          width="0.8"
-          y={32 - (r.count / max) * 32}
-          height={(r.count / max) * 32}
-          fill={r.count > rule.limit ? 'var(--color-over)' : r.count >= rule.limit - 2 ? 'var(--color-caution)' : 'var(--color-ok)'}
-          opacity="0.85"
-        />
-      {/each}
-    </svg>
-    <div class="mt-1 flex justify-between text-2xs text-muted">
-      <span>{fmt(keyToDate(rolling[0].key), 'd. MMM')}</span>
-      <span>{fmt(clock.now, 'd. MMM')}</span>
-    </div>
+    <TimelineChart
+      keys={rolling.map((r) => r.key)}
+      bands={rolling.map(() => false)}
+      rows={[
+        {
+          label: t('tenTwenty.short'),
+          summary: t('tenTwenty.trendLimit', { n: rule.limit }),
+          values: rolling.map((r) => r.count),
+          colors: rolling.map((r) => STATUS_COLOR[ruleStatus(r.count, rule.limit)]),
+          color: 'var(--color-ok)',
+          kind: 'bars',
+          format: (v) => String(Math.round(v)),
+          reference: rule.limit
+        }
+      ]}
+    />
   </section>
 
   {#if effect.length}

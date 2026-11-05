@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Charts in Insights and the 10/20 trend have a time axis with dates and gridlines, and value labels on the left.
+- Tap or drag across a chart to see a day: a line runs through all charts, and a box shows the date, headache, hydration, sleep, pressure, headache times, medication and the pressure drop. Dragging on a chart no longer switches tabs.
+
 ## [0.13.0] - 2026-11-05
 
 ### Changed
