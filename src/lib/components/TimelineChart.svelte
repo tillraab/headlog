@@ -37,6 +37,9 @@
     return index < 0 ? null : index;
   });
 
+  /** Fixed height for the detail box, so the charts below never move: date, value rows, two extra lines. */
+  const boxHeight = $derived(2.4 + Math.ceil(rows.length / 2) * 1.05 + (details ? 2.1 : 0));
+
   /** Weekly ticks up to 45 days, the 1st and 15th up to 120 days, otherwise the 1st of each month. */
   const ticks = $derived.by(() => {
     const every = n <= 45 ? 'week' : n <= 120 ? 'half-month' : 'month';
@@ -65,7 +68,7 @@
 </script>
 
 <div class="flex flex-col gap-3">
-  <div class="h-28 overflow-hidden rounded-xl bg-surface-2 px-3 py-2 text-xs">
+  <div class="overflow-hidden rounded-xl bg-surface-2 px-3 py-2 text-xs" style:height="{boxHeight}rem">
     {#if selected === null}
       <p class="text-muted">{t('tl.tapHint')}</p>
     {:else}

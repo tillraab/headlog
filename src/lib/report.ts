@@ -1,7 +1,7 @@
 import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
-import { headacheDays, intakeDays, MONTHLY_LIMITS, periodStats, rollingMedDays, ruleStatus, tenTwenty } from './analysis';
+import { headacheDays, intakeDays, MONTHLY_LIMITS, periodStats, rollingDays, ruleStatus, tenTwenty } from './analysis';
 import type { Drink, Episode, Intake, MedCategory, Medication } from './db';
 import { dayKey, dayRange, formatDuration, formatLiters, keyToDate } from './days';
 import { fmt, t, tagLabel } from './i18n.svelte';
@@ -233,7 +233,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   function ruleChart(x: number, top: number, w: number, h: number) {
     panel(x, top, w, h);
     heading(t('pdf.ruleChart', { limit: input.limit }), x + 4, top + 6);
-    const rolling = rollingMedDays(medDaySet, now, span);
+    const rolling = rollingDays(medDaySet, now, span);
     const box = { top: top + 12, bottom: top + h - 8, left: x + 9, right: x + w - 4 };
     const max = Math.max(input.limit + 4, ...rolling.map((r) => r.count));
     axis(box, max);

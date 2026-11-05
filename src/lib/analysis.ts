@@ -152,10 +152,10 @@ export function medicationLimits(intakes: Intake[], medications: Medication[], t
     });
 }
 
-/** Rolling 10/20 counts for the `span` days ending today. */
-export function rollingMedDays(medDays: Set<string>, today: number | Date, span: number, window = 30) {
+/** For each of the `span` days ending today, how many of `days` fall in the `window` days up to it. */
+export function rollingDays(days: Set<string>, today: number | Date, span: number, window = 30) {
   const keys = lastDays(today, span + window - 1);
-  const flags = keys.map((k) => (medDays.has(k) ? 1 : 0));
+  const flags = keys.map((k) => (days.has(k) ? 1 : 0));
   const result: { key: string; count: number }[] = [];
   let sum = flags.slice(0, window - 1).reduce<number>((a, b) => a + b, 0);
   for (let i = window - 1; i < keys.length; i++) {
