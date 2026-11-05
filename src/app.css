@@ -1,0 +1,114 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-bg: #f7f6fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #efedf6;
+  --color-fg: #1d1a2b;
+  --color-muted: #6c6880;
+  --color-line: #e3e0ee;
+  --color-primary: #5b4bd6;
+  --color-primary-fg: #ffffff;
+  --color-pain: #e2466b;
+  --color-pain-soft: #fde4ea;
+  --color-med: #e69512;
+  --color-med-soft: #fdf0d8;
+  --color-water: #1f8fe0;
+  --color-water-soft: #dcefff;
+  --color-ok: #16a26b;
+  --color-caution: #d98a04;
+  --color-over: #dc3a3a;
+  --text-2xs: 10px;
+  --text-caption: 11px;
+  --text-display: 44px;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.dark {
+  --color-bg: #14121c;
+  --color-surface: #1e1b29;
+  --color-surface-2: #2a2638;
+  --color-fg: #eeecf6;
+  --color-muted: #a19cb6;
+  --color-line: #322e42;
+  --color-primary: #8d80f2;
+  --color-primary-fg: #14121c;
+  --color-pain: #f2648a;
+  --color-pain-soft: #44202c;
+  --color-med: #f2ad3c;
+  --color-med-soft: #3d2e14;
+  --color-water: #4fb0f5;
+  --color-water-soft: #15324a;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility card {
+  border-radius: 1.25rem;
+  background: var(--color-surface);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 0 0 1px var(--color-line);
+}
+
+@utility press {
+  transition:
+    transform 120ms ease,
+    background-color 150ms ease;
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@layer base {
+  input,
+  select,
+  textarea {
+    background: var(--color-surface-2);
+    border-radius: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    width: 100%;
+    font-size: 15px;
+    color: inherit;
+    outline: none;
+    border: 1px solid transparent;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--color-primary);
+  }
+
+  input[type='checkbox'] {
+    width: auto;
+  }
+}

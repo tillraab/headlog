@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HeadLog</string>
+    <string name="title_activity_main">HeadLog</string>
+    <string name="package_name">de.tillraab.headlog</string>
+    <string name="custom_url_scheme">de.tillraab.headlog</string>
+</resources>

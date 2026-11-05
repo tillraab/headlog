@@ -1,0 +1,40 @@
+{
+  "name": "headlog",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "prepare": "svelte-kit sync || echo ''",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest --run"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
+    "@lucide/svelte": "^1.69.0",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tailwindcss/vite": "^4.3.4",
+    "@types/node": "^26.6.6",
+    "fake-indexeddb": "^6.2.7",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "tailwindcss": "^4.3.4",
+    "typescript": "6.0.3",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/share": "^8.0.3",
+    "date-fns": "^4.4.0",
+    "dexie": "^4.4.7"
+  }
+}
