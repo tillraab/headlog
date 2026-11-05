@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-05
+
 ### Changed
 
 - Charts in Insights and the 10/20 trend have a time axis with dates and gridlines, and value labels on the left.
