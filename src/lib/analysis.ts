@@ -26,6 +26,12 @@ export function intakeDays(intakes: Intake[], acuteOnly = true): Map<string, Int
   return days;
 }
 
+/** The day of the first logged drink. Days before it are unknown, not days without drinking. */
+export function firstDrinkDay(drinks: Drink[]): string | null {
+  if (!drinks.length) return null;
+  return dayKey(Math.min(...drinks.map((d) => d.time)));
+}
+
 export function waterByDay(drinks: Drink[]): Map<string, number> {
   const days = new Map<string, number>();
   for (const d of drinks) {
@@ -304,10 +310,10 @@ export function timeline(
 ) {
   const pain = headacheDays(data.episodes, now);
   const water = waterByDay(data.drinks);
-  const anyDrinks = data.drinks.length > 0;
+  const first = firstDrinkDay(data.drinks);
   return {
     headache: keys.map((k) => pain.get(k) ?? 0),
-    hydration: keys.map((k) => (water.has(k) ? water.get(k)! : anyDrinks ? 0 : null)),
+    hydration: keys.map((k) => (water.has(k) ? water.get(k)! : first !== null && k >= first ? 0 : null)),
     sleepHours: keys.map((k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / 3600000 : null)),
     pressure: keys.map((k) => data.weather.get(k)?.pressure ?? null),
     pressureDrop: keys.map((k) => data.weather.get(k)?.pressureDrop ?? null)

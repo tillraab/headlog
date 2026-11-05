@@ -1,5 +1,5 @@
 import { addDays, getHours, getMinutes } from 'date-fns';
-import { alcoholDays, caffeineByDay, waterByDay } from './analysis';
+import { alcoholDays, caffeineByDay, firstDrinkDay, waterByDay } from './analysis';
 import type { Drink, Night, WeatherDay } from './db';
 import { dayKey, lastDays } from './days';
 
@@ -62,13 +62,14 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   const weatherStatus: Status = !todayWeather && !tomorrowWeather ? 'unknown' : drop >= input.dropHpa ? 'bad' : 'ok';
 
   const water = waterByDay(input.drinks);
-  const anyDrinks = input.drinks.length > 0;
+  const first = firstDrinkDay(input.drinks);
   const todayMl = water.get(today) ?? 0;
-  const yesterdayMl = water.get(yesterday) ?? (anyDrinks ? 0 : null);
+  const yesterdayMl = water.get(yesterday) ?? (first !== null && yesterday >= first ? 0 : null);
   const expected = expectedByNow(input.goalMl, now);
   const behindToday = todayMl < expected * LOW_HYDRATION;
-  const lowYesterday = yesterdayMl !== null && yesterdayMl < input.goalMl * LOW_HYDRATION;
-  const hydrationStatus: Status = !anyDrinks ? 'unknown' : behindToday || lowYesterday ? 'bad' : 'ok';
+  // Yesterday only counts while today's goal is not reached yet.
+  const lowYesterday = todayMl < input.goalMl && yesterdayMl !== null && yesterdayMl < input.goalMl * LOW_HYDRATION;
+  const hydrationStatus: Status = first === null ? 'unknown' : behindToday || lowYesterday ? 'bad' : 'ok';
 
   const night = input.sleep.get(today);
   const recent = lastDays(now, 7).map((k) => input.sleep.get(k)).filter((n) => n !== undefined);

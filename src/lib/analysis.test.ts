@@ -254,6 +254,11 @@ describe('timeline and compareDays', () => {
     return d.toISOString().slice(0, 10);
   }
 
+  it('leaves hydration unknown before the first logged drink', () => {
+    const series = timeline({ ...data, drinks: data.drinks.slice(3) }, keys, now);
+    expect([series.hydration[0], series.hydration[3]]).toEqual([null, 2000]);
+  });
+
   it('gives one value per day with headache intensity and hydration', () => {
     const series = timeline(data, keys, now);
     expect([series.headache[2], series.headache[3], series.hydration[1]]).toEqual([6, 0, 1000]);

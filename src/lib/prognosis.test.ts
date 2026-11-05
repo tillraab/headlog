@@ -55,6 +55,21 @@ describe('prognosis', () => {
     expect([p.light, p.bad, p.hydration.status, p.alcohol.status]).toEqual(['red', 3, 'bad', 'bad']);
   });
 
+  it('does not count the day before the first logged drink as a dry day', () => {
+    const p = prognosis(input({ drinks: [drink('2026-03-10T09:00', 1200)] }), now);
+    expect([p.hydration.yesterday, p.hydration.status]).toEqual([null, 'ok']);
+  });
+
+  it("is fine once today's goal is reached, even after a dry day", () => {
+    const p = prognosis(input({ drinks: [drink('2026-03-09T12:00', 500), drink('2026-03-10T09:00', 3000)] }), now);
+    expect(p.hydration.status).toBe('ok');
+  });
+
+  it('still counts a dry yesterday while today is below the goal', () => {
+    const p = prognosis(input({ drinks: [drink('2026-03-09T12:00', 500), drink('2026-03-10T09:00', 1200)] }), now);
+    expect(p.hydration.status).toBe('bad');
+  });
+
   it('does not count unknown factors', () => {
     const p = prognosis(input({ sleep: new Map(), weather: new Map() }), now);
     expect([p.sleep.status, p.weather.status, p.light]).toEqual(['unknown', 'unknown', 'green']);
