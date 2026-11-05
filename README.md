@@ -71,6 +71,8 @@ bun run check    # type check
 bun run test     # unit tests
 ```
 
+Project layout, data model, notification and release rules for contributors (human or AI agent) are in [CLAUDE.md](CLAUDE.md). The app icon is drawn in [assets/icon.svg](assets/icon.svg); `bun run icons` renders the favicon and all Android icon sizes from it.
+
 Build the APK locally:
 
 ```bash

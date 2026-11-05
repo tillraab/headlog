@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test": "vitest --run"
+    "test": "vitest --run",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.6.0",
@@ -20,6 +21,7 @@
     "@tailwindcss/vite": "^4.3.4",
     "@types/node": "^26.6.6",
     "fake-indexeddb": "^6.2.7",
+    "playwright": "1.63",
     "svelte": "^5.57.3",
     "svelte-check": "^4.7.8",
     "tailwindcss": "^4.3.4",
