@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-05
+
 ### Fixed
 
 - The forecast showed hydration as unfavourable on the first day of tracking, because the day before counted as a day without drinking. Days before your first logged drink are now unknown, also in the Insights timeline and its average.
