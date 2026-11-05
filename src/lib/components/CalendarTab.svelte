@@ -6,6 +6,7 @@
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
+  import { intakeColor } from '$lib/db';
   import DaySheet from './DaySheet.svelte';
   import TimelineChart from './TimelineChart.svelte';
 
@@ -80,24 +81,29 @@
           onclick={() => open(key)}
         >
           {keyToDate(key).getDate()}
-          <span class="absolute bottom-1 flex gap-0.5">
-            {#if meds?.length}
+          {#if meds?.length}
+            <span class="absolute bottom-1.5 flex gap-0.5">
               {#each meds.slice(0, 3) as m (m.id)}
-                <span class="size-1.5 rounded-full bg-med ring-1 ring-surface"></span>
+                <span class="size-1.5 rounded-full ring-1 ring-surface" style:background-color={intakeColor(m, data.medications)}></span>
               {/each}
-            {/if}
-            {#if ml >= data.settings.waterGoalMl}
-              <span class="size-1.5 rounded-full bg-water ring-1 ring-surface"></span>
-            {/if}
-          </span>
+            </span>
+          {/if}
+          {#if ml >= data.settings.waterGoalMl}
+            <span class="absolute inset-x-2 bottom-0.5 h-0.5 rounded-full bg-water"></span>
+          {/if}
         </button>
       {/each}
     </div>
     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs text-muted">
       <span class="flex items-center gap-1.5"><span class="size-3 rounded bg-pain"></span>{t('cal.headache')}</span>
-      <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-med"></span>{t('cal.meds')}</span>
-      <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-water"></span>{t('cal.water')}</span>
+      <span class="flex items-center gap-1.5"><span class="h-0.5 w-3 rounded-full bg-water"></span>{t('cal.water')}</span>
+      {#each data.medications as med (med.id)}
+        <span class="flex items-center gap-1.5">
+          <span class="size-2 rounded-full" style:background-color={intakeColor({ medId: med.id, name: med.name, category: med.category }, data.medications)}></span>{med.name}
+        </span>
+      {/each}
     </div>
+    <p class="mt-1 px-1 text-xs text-muted">{t('cal.medsHint')}</p>
   </section>
 
   <section class="grid grid-cols-3 gap-2">

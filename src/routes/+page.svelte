@@ -131,7 +131,7 @@
         <div class="mx-auto max-w-lg px-4 pt-1">
           {#if data.ready}
             {#if tab.id === 'today'}<TodayTab onOpenTab={(id) => show(tabs.findIndex((x) => x.id === id))} />
-            {:else if tab.id === 'meds'}<MedsTab />
+            {:else if tab.id === 'meds'}<MedsTab onOpenTab={(id) => show(tabs.findIndex((x) => x.id === id))} />
             {:else if tab.id === 'calendar'}<CalendarTab />
             {:else}<InsightsTab />{/if}
           {/if}

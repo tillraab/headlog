@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- One calendar instead of two: the Calendar tab shows each medication as a dot in its colour (grey when it does not count for the 10/20 rule), the hydration goal as a blue line, and a legend of your medication. The day view says for each intake whether it counts. The 30-day grid in the Meds tab is replaced by a button to the calendar.
+
 ## [0.17.0] - 2026-11-05
 
 ### Added

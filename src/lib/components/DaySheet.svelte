@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fromPreset, hydrationMl } from '$lib/db';
+  import { ACUTE_CATEGORIES, fromPreset, hydrationMl, intakeColor } from '$lib/db';
   import { Droplets, Pill, Plus, Zap } from '@lucide/svelte';
   import { addDays, format, setHours } from 'date-fns';
   import { formatDuration, formatLiters, keyToDate } from '$lib/days';
@@ -89,7 +89,13 @@
     {#each intakes as intake (intake.id)}
       <button class="press flex items-center gap-3 rounded-2xl bg-med-soft p-3 text-left" onclick={() => edit({ kind: 'intake', item: intake })}>
         <span class="grid size-9 shrink-0 place-items-center rounded-full bg-med text-white"><Pill size={18} /></span>
-        <span class="flex-1 text-sm"><span class="font-semibold">{intake.name}</span> {intake.dose}</span>
+        <span class="flex flex-1 flex-col text-sm">
+          <span><span class="font-semibold">{intake.name}</span> {intake.dose}</span>
+          <span class="flex items-center gap-1.5 text-xs text-muted">
+            <span class="size-2 rounded-full" style:background-color={intakeColor(intake, data.medications)}></span>
+            {ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')}
+          </span>
+        </span>
         <span class="text-sm text-muted tabular">{format(intake.time, 'HH:mm')}</span>
       </button>
     {/each}
