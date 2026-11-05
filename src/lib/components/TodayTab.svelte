@@ -8,12 +8,22 @@
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
   import { celebrate, tap, toast } from '$lib/ui.svelte';
+  import { dayKey } from '$lib/days';
+  import { PRESSURE_DROP_HPA, tomorrowKey, weatherEmoji } from '$lib/weather';
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
 
   let { onOpenTab }: { onOpenTab: (tab: number) => void } = $props();
 
   const ongoing = $derived(ongoingEpisode());
+  const pressureWarning = $derived.by(() => {
+    if (!data.settings.weather.enabled) return null;
+    const today = data.weather.get(dayKey(clock.now));
+    const tomorrow = data.weather.get(tomorrowKey(clock.now));
+    if (today && today.pressureDrop >= PRESSURE_DROP_HPA) return { today: true, weather: today };
+    if (tomorrow && tomorrow.pressureDrop >= PRESSURE_DROP_HPA) return { today: false, weather: tomorrow };
+    return null;
+  });
   const dayStart = $derived(startOfDay(clock.now).getTime());
   const rule = $derived(tenTwenty(new Set(intakeDays(data.intakes).keys()), clock.now, data.settings.limit));
   const streak = $derived(periodStats(data, clock.now, 1).clearStreak);
@@ -122,6 +132,16 @@
         <span class="text-xs opacity-85">{t('today.startHint')}</span>
       </button>
       <button class="press text-sm font-medium text-muted underline underline-offset-4" onclick={earlier}>{t('today.startedEarlier')}</button>
+    </section>
+  {/if}
+
+  {#if pressureWarning}
+    <section class="card flex items-start gap-3 bg-water-soft p-4 text-sm">
+      <span class="text-2xl">{weatherEmoji(pressureWarning.weather.code)}</span>
+      <p>
+        {t(pressureWarning.today ? 'weather.dropToday' : 'weather.dropTomorrow', { n: Math.round(pressureWarning.weather.pressureDrop) })}
+        <span class="text-muted">{t('weather.dropTip')}</span>
+      </p>
     </section>
   {/if}
 

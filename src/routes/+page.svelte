@@ -14,7 +14,7 @@
   import VersionsSheet from '$lib/components/VersionsSheet.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
   import { i18n, t } from '$lib/i18n.svelte';
-  import { data, endEpisode, load, logDrinkFromPreset, ongoingEpisode, setRelief, startClock } from '$lib/store.svelte';
+  import { data, endEpisode, load, logDrinkFromPreset, ongoingEpisode, setRelief, startClock, updateWeather } from '$lib/store.svelte';
   import { applyDrinkCheckins, applyHeadacheChecks, applyReminders, onNotificationAction, planDrinkCheckins, planHeadacheChecks, planReminders } from '$lib/reminders';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
@@ -60,8 +60,13 @@
     void load().then(() => {
       applyTheme(data.settings.theme);
       syncQuietly();
+      void updateWeather().catch(() => {});
     });
-    const onHide = () => (document.visibilityState === 'hidden' ? syncQuietly() : reschedule());
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') return syncQuietly();
+      reschedule();
+      void updateWeather().catch(() => {});
+    };
     document.addEventListener('visibilitychange', onHide);
     const stopClock = startClock();
     const stopRelief = onNotificationAction({
