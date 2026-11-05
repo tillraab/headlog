@@ -12,8 +12,8 @@
   import VersionsSheet from '$lib/components/VersionsSheet.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
   import { i18n, t } from '$lib/i18n.svelte';
-  import { data, endEpisode, load, ongoingEpisode, setRelief, startClock } from '$lib/store.svelte';
-  import { applyHeadacheChecks, applyReminders, onNotificationAction, planHeadacheChecks, planReminders } from '$lib/reminders';
+  import { data, endEpisode, load, logDrinkFromPreset, ongoingEpisode, setRelief, startClock } from '$lib/store.svelte';
+  import { applyDrinkCheckins, applyHeadacheChecks, applyReminders, onNotificationAction, planDrinkCheckins, planHeadacheChecks, planReminders } from '$lib/reminders';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
 
@@ -46,6 +46,9 @@
     const todayMl = data.drinks.filter((d) => d.time >= start).reduce((s, d) => s + d.ml, 0);
     void applyReminders(planReminders(now, data.settings.reminders, data.settings.waterGoalMl, todayMl)).catch(() => {});
     void applyHeadacheChecks(planHeadacheChecks(ongoingEpisode(), now, data.settings.headacheCheckHours)).catch(() => {});
+    const lastDrink = data.drinks.length ? data.drinks[data.drinks.length - 1].time : null;
+    const checkins = planDrinkCheckins(now, data.settings.drinkCheckins, data.settings.waterGoalMl, todayMl, lastDrink);
+    void applyDrinkCheckins(checkins, $state.snapshot(data.drinkPresets)).catch(() => {});
   }
 
   $effect(reschedule);
@@ -61,7 +64,8 @@
     const stopClock = startClock();
     const stopRelief = onNotificationAction({
       relief: (id, relief) => void setRelief(id, relief),
-      headacheGone: (id) => void endEpisode(id)
+      headacheGone: (id) => void endEpisode(id),
+      drink: (id) => void logDrinkFromPreset(id)
     });
     const media = matchMedia('(prefers-color-scheme: dark)');
     const onScheme = () => applyTheme(data.settings.theme);

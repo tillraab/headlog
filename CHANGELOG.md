@@ -2,9 +2,22 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-05
+
 ### Added
 
 - Restore an earlier state of the Gist backup: every backup is kept as a version, listed by day and time, with a preview of what it contains.
+- Drink check-ins at times you choose ("What did you drink?"), with your first three drinks as buttons in the notification to log one without opening the app. Skipped when you logged a drink in the hour before.
+
+### Changed
+
+- Today shows hydration above medication.
+- "Water" is now called "Hydration" (German "Trinken"), since coffee and tea count too.
+- Switching the language also renames the default drinks (Glass, Bottle, Coffee, Tea) unless you renamed them yourself.
+
+### Fixed
+
+- Switching on hydration reminders or check-ins could silently fail to save on Android while the switch looked on.
 
 ## [0.5.0] - 2026-11-05
 

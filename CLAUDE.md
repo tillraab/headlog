@@ -24,7 +24,7 @@ Run `bun run check` and `bun run test` before every commit.
 - `src/lib/store.svelte.ts`: all data in one `$state` object. Every write goes to Dexie and then calls `load()`, which reloads everything. `Settings` lives here with its defaults.
 - `src/lib/analysis.ts`: pure functions for headache days, medication days, the 10/20 rule, personal limits, rolling counts, monthly counts, period stats. Well tested; put new statistics here, not in components.
 - `src/lib/report.ts`: doctor PDF (jsPDF + jspdf-autotable).
-- `src/lib/reminders.ts`: local notifications. Water reminders, "did it help?" one hour after an intake, "still a headache?" every N hours.
+- `src/lib/reminders.ts`: local notifications. Hydration reminders when behind the goal, drink check-ins at fixed times with drink buttons, "did it help?" after an intake, "still a headache?" every N hours.
 - `src/lib/backup.ts`: JSON backup and restore, CSV export, `saveFile` (Android share sheet or browser download).
 - `src/lib/gist.ts`, `sync.svelte.ts`: optional backup to a secret GitHub Gist.
 - `src/lib/i18n.svelte.ts`: English and German strings, `t()`, date formatting `fmt()`, tag labels.
@@ -55,11 +55,12 @@ Run `bun run check` and `bun run test` before every commit.
 
 ### Notifications
 
-- Fixed id ranges: water 100–113, "still a headache?" 200–211, "did it help?" 100000 + intake id. Keep new kinds out of these ranges.
+- Fixed id ranges: water 100–113, "still a headache?" 200–211, drink check-ins 300–355, "did it help?" 100000 + intake id. Keep new kinds out of these ranges.
 - Every scheduling call goes through `serial()` in `reminders.ts`. Without it, an older plan can finish after a newer one and leave stale notifications.
 - Rescheduling is declarative: `+page.svelte` recomputes the plans whenever data or settings change and on return to the app. Add new reminder kinds the same way (pure `plan…` function with tests, `apply…` that cancels its id range and schedules).
 - The manifest declares `USE_EXACT_ALARM`, which Android grants on install for apps outside Google Play. Without it, the plugin opens the "Alarms & reminders" settings screen on its own, or falls back to alarms up to 45 minutes late.
-- Notification buttons launch the app; the plugin keeps the event until the listener in `+page.svelte` is registered.
+- Notification buttons launch the app; the plugin keeps the event until the listener in `+page.svelte` is registered. All button sets are registered together in `registerActions()`, because registering replaces the whole set.
+- `saveSettings` snapshots the merged object. Never write `$state` proxies (e.g. an array taken from `data.settings`) to IndexedDB: the Android WebView refuses them, fake-indexeddb in the tests does not, so only the device shows the failure.
 
 ### UI
 

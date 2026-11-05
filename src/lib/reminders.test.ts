@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planHeadacheChecks, planReminders } from './reminders';
+import { planDrinkCheckins, planHeadacheChecks, planReminders } from './reminders';
 
 const at = (s: string) => new Date(s).getTime();
 const on = { enabled: true, noon: 12, evening: 18 };
@@ -53,5 +53,38 @@ describe('planHeadacheChecks', () => {
   it('plans 12 checks for the episode', () => {
     const plan = planHeadacheChecks(ongoing, at('2026-03-02T09:00'), 2);
     expect([plan.length, plan.every((r) => r.episodeId === 7)]).toEqual([12, true]);
+  });
+});
+
+describe('planDrinkCheckins', () => {
+  const on = { enabled: true, times: ['16:00', '10:00'] };
+
+  it('plans nothing when switched off', () => {
+    expect(planDrinkCheckins(at('2026-03-02T08:00'), { ...on, enabled: false }, 2000, 0, null)).toEqual([]);
+  });
+
+  it('plans every time for each of the next 7 days, in order', () => {
+    const plan = planDrinkCheckins(at('2026-03-02T08:00'), on, 2000, 0, null);
+    expect([plan.length, new Date(plan[0].at).getHours(), new Date(plan[1].at).getHours()]).toEqual([14, 10, 16]);
+  });
+
+  it('skips a check-in within an hour after the last drink', () => {
+    const plan = planDrinkCheckins(at('2026-03-02T09:30'), on, 2000, 250, at('2026-03-02T09:20'));
+    expect(new Date(plan[0].at).getHours()).toBe(16);
+  });
+
+  it('keeps a check-in more than an hour after the last drink', () => {
+    const plan = planDrinkCheckins(at('2026-03-02T08:30'), on, 2000, 250, at('2026-03-02T08:30'));
+    expect(new Date(plan[0].at).getHours()).toBe(10);
+  });
+
+  it('ignores a drink logged after the check-in time', () => {
+    const plan = planDrinkCheckins(at('2026-03-02T08:00'), on, 2000, 0, at('2026-03-02T20:00'));
+    expect(plan).toHaveLength(14);
+  });
+
+  it('gives every check-in its own id', () => {
+    const ids = planDrinkCheckins(at('2026-03-02T08:00'), { enabled: true, times: ['08:30', '09:00', '12:00', '18:00'] }, 2000, 0, null).map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

@@ -95,7 +95,7 @@ export const DEFAULT_MEDICATIONS: Omit<Medication, 'id'>[] = [
   { name: 'Sumatriptan', dose: '50 mg', category: 'triptan', color: MED_COLORS[2], order: 2 }
 ];
 
-const DRINK_NAMES = { en: ['Glass', 'Bottle', 'Coffee', 'Tea'], de: ['Glas', 'Flasche', 'Kaffee', 'Tee'] };
+export const DRINK_NAMES = { en: ['Glass', 'Bottle', 'Coffee', 'Tea'], de: ['Glas', 'Flasche', 'Kaffee', 'Tee'] };
 
 export function defaultDrinkPresets(lang: 'en' | 'de'): Omit<DrinkPreset, 'id'>[] {
   const [glass, bottle, coffee, tea] = DRINK_NAMES[lang];

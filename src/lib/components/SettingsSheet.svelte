@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2 } from '@lucide/svelte';
+  import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2, X } from '@lucide/svelte';
   import { addMonths, startOfMonth } from 'date-fns';
   import { createBackup, createCsv, isBackup, restoreBackup, saveFile, wipe } from '$lib/backup';
   import { MED_COLORS, type DrinkPreset, type MedCategory, type Medication } from '$lib/db';
   import { loadDemo } from '$lib/demo';
   import { fmt, i18n, setLang, t, type Lang } from '$lib/i18n.svelte';
-  import { data, deleteDrinkPreset, deleteMedication, load, saveDrinkPreset, saveMedication, saveSettings, swapOrder } from '$lib/store.svelte';
-  import { requestReminderPermission } from '$lib/reminders';
+  import { data, deleteDrinkPreset, deleteMedication, load, saveDrinkPreset, saveMedication, saveSettings, swapOrder, translateDrinkNames } from '$lib/store.svelte';
+  import { MAX_CHECKIN_TIMES, requestReminderPermission } from '$lib/reminders';
   import { doctorReport } from '$lib/report';
   import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
   import { applyTheme, openSheet, toast, type Theme } from '$lib/ui.svelte';
@@ -114,11 +114,28 @@
     return updateMed(med, n > 0 ? { limitDays: Math.min(n, m), limitWindow: m } : { limitDays: undefined, limitWindow: undefined });
   }
 
-  async function toggleReminders(enabled: boolean) {
-    if (enabled && !(await requestReminderPermission())) {
-      toast(t('rem.denied'));
-      enabled = false;
-    }
+  let newCheckin = $state('');
+
+  async function toggleCheckins(input: HTMLInputElement) {
+    const enabled = await allowed(input);
+    await saveSettings({ drinkCheckins: { ...data.settings.drinkCheckins, enabled } });
+  }
+
+  /** Whether a reminder switch may turn on. Turns the switch back off when notifications are not allowed. */
+  async function allowed(input: HTMLInputElement): Promise<boolean> {
+    if (!input.checked || (await requestReminderPermission())) return input.checked;
+    toast(t('rem.denied'));
+    input.checked = false;
+    return false;
+  }
+
+  async function setCheckinTimes(times: string[]) {
+    const unique = [...new Set(times)].sort().slice(0, MAX_CHECKIN_TIMES);
+    await saveSettings({ drinkCheckins: { ...data.settings.drinkCheckins, times: unique } });
+  }
+
+  async function toggleReminders(input: HTMLInputElement) {
+    const enabled = await allowed(input);
     await saveSettings({ reminders: { ...data.settings.reminders, enabled } });
   }
 
@@ -160,6 +177,11 @@
       await load();
       toast(t('set.imported'));
     });
+  }
+
+  async function changeLang(lang: Lang) {
+    setLang(lang);
+    await translateDrinkNames(lang);
   }
 
   async function setTheme(theme: Theme) {
@@ -333,7 +355,7 @@
       {t('set.language')}
       <div class="flex rounded-full bg-surface-2 p-1 text-sm">
         {#each [['de', 'Deutsch'], ['en', 'English']] as [code, name] (code)}
-          <button class="press rounded-full px-3 py-1 {i18n.lang === code ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => setLang(code as Lang)}>{name}</button>
+          <button class="press rounded-full px-3 py-1 {i18n.lang === code ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => changeLang(code as Lang)}>{name}</button>
         {/each}
       </div>
     </div>
@@ -366,12 +388,55 @@
       </select>
     </label>
     <label class="flex items-center justify-between gap-4 text-body">
+      {t('rem.checkinSetting')}
+      <input
+        type="checkbox"
+        class="size-6 shrink-0 accent-primary"
+        checked={data.settings.drinkCheckins.enabled}
+        onchange={(e) => toggleCheckins(e.currentTarget)}
+      />
+    </label>
+    {#if data.settings.drinkCheckins.enabled}
+      <div class="-mt-2 flex flex-col gap-2">
+        <div class="flex flex-wrap gap-2">
+          {#each data.settings.drinkCheckins.times as time (time)}
+            <span class="flex items-center gap-1 rounded-full bg-water-soft py-1 pr-1 pl-3 text-sm font-medium tabular">
+              {time}
+              <button
+                class="press grid size-6 place-items-center rounded-full"
+                onclick={() => setCheckinTimes(data.settings.drinkCheckins.times.filter((x) => x !== time))}
+                aria-label={t('edit.delete')}
+              >
+                <X size={14} />
+              </button>
+            </span>
+          {/each}
+          {#if data.settings.drinkCheckins.times.length < MAX_CHECKIN_TIMES}
+            <label class="flex items-center gap-1 rounded-full bg-surface-2 py-1 pr-1 pl-3 text-sm font-medium">
+              <Plus size={14} />
+              <input
+                type="time"
+                class="w-24 bg-transparent p-0 text-sm"
+                aria-label={t('rem.checkinAdd')}
+                bind:value={newCheckin}
+                onchange={() => {
+                  if (newCheckin) void setCheckinTimes([...data.settings.drinkCheckins.times, newCheckin]);
+                  newCheckin = '';
+                }}
+              />
+            </label>
+          {/if}
+        </div>
+        <p class="text-xs text-muted">{t('rem.checkinHint')}</p>
+      </div>
+    {/if}
+    <label class="flex items-center justify-between gap-4 text-body">
       {t('rem.enabled')}
       <input
         type="checkbox"
         class="size-6 accent-primary"
         checked={data.settings.reminders.enabled}
-        onchange={(e) => toggleReminders(e.currentTarget.checked)}
+        onchange={(e) => toggleReminders(e.currentTarget)}
       />
     </label>
     <p class="-mt-2 text-xs text-muted">{t('rem.hint')}</p>

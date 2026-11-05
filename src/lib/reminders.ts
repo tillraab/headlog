@@ -74,6 +74,10 @@ export async function requestReminderPermission(): Promise<boolean> {
 
 const RELIEF_TYPE = 'relief';
 const HEADACHE_TYPE = 'headache';
+const DRINK_TYPE = 'drink';
+
+/** Drink buttons on check-in notifications: the first three drinks of the list. */
+let drinkButtons: { id: number; label: string }[] = [];
 
 /** Buttons shown on notifications. Registered again before scheduling so the labels follow the language. */
 async function registerActions() {
@@ -93,7 +97,8 @@ async function registerActions() {
           { id: 'headache-still', title: t('rem.headacheStill') },
           { id: 'headache-gone', title: t('rem.headacheGone') }
         ]
-      }
+      },
+      { id: DRINK_TYPE, actions: drinkButtons.map((b) => ({ id: `drink-${b.id}`, title: b.label })) }
     ]
   });
 }
@@ -129,6 +134,7 @@ export async function cancelReliefCheck(intakeId: number) {
 export interface NotificationAnswers {
   relief: (intakeId: number, relief: number) => void;
   headacheGone: (episodeId: number) => void;
+  drink: (presetId: number) => void;
 }
 
 /** Handles taps on notification buttons. */
@@ -139,6 +145,8 @@ export function onNotificationAction(answers: NotificationAnswers) {
     const relief = /^relief-(\d)$/.exec(actionId);
     if (relief && extra?.intakeId !== undefined) answers.relief(extra.intakeId, Number(relief[1]));
     if (actionId === 'headache-gone' && extra?.episodeId !== undefined) answers.headacheGone(extra.episodeId);
+    const drink = /^drink-(\d+)$/.exec(actionId);
+    if (drink) answers.drink(Number(drink[1]));
   });
   return () => void handle.then((h) => h.remove());
 }
@@ -182,6 +190,69 @@ export function applyHeadacheChecks(plan: (PlannedReminder & { episodeId: number
         actionTypeId: HEADACHE_TYPE,
         autoCancel: true,
         extra: { episodeId: r.episodeId },
+        schedule: { at: new Date(r.at), allowWhileIdle: true }
+      }))
+    });
+  });
+}
+
+export interface DrinkCheckinSettings {
+  enabled: boolean;
+  /** Times of day as `HH:mm`. */
+  times: string[];
+}
+
+const CHECKIN_FIRST_ID = 300;
+export const MAX_CHECKIN_TIMES = 8;
+/** A check-in is skipped when a drink was logged this many minutes before it. */
+export const CHECKIN_QUIET_MINUTES = 60;
+
+/** "What did you drink?" at the chosen times for the next 7 days. */
+export function planDrinkCheckins(
+  now: number,
+  settings: DrinkCheckinSettings,
+  goalMl: number,
+  todayMl: number,
+  lastDrink: number | null
+): PlannedReminder[] {
+  if (!settings.enabled) return [];
+  const times = [...settings.times].sort().slice(0, MAX_CHECKIN_TIMES);
+  const plan: PlannedReminder[] = [];
+  for (let d = 0; d < DAYS; d++) {
+    const day = addDays(startOfDay(now), d);
+    times.forEach((time, i) => {
+      const [h, m] = time.split(':').map(Number);
+      const at = day.getTime() + (h * 60 + m) * 60000;
+      if (at <= now) return;
+      if (lastDrink !== null && lastDrink <= at && at - lastDrink < CHECKIN_QUIET_MINUTES * 60000) return;
+      const ml = d === 0 ? todayMl : 0;
+      plan.push({
+        id: CHECKIN_FIRST_ID + d * MAX_CHECKIN_TIMES + i,
+        at,
+        title: t('rem.checkinTitle'),
+        body: t('rem.checkinBody', { ml: formatLiters(ml), goal: formatLiters(goalMl) })
+      });
+    });
+  }
+  return plan;
+}
+
+/** Replaces the pending check-ins with the plan, with buttons for the first three drinks. */
+export function applyDrinkCheckins(plan: PlannedReminder[], presets: { id: number; name: string; emoji: string }[]) {
+  return serial(async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    const ids = Array.from({ length: DAYS * MAX_CHECKIN_TIMES }, (_, i) => ({ id: CHECKIN_FIRST_ID + i }));
+    await LocalNotifications.cancel({ notifications: ids });
+    if (!plan.length || !(await requestReminderPermission())) return;
+    drinkButtons = presets.slice(0, 3).map((p) => ({ id: p.id, label: `${p.emoji} ${p.name}` }));
+    await registerActions();
+    await LocalNotifications.schedule({
+      notifications: plan.map((r) => ({
+        id: r.id,
+        title: r.title,
+        body: r.body,
+        actionTypeId: DRINK_TYPE,
+        autoCancel: true,
         schedule: { at: new Date(r.at), allowWhileIdle: true }
       }))
     });

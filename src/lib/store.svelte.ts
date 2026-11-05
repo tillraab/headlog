@@ -1,6 +1,6 @@
-import { db, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication } from './db';
+import { db, DRINK_NAMES, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication } from './db';
 import { i18n } from './i18n.svelte';
-import { cancelReliefCheck, scheduleReliefCheck } from './reminders';
+import { cancelReliefCheck, scheduleReliefCheck, type DrinkCheckinSettings } from './reminders';
 import type { Theme } from './ui.svelte';
 
 export interface Settings {
@@ -15,6 +15,8 @@ export interface Settings {
   reliefCheckMinutes: number;
   /** Hours between "still a headache?" notifications, 0 for off. */
   headacheCheckHours: number;
+  /** "What did you drink?" notifications at fixed times. */
+  drinkCheckins: DrinkCheckinSettings;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -24,7 +26,8 @@ const DEFAULT_SETTINGS: Settings = {
   reportName: '',
   reminders: { enabled: false, noon: 12, evening: 18 },
   reliefCheckMinutes: 60,
-  headacheCheckHours: 3
+  headacheCheckHours: 3,
+  drinkCheckins: { enabled: false, times: ['10:00', '13:00', '16:00', '19:00'] }
 };
 
 /** All data in memory. A diary stays small, so every write reloads everything. */
@@ -125,6 +128,12 @@ export async function logDrink(preset: DrinkPreset, time = Date.now()): Promise<
   return id;
 }
 
+/** Logs a drink by its button id, from a notification. */
+export async function logDrinkFromPreset(presetId: number) {
+  const preset = await db.drinkPresets.get(presetId);
+  if (preset) await logDrink(preset);
+}
+
 type Table = 'episodes' | 'intakes' | 'drinks';
 
 /** Deletes a row and returns a function that restores it. */
@@ -172,6 +181,18 @@ export async function deleteDrinkPreset(id: number) {
   await load();
 }
 
+/** Renames the default drinks into `lang`. Names the user chose stay as they are. */
+export async function translateDrinkNames(lang: 'en' | 'de') {
+  const lists = Object.values(DRINK_NAMES);
+  await db.transaction('rw', db.drinkPresets, async () => {
+    for (const preset of await db.drinkPresets.toArray()) {
+      const index = lists.map((names) => names.indexOf(preset.name)).find((i) => i >= 0);
+      if (index !== undefined && DRINK_NAMES[lang][index] !== preset.name) await db.drinkPresets.update(preset.id, { name: DRINK_NAMES[lang][index] });
+    }
+  });
+  await load();
+}
+
 /** Swaps the order of two list entries. */
 export async function swapOrder(table: 'medications' | 'drinkPresets', a: { id: number; order: number }, b: { id: number; order: number }) {
   await db.transaction('rw', db[table], async () => {
@@ -182,7 +203,7 @@ export async function swapOrder(table: 'medications' | 'drinkPresets', a: { id: 
 }
 
 export async function saveSettings(patch: Partial<Settings>) {
-  const settings = { ...$state.snapshot(data.settings), ...patch };
+  const settings = $state.snapshot({ ...data.settings, ...patch });
   await db.settings.put({ key: 'settings', value: settings });
   await load();
 }

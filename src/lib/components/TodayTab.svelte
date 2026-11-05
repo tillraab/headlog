@@ -135,6 +135,35 @@
 
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-center justify-between">
+      <h2 class="flex items-center gap-2 font-semibold"><Droplets size={18} class="text-water" /> {t('today.water')}</h2>
+      <p class="text-sm tabular">
+        <span class="font-semibold">{formatLiters(waterMl)}</span>
+        <span class="text-muted">{waterPct >= 1 ? `· ${t('today.goalReached')} 🎉` : t('today.goal', { goal: formatLiters(data.settings.waterGoalMl) })}</span>
+      </p>
+    </div>
+    <div class="h-3 overflow-hidden rounded-full bg-water-soft">
+      <div class="h-full rounded-full bg-water transition-[width] duration-500" style:width="{waterPct * 100}%"></div>
+    </div>
+    <div class="grid grid-cols-4 gap-2">
+      {#each presets as preset (preset.id)}
+        <button
+          class="press flex flex-col items-center gap-0.5 rounded-2xl bg-surface-2 py-2.5"
+          onclick={async () => {
+            tap();
+            const id = await logDrink(preset);
+            toast(t('toast.drink', { ml: preset.ml }) + ` ${preset.emoji}`, undoFor('drinks', id));
+          }}
+        >
+          <span class="text-2xl leading-none">{preset.emoji}</span>
+          <span class="max-w-full truncate px-1 text-xs font-medium">{preset.name}</span>
+          <span class="text-2xs text-muted tabular">{preset.ml} ml</span>
+        </button>
+      {/each}
+    </div>
+  </section>
+
+  <section class="card flex flex-col gap-3 p-4">
+    <div class="flex items-center justify-between">
       <h2 class="flex items-center gap-2 font-semibold"><Pill size={18} class="text-med" /> {t('today.meds')}</h2>
       <button class="press" onclick={() => onOpenTab(2)}><RuleBadge {rule} /></button>
     </div>
@@ -176,35 +205,6 @@
     {:else}
       <p class="text-sm text-muted">{t('today.noMeds')}</p>
     {/if}
-  </section>
-
-  <section class="card flex flex-col gap-3 p-4">
-    <div class="flex items-center justify-between">
-      <h2 class="flex items-center gap-2 font-semibold"><Droplets size={18} class="text-water" /> {t('today.water')}</h2>
-      <p class="text-sm tabular">
-        <span class="font-semibold">{formatLiters(waterMl)}</span>
-        <span class="text-muted">{waterPct >= 1 ? `· ${t('today.goalReached')} 🎉` : t('today.goal', { goal: formatLiters(data.settings.waterGoalMl) })}</span>
-      </p>
-    </div>
-    <div class="h-3 overflow-hidden rounded-full bg-water-soft">
-      <div class="h-full rounded-full bg-water transition-[width] duration-500" style:width="{waterPct * 100}%"></div>
-    </div>
-    <div class="grid grid-cols-4 gap-2">
-      {#each presets as preset (preset.id)}
-        <button
-          class="press flex flex-col items-center gap-0.5 rounded-2xl bg-surface-2 py-2.5"
-          onclick={async () => {
-            tap();
-            const id = await logDrink(preset);
-            toast(t('toast.drink', { ml: preset.ml }) + ` ${preset.emoji}`, undoFor('drinks', id));
-          }}
-        >
-          <span class="text-2xl leading-none">{preset.emoji}</span>
-          <span class="max-w-full truncate px-1 text-xs font-medium">{preset.name}</span>
-          <span class="text-2xs text-muted tabular">{preset.ml} ml</span>
-        </button>
-      {/each}
-    </div>
   </section>
 
   <section class="card p-2">
