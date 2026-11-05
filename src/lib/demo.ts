@@ -1,5 +1,5 @@
 import { addDays, addMinutes, startOfDay } from 'date-fns';
-import { db, seed, type Drink, type Episode, type Intake, type HeadLogDb } from './db';
+import { db, fromPreset, seed, type Drink, type Episode, type Intake, type HeadLogDb } from './db';
 import { wipe } from './backup';
 
 /** Seeded pseudo-random numbers, so the demo looks the same each time. */
@@ -30,7 +30,7 @@ export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lan
     for (let g = 0; g < glasses; g++) {
       const p = presets[Math.floor(rnd() * presets.length)];
       const time = addMinutes(day, 7 * 60 + Math.floor(rnd() * 14 * 60)).getTime();
-      if (time <= today) drinks.push({ time, presetId: p.id, name: p.name, emoji: p.emoji, ml: p.ml });
+      if (time <= today) drinks.push({ time, ...fromPreset(p) });
     }
     if (i === 0 || rnd() > (lowWater ? 0.45 : 0.18)) continue;
     const start = addMinutes(day, 8 * 60 + Math.floor(rnd() * 12 * 60)).getTime();

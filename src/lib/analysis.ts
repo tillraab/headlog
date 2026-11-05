@@ -1,5 +1,5 @@
 import { addDays, endOfMonth, getDay, getHours, startOfMonth } from 'date-fns';
-import { ACUTE_CATEGORIES, type Drink, type Episode, type Intake, type MedCategory, type Medication } from './db';
+import { ACUTE_CATEGORIES, hydrationMl, type Drink, type Episode, type Intake, type MedCategory, type Medication } from './db';
 import { dayKey, dayRange, keyToDate, lastDays } from './days';
 
 /** Peak intensity per day touched by a headache. Ongoing episodes run until `now`. */
@@ -30,9 +30,25 @@ export function waterByDay(drinks: Drink[]): Map<string, number> {
   const days = new Map<string, number>();
   for (const d of drinks) {
     const key = dayKey(d.time);
-    days.set(key, (days.get(key) ?? 0) + d.ml);
+    days.set(key, (days.get(key) ?? 0) + hydrationMl(d));
   }
   return days;
+}
+
+/** Caffeine in mg per day, for days with any caffeinated drink. */
+export function caffeineByDay(drinks: Drink[]): Map<string, number> {
+  const days = new Map<string, number>();
+  for (const d of drinks) {
+    if (!d.caffeineMg) continue;
+    const key = dayKey(d.time);
+    days.set(key, (days.get(key) ?? 0) + d.caffeineMg);
+  }
+  return days;
+}
+
+/** Days with at least one alcoholic drink. */
+export function alcoholDays(drinks: Drink[]): Set<string> {
+  return new Set(drinks.filter((d) => d.alcohol).map((d) => dayKey(d.time)));
 }
 
 export interface Streak {

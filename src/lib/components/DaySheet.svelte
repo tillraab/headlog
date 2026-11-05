@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fromPreset, hydrationMl } from '$lib/db';
   import { Droplets, Pill, Plus, Zap } from '@lucide/svelte';
   import { addDays, format, setHours } from 'date-fns';
   import { formatDuration, formatLiters, keyToDate } from '$lib/days';
@@ -14,7 +15,7 @@
   const episodes = $derived(data.episodes.filter((e) => e.start < to && (e.end ?? clock.now) >= from));
   const intakes = $derived(data.intakes.filter((i) => i.time >= from && i.time < to));
   const drinks = $derived(data.drinks.filter((d) => d.time >= from && d.time < to));
-  const water = $derived(drinks.reduce((s, d) => s + d.ml, 0));
+  const water = $derived(drinks.reduce((s, d) => s + hydrationMl(d), 0));
   const noon = $derived(Math.min(setHours(keyToDate(day), 12).getTime(), clock.now));
 
   function addMed() {
@@ -26,7 +27,7 @@
   function addDrink() {
     const p = data.drinkPresets[0];
     if (!p) return;
-    edit({ kind: 'drink', item: { time: noon, presetId: p.id, name: p.name, emoji: p.emoji, ml: p.ml } });
+    edit({ kind: 'drink', item: { time: noon, ...fromPreset(p) } });
   }
 </script>
 

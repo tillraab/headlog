@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { headacheDays, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty } from './analysis';
+import { alcoholDays, caffeineByDay, headacheDays, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty, waterByDay } from './analysis';
 import type { Drink, Episode, Intake, MedCategory, Medication } from './db';
 import { lastDays } from './days';
 
@@ -199,5 +199,22 @@ describe('hydrationStreak', () => {
   it('remembers the best streak', () => {
     const drinks = ['01', '02', '03', '04', '08'].map((d) => glass(`2026-03-${d}T10:00`));
     expect(hydrationStreak(drinks, 2000, today).best).toBe(4);
+  });
+});
+
+describe('caffeine and alcohol', () => {
+  const coffee = { ...drink('2026-03-02T08:00', 200), caffeineMg: 80 };
+  const wine = { ...drink('2026-03-02T20:00', 150), alcohol: true };
+
+  it('leaves alcoholic drinks out of hydration', () => {
+    expect(waterByDay([coffee, wine]).get('2026-03-02')).toBe(200);
+  });
+
+  it('adds up caffeine per day', () => {
+    expect(caffeineByDay([coffee, { ...coffee, time: at('2026-03-02T14:00') }]).get('2026-03-02')).toBe(160);
+  });
+
+  it('lists the days with alcohol', () => {
+    expect([...alcoholDays([coffee, wine])]).toEqual(['2026-03-02']);
   });
 });

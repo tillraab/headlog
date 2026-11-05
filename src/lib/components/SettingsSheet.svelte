@@ -12,7 +12,7 @@
   import Sheet from './Sheet.svelte';
 
   const CATEGORIES: MedCategory[] = ['analgesic', 'triptan', 'combination', 'opioid', 'preventive', 'other'];
-  const EMOJIS = ['🥛', '🍶', '💧', '☕', '🍵', '🧃', '🥤', '🫖', '🍺', '🧋'];
+  const EMOJIS = ['🥛', '🍶', '💧', '☕', '🍵', '🧃', '🥤', '🫖', '🧋', '⚡', '🍺', '🍷', '🥂', '🍹'];
 
   let openMed = $state<number | null>(null);
   let openDrink = $state<number | null>(null);
@@ -287,7 +287,14 @@
         <div class="flex items-center gap-2 py-1 pl-3">
           <button class="press flex flex-1 items-center gap-3 py-2 text-left" onclick={() => (openDrink = openDrink === preset.id ? null : preset.id)}>
             <span class="text-2xl">{preset.emoji}</span>
-            <span class="text-body font-medium">{preset.name} <span class="text-muted tabular">{preset.ml} ml</span></span>
+            <span class="flex flex-col">
+              <span class="text-body font-medium">{preset.name} <span class="text-muted tabular">{preset.ml} ml</span></span>
+              {#if preset.caffeineMg || preset.alcohol}
+                <span class="text-xs text-muted">
+                  {[preset.caffeineMg ? t('drink.caffeineShort', { mg: preset.caffeineMg }) : '', preset.alcohol ? t('drink.alcohol') : ''].filter(Boolean).join(' · ')}
+                </span>
+              {/if}
+            </span>
           </button>
           {@render orderButtons(data.drinkPresets, i, 'drinkPresets')}
         </div>
@@ -301,6 +308,29 @@
               ml
               <input class="bg-surface" type="number" inputmode="numeric" min="10" step="50" value={preset.ml} onchange={(e) => updateDrink(preset, { ml: Math.max(10, Number(e.currentTarget.value) || preset.ml) })} />
             </label>
+            <label class="flex flex-col gap-1 text-xs text-muted">
+              {t('drink.caffeine')}
+              <input
+                class="bg-surface"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                step="10"
+                placeholder="0"
+                value={preset.caffeineMg ?? ''}
+                onchange={(e) => updateDrink(preset, { caffeineMg: Math.max(0, Math.round(Number(e.currentTarget.value))) || undefined })}
+              />
+            </label>
+            <label class="flex items-end gap-2 pb-2.5 text-sm">
+              <input
+                type="checkbox"
+                class="size-5 accent-primary"
+                checked={preset.alcohol ?? false}
+                onchange={(e) => updateDrink(preset, { alcohol: e.currentTarget.checked || undefined })}
+              />
+              {t('drink.alcohol')}
+            </label>
+            {#if preset.alcohol}<p class="col-span-2 -mt-1 text-xs text-muted">{t('drink.alcoholHint')}</p>{/if}
             <div class="col-span-2 flex flex-wrap items-center gap-1">
               {#each EMOJIS as emoji (emoji)}
                 <button class="press grid size-9 place-items-center rounded-full text-xl {preset.emoji === emoji ? 'bg-surface' : ''}" onclick={() => updateDrink(preset, { emoji })}>
