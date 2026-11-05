@@ -1,13 +1,14 @@
 <script lang="ts">
+  let { onOpenTab }: { onOpenTab: (tab: 'calendar') => void } = $props();
+
   import { Info, Pencil } from '@lucide/svelte';
   import { edit } from '$lib/editor.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import TimelineChart from './TimelineChart.svelte';
   import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, monthlyLimitedDays, MULTIPLE_CLASSES_LIMIT, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
-  import { format, getDay } from 'date-fns';
-  import { ACUTE_CATEGORIES, type MedCategory } from '$lib/db';
+  import type { MedCategory } from '$lib/db';
   import { dayKey, keyToDate } from '$lib/days';
-  import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
+  import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
 
   const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
@@ -23,17 +24,6 @@
     if (rows.length > 1) rows.push({ label: t('overuse.multiple'), days: monthlyLimitedDays(data.intakes, new Date(clock.now)), limit: MULTIPLE_CLASSES_LIMIT });
     return rows;
   });
-  /** Intakes per day of the 30-day window, and the grid's empty cells before the first day. */
-  const intakesOn = $derived.by(() => {
-    const map = new Map<string, typeof data.intakes>();
-    for (const i of data.intakes) {
-      const key = dayKey(i.time);
-      map.set(key, [...(map.get(key) ?? []), i]);
-    }
-    return map;
-  });
-  const gridOffset = $derived((getDay(keyToDate(rule.days[0].key)) + 6) % 7);
-  let selectedDay = $state<string | null>(null);
   const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
   const reliefLabels = $derived([t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')]);
   /** Intakes and relief ratings per medication over the last 90 days. */
@@ -130,6 +120,9 @@
         <p class="text-muted">{t('tenTwenty.nextRelief', { date: fmt(keyToDate(rule.nextRelief), 'EEE d. MMM') })}</p>
       {/if}
     </div>
+    <button class="press mt-3 rounded-full bg-surface-2 px-4 py-2 text-sm font-medium" onclick={() => onOpenTab('calendar')}>
+      📅 {t('meds.toCalendar')}
+    </button>
   </section>
 
   {#if personal.length}
@@ -161,58 +154,6 @@
     </section>
   {/if}
 
-  <section class="card p-4">
-    <h2 class="text-sm font-semibold">{t('tenTwenty.window')}</h2>
-    <p class="mb-3 text-xs text-muted">{t('grid.hint')}</p>
-    <div class="grid grid-cols-7 gap-1 text-center">
-      {#each weekdayShort() as wd (wd)}<span class="text-caption font-medium text-muted">{wd}</span>{/each}
-      {#each { length: gridOffset } as _, i (i)}<span></span>{/each}
-      {#each rule.days as d (d.key)}
-        {@const taken = intakesOn.get(d.key) ?? []}
-        {@const date = keyToDate(d.key)}
-        <button
-          class="press relative flex aspect-square flex-col items-center justify-center rounded-lg text-xs tabular
-            {d.med ? 'bg-med-soft font-semibold' : 'bg-surface-2 text-muted'} {selectedDay === d.key ? 'ring-2 ring-primary' : ''}"
-          onclick={() => (selectedDay = selectedDay === d.key ? null : d.key)}
-        >
-          {#if date.getDate() === 1 || d === rule.days[0]}<span class="absolute top-0.5 text-[8px] font-medium uppercase text-muted">{fmt(date, 'MMM')}</span>{/if}
-          {date.getDate()}
-          <span class="absolute bottom-1 flex gap-0.5">
-            {#each taken.slice(0, 3) as intake (intake.id)}
-              <span class="size-1.5 rounded-full" style:background-color={ACUTE_CATEGORIES.includes(intake.category) ? colorOf(intake.name) : 'var(--color-muted)'}></span>
-            {/each}
-          </span>
-        </button>
-      {/each}
-    </div>
-    {#if selectedDay}
-      {@const taken = intakesOn.get(selectedDay) ?? []}
-      <div class="mt-3 rounded-xl bg-surface-2 p-3 text-sm">
-        <p class="mb-1 text-xs font-semibold">{fmt(keyToDate(selectedDay), 'EEEE, d. MMMM')}</p>
-        {#if taken.length}
-          <ul class="flex flex-col gap-1">
-            {#each taken as intake (intake.id)}
-              <li class="flex items-center gap-2 text-xs">
-                <span class="size-2 rounded-full" style:background-color={colorOf(intake.name)}></span>
-                <span class="flex-1">{format(intake.time, 'HH:mm')} {intake.name} {intake.dose}</span>
-                <span class="text-muted">{ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')}</span>
-              </li>
-            {/each}
-          </ul>
-        {:else}
-          <p class="text-xs text-muted">{t('grid.none')}</p>
-        {/if}
-      </div>
-    {/if}
-    <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-      <span class="flex items-center gap-1.5"><span class="size-3 rounded bg-med-soft"></span>{t('grid.legendDay')}</span>
-      {#each data.medications as med (med.id)}
-        <span class="flex items-center gap-1.5">
-          <span class="size-2 rounded-full" style:background-color={ACUTE_CATEGORIES.includes(med.category) ? med.color : 'var(--color-muted)'}></span>{med.name}
-        </span>
-      {/each}
-    </div>
-  </section>
 
   <section class="card p-4">
     <h2 class="mb-3 text-sm font-semibold">{t('tenTwenty.trend')}</h2>

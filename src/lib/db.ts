@@ -132,6 +132,13 @@ export class HeadLogDb extends Dexie {
  */
 export const ACUTE_CATEGORIES: readonly MedCategory[] = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'other'];
 
+/** Colour of an intake's medication; grey when it does not count for the 10/20 rule. */
+export function intakeColor(intake: Pick<Intake, 'medId' | 'name' | 'category'>, medications: Medication[]): string {
+  if (!ACUTE_CATEGORIES.includes(intake.category)) return 'var(--color-muted)';
+  const med = medications.find((m) => m.id === intake.medId) ?? medications.find((m) => m.name === intake.name);
+  return med?.color ?? 'var(--color-med)';
+}
+
 /** Common active ingredients and brands per category, lower case, for recognising a medication by its name. */
 const KNOWN: Partial<Record<MedCategory, string[]>> = {
   triptan: ['triptan', 'imigran', 'maxalt', 'ascotop', 'relpax', 'naramig', 'allegro', 'formigran', 'dolortriptan'],
