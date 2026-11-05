@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-05
+
 ### Changed
 
 - The opened forecast explains itself: how the light is made, and for every factor its status (fine, unfavourable, no data), a "why" sentence with your numbers and the rule with its thresholds.
