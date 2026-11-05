@@ -5,7 +5,7 @@
   import { formatDuration, formatLiters } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { fmt, t } from '$lib/i18n.svelte';
-  import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, startHeadache } from '$lib/store.svelte';
+  import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
   import { tap, toast } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
@@ -22,6 +22,9 @@
   const todayDrinks = $derived(data.drinks.filter((d) => d.time >= dayStart));
   const waterMl = $derived(todayDrinks.reduce((sum, d) => sum + d.ml, 0));
   const waterPct = $derived(Math.min(1, waterMl / data.settings.waterGoalMl));
+  const unrated = $derived(
+    data.intakes.findLast((i) => i.relief === null && clock.now - i.time > 45 * 60000 && clock.now - i.time < 12 * 3600000)
+  );
   const todayEpisodes = $derived(data.episodes.filter((e) => (e.end ?? clock.now) >= dayStart));
 
   const log = $derived(
@@ -107,6 +110,25 @@
         <span class="text-xs opacity-85">{t('today.startHint')}</span>
       </button>
       <button class="press text-sm font-medium text-muted underline underline-offset-4" onclick={earlier}>{t('today.startedEarlier')}</button>
+    </section>
+  {/if}
+
+  {#if unrated}
+    <section class="card flex flex-col gap-3 bg-med-soft p-4">
+      <p class="text-sm">
+        {t('today.reliefAsk', { name: unrated.name, time: hm(unrated.time) })}
+      </p>
+      <div class="grid grid-cols-3 gap-2">
+        {#each [t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')] as label, i (i)}
+          <button
+            class="press rounded-xl bg-surface py-2.5 text-sm font-medium"
+            onclick={() => {
+              tap();
+              void saveIntake({ ...$state.snapshot(unrated), relief: i });
+            }}>{label}</button
+          >
+        {/each}
+      </div>
     </section>
   {/if}
 

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Today asks whether a medication helped, from 45 minutes after taking it.
+- The calendar shows the last 12 months at a glance, with headache intensity and medication days.
+
 ## [0.1.0] - 2026-11-05
 
 ### Added

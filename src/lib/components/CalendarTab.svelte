@@ -24,6 +24,13 @@
     water: past.length ? past.reduce((s, k) => s + (water.get(k) ?? 0), 0) / past.length : 0
   });
 
+  const year = $derived(
+    Array.from({ length: 12 }, (_, i) => {
+      const m = startOfMonth(addMonths(clock.now, i - 11));
+      return { month: m, keys: dayRange(m, endOfMonth(m)) };
+    })
+  );
+
   function open(key: string) {
     selected = key;
     openSheet('day');
@@ -104,6 +111,29 @@
     <div class="card p-3">
       <p class="text-2xl font-semibold text-water tabular">{formatLiters(summary.water)}</p>
       <p class="text-xs text-muted">{t('cal.avgWater')}</p>
+    </div>
+  </section>
+
+  <section class="card p-4">
+    <h2 class="mb-3 text-sm font-semibold">{t('cal.year')}</h2>
+    <div class="flex flex-col gap-[3px]">
+      {#each year as row (row.month.getTime())}
+        <div class="flex items-center gap-2">
+          <button class="press w-8 text-left text-2xs text-muted" onclick={() => (month = row.month)}>{fmt(row.month, 'MMM')}</button>
+          <div class="grid flex-1 gap-[2px]" style="grid-template-columns: repeat(31, minmax(0, 1fr))">
+            {#each row.keys as key (key)}
+              {@const intensity = hDays.get(key)}
+              {@const med = mDays.get(key)?.some((i) => i.category !== 'preventive')}
+              <span
+                class="aspect-square rounded-[2px] {intensity ? '' : key > today ? 'bg-surface-2/40' : 'bg-surface-2'}"
+                style:background-color={painStyle(intensity)}
+                style:box-shadow={med ? 'inset 0 0 0 1.5px var(--color-med)' : undefined}
+                title={key}
+              ></span>
+            {/each}
+          </div>
+        </div>
+      {/each}
     </div>
   </section>
 </div>
