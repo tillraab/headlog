@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { Info } from '@lucide/svelte';
-  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, periodStats, rollingMedDays, tenTwenty, type RuleStatus } from '$lib/analysis';
-  import { keyToDate } from '$lib/days';
+  import { Info, Pencil } from '@lucide/svelte';
+  import { edit } from '$lib/editor.svelte';
+  import { openSheet } from '$lib/ui.svelte';
+  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, rollingMedDays, tenTwenty, type RuleStatus } from '$lib/analysis';
+  import { dayKey, keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
 
@@ -10,7 +12,26 @@
   const rolling = $derived(rollingMedDays(medDays, clock.now, 90));
   const max = $derived(Math.max(rule.limit + 4, ...rolling.map((r) => r.count)));
   const monthly = $derived(monthlyCategoryDays(data.intakes, new Date(clock.now)));
-  const perMed = $derived(periodStats(data, clock.now, 30).meds);
+  const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
+  const reliefLabels = $derived([t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')]);
+  /** Intakes and relief ratings per medication over the last 90 days. */
+  const effect = $derived.by(() => {
+    const from = clock.now - 90 * 86400000;
+    const byName = new Map<string, { name: string; intakes: number; days: Set<string>; relief: [number, number, number]; rated: number }>();
+    for (const i of data.intakes) {
+      if (i.time < from) continue;
+      const m = byName.get(i.name) ?? { name: i.name, intakes: 0, days: new Set<string>(), relief: [0, 0, 0], rated: 0 };
+      m.intakes++;
+      m.days.add(dayKey(i.time));
+      if (i.relief !== null) {
+        m.relief[i.relief]++;
+        m.rated++;
+      }
+      byName.set(i.name, m);
+    }
+    return [...byName.values()].map((m) => ({ ...m, days: m.days.size })).sort((a, b) => b.intakes - a.intakes);
+  });
+  const recent = $derived([...data.intakes].sort((a, b) => b.time - a.time).slice(0, 8));
   const personal = $derived(medicationLimits(data.intakes, data.medications, clock.now));
   const toneOf = (status: RuleStatus) => ({ ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' })[status];
   const tone = $derived({ ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' }[rule.status]);
@@ -27,10 +48,15 @@
 
 <div class="flex flex-col gap-3 pb-6">
   <header class="flex items-center justify-between pt-2">
-    <h1 class="text-2xl font-semibold">{t('tenTwenty.title')}</h1>
-    <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (showInfo = !showInfo)} aria-label="Info">
-      <Info size={20} />
-    </button>
+    <h1 class="text-2xl font-semibold">{t('meds.title')}</h1>
+    <div class="flex gap-2">
+      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => openSheet('medList')} aria-label={t('set.meds')}>
+        <Pencil size={18} />
+      </button>
+      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (showInfo = !showInfo)} aria-label="Info">
+        <Info size={20} />
+      </button>
+    </div>
   </header>
 
   {#if showInfo}
@@ -38,6 +64,7 @@
   {/if}
 
   <section class="card flex flex-col items-center p-4">
+    <h2 class="self-start text-sm font-semibold">{t('tenTwenty.title')}</h2>
     <div class="relative size-44">
       <svg viewBox="0 0 160 160" class="size-full rotate-135">
         <circle cx="80" cy="80" r={R} fill="none" stroke="var(--color-surface-2)" stroke-width="14" stroke-linecap="round" stroke-dasharray="{C * arc} {C}" />
@@ -148,15 +175,50 @@
     </div>
   </section>
 
-  {#if perMed.length}
+  {#if effect.length}
     <section class="card p-4">
-      <h2 class="mb-3 text-sm font-semibold">{t('tenTwenty.perMed')}</h2>
-      <ul class="flex flex-col gap-2">
-        {#each perMed as m (m.name)}
-          <li class="flex items-center gap-3 text-sm">
-            <span class="size-3 rounded-full" style:background-color={colorOf(m.name)}></span>
-            <span class="flex-1 font-medium">{m.name}</span>
-            <span class="text-muted tabular">{t('tenTwenty.intakes', { n: m.intakes, d: m.days })}</span>
+      <h2 class="text-sm font-semibold">{t('meds.effect')}</h2>
+      <p class="mb-3 text-xs text-muted">{t('meds.effectHint')}</p>
+      <ul class="flex flex-col gap-3">
+        {#each effect as m (m.name)}
+          <li class="flex flex-col gap-1 text-sm">
+            <div class="flex items-center gap-3">
+              <span class="size-3 rounded-full" style:background-color={colorOf(m.name)}></span>
+              <span class="flex-1 font-medium">{m.name}</span>
+              <span class="text-xs text-muted tabular">{t('tenTwenty.intakes', { n: m.intakes, d: m.days })}</span>
+            </div>
+            {#if m.rated}
+              <div class="ml-6 flex h-2 overflow-hidden rounded-full bg-surface-2">
+                {#each [['var(--color-over)', m.relief[0]], ['var(--color-caution)', m.relief[1]], ['var(--color-ok)', m.relief[2]]] as [color, n], i (i)}
+                  <div style:width="{(Number(n) / m.rated) * 100}%" style:background-color={String(color)}></div>
+                {/each}
+              </div>
+              <span class="ml-6 text-xs text-muted tabular">
+                {t('meds.reliefCounts', { no: m.relief[0], some: m.relief[1], yes: m.relief[2] })}
+              </span>
+            {:else}
+              <span class="ml-6 text-xs text-muted">{t('ins.noRelief')}</span>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+
+  {#if recent.length}
+    <section class="card p-2">
+      <h2 class="px-2 pt-2 pb-1 text-sm font-semibold">{t('meds.recent')}</h2>
+      <ul>
+        {#each recent as intake (intake.id)}
+          <li>
+            <button class="press flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface-2" onclick={() => edit({ kind: 'intake', item: intake })}>
+              <span class="size-3 shrink-0 rounded-full" style:background-color={colorOf(intake.name)}></span>
+              <span class="flex-1 text-sm">{intake.name} <span class="text-muted">{intake.dose}</span></span>
+              <span class="text-xs text-muted tabular">{fmt(intake.time, 'EEE d. MMM HH:mm')}</span>
+              <span class="w-14 text-right text-xs font-medium" style:color={intake.relief === null ? undefined : RELIEF_COLOR[intake.relief]}>
+                {intake.relief === null ? t('meds.rate') : reliefLabels[intake.relief]}
+              </span>
+            </button>
           </li>
         {/each}
       </ul>

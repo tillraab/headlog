@@ -2,18 +2,20 @@
   import { FileText } from '@lucide/svelte';
   import { alcoholDays, caffeineByDay, compareDays, hydrationStreak, monthlyCounts, periodStats, timeline, type ComparisonKey } from '$lib/analysis';
   import { formatDuration, formatLiters, keyToDate, lastDays } from '$lib/days';
-  import { exportForDoctor } from '$lib/doctor.svelte';
+  import { openSheet } from '$lib/ui.svelte';
   import { fmt, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { PRESSURE_DROP_HPA } from '$lib/weather';
   import BarChart from './BarChart.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
+  import ReportSheet from './ReportSheet.svelte';
   import TimelineChart, { type Row } from './TimelineChart.svelte';
 
   const PERIODS = [30, 90, 365];
   const REPORT_MONTHS: Record<number, number> = { 30: 1, 90: 3, 365: 12 };
   const SLEEP_REFERENCE_HOURS = 7;
   let span = $state(90);
+  let reportMonths = $state(3);
 
   const keys = $derived(lastDays(clock.now, span));
   const stats = $derived(periodStats(data, clock.now, span));
@@ -21,7 +23,6 @@
   const streak = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
   const months = $derived(monthlyCounts(data, clock.now, span === 365 ? 12 : 6));
   const hasData = $derived(stats.episodes > 0 || stats.intakes > 0 || stats.avgWaterMl !== null);
-  const reliefLabels = $derived([t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')]);
   const maxTag = $derived(Math.max(1, ...stats.tags.map((x) => x.count)));
 
   const known = (values: (number | null)[]) => values.filter((v): v is number => v !== null);
@@ -108,6 +109,10 @@
   );
 </script>
 
+{#snippet heading(title: string)}
+  <h2 class="mt-3 -mb-1 text-xs font-semibold tracking-wide text-muted uppercase">{title}</h2>
+{/snippet}
+
 <div class="flex flex-col gap-3 pb-6">
   <header class="flex items-center justify-between pt-2">
     <h1 class="text-2xl font-semibold">{t('tab.insights')}</h1>
@@ -122,7 +127,10 @@
 
   <button
     class="press flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-fg"
-    onclick={() => exportForDoctor(REPORT_MONTHS[span])}
+    onclick={() => {
+      reportMonths = REPORT_MONTHS[span];
+      openSheet('report');
+    }}
   >
     <FileText size={18} />
     {t('pdf.insightsButton', { n: REPORT_MONTHS[span] })}
@@ -131,6 +139,7 @@
   {#if !hasData}
     <p class="card p-6 text-center text-sm text-muted">{t('ins.noData')}</p>
   {:else}
+    {@render heading(t('ins.overview'))}
     <section class="grid grid-cols-3 gap-2">
       {#each [
         { label: t('ins.headacheDays'), value: String(stats.headacheDays), cls: 'text-pain' },
@@ -147,6 +156,7 @@
       {/each}
     </section>
 
+    {@render heading(t('ins.connections'))}
     <section class="card p-4">
       <h2 class="text-sm font-semibold">{t('tl.title')}</h2>
       <p class="mb-3 text-xs text-muted">{t('tl.hint')}</p>
@@ -163,6 +173,7 @@
       {/if}
     </section>
 
+    {@render heading(t('today.water'))}
     <section class="card grid grid-cols-3 gap-2 p-4">
       <div>
         <p class="text-lg font-semibold text-water tabular">🔥 {streak.current}</p>
@@ -178,6 +189,7 @@
       </div>
     </section>
 
+    {@render heading(t('ins.patterns'))}
     <section class="card p-4">
       <h2 class="mb-1 text-sm font-semibold">{t('ins.monthly')}</h2>
       <div class="mb-1 flex gap-4 text-xs text-muted">
@@ -207,29 +219,6 @@
       </section>
     {/if}
 
-    {#if stats.meds.length}
-      <section class="card p-4">
-        <h2 class="mb-3 text-sm font-semibold">{t('ins.meds')}</h2>
-        <ul class="flex flex-col gap-2.5">
-          {#each stats.meds as m (m.name)}
-            <li class="flex items-center gap-3 text-sm">
-              <span class="flex-1 font-medium">{m.name}</span>
-              <span class="text-muted tabular">{t('tenTwenty.intakes', { n: m.intakes, d: m.days })}</span>
-              <span class="w-20 text-right text-xs">
-                {#if m.avgRelief === null}
-                  <span class="text-muted">{t('ins.noRelief')}</span>
-                {:else}
-                  <span class="font-medium" style:color={m.avgRelief >= 1.5 ? 'var(--color-ok)' : m.avgRelief >= 0.75 ? 'var(--color-caution)' : 'var(--color-over)'}>
-                    {reliefLabels[Math.round(m.avgRelief)]}
-                  </span>
-                {/if}
-              </span>
-            </li>
-          {/each}
-        </ul>
-      </section>
-    {/if}
-
     {#if stats.tags.length}
       <section class="card p-4">
         <h2 class="mb-3 text-sm font-semibold">{t('ins.tags')}</h2>
@@ -248,3 +237,5 @@
     {/if}
   {/if}
 </div>
+
+<ReportSheet bind:months={reportMonths} />

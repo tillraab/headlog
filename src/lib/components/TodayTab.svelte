@@ -1,13 +1,13 @@
 <script lang="ts">
   import { hydrationMl } from '$lib/db';
-  import { Droplets, Pill, Zap } from '@lucide/svelte';
+  import { Droplets, Pencil, Pill, Zap } from '@lucide/svelte';
   import { format, isToday, startOfDay } from 'date-fns';
   import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty } from '$lib/analysis';
   import { formatDuration, formatLiters } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
-  import { celebrate, tap, toast } from '$lib/ui.svelte';
+  import { celebrate, openSheet, tap, toast } from '$lib/ui.svelte';
   import { dayKey } from '$lib/days';
   import { assessRisk } from '$lib/risk';
   import { PRESSURE_DROP_HPA } from '$lib/weather';
@@ -95,6 +95,9 @@
             🔥 {hydration.current}
           </span>
         {/if}
+        <button class="press grid size-7 place-items-center rounded-full text-muted" onclick={() => openSheet('drinkList')} aria-label={t('set.drinks')}>
+          <Pencil size={14} />
+        </button>
       </h2>
       <p class="text-sm tabular">
         <span class="font-semibold">{formatLiters(waterMl)}</span>
@@ -133,7 +136,13 @@
 {#snippet medsCard()}
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-center justify-between">
-      <h2 class="flex items-center gap-2 font-semibold"><Pill size={18} class="text-med" /> {t('today.meds')}</h2>
+      <h2 class="flex items-center gap-2 font-semibold">
+        <Pill size={18} class="text-med" />
+        {t('today.meds')}
+        <button class="press grid size-7 place-items-center rounded-full text-muted" onclick={() => openSheet('medList')} aria-label={t('set.meds')}>
+          <Pencil size={14} />
+        </button>
+      </h2>
       <button class="press" onclick={() => onOpenTab('meds')}><RuleBadge {rule} /></button>
     </div>
     {#if meds.length}
