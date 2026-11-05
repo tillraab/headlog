@@ -38,6 +38,10 @@ export function closeSheet(id: string) {
   sheets.stack = sheets.stack.filter((s) => s !== id);
 }
 
+export function closeAllSheets() {
+  sheets.stack = [];
+}
+
 /** Closes the newest sheet. Returns false when none was open. */
 export function closeTopSheet(): boolean {
   if (!sheets.stack.length) return false;

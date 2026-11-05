@@ -77,10 +77,21 @@ Run `bun run check` and `bun run test` before every commit.
 - UI check in a browser: `bun run build && bunx vite preview`, then Playwright. Restart `vite preview` after every build, it keeps serving the old asset hashes.
 - On Android: an emulator with an x86_64 Google APIs image works headless (`emulator -avd <name> -no-window`). `adb root` plus `adb shell date MMDDhhmmYYYY.ss` moves the clock forward to fire reminders; `uiautomator dump` finds notification buttons to tap.
 
+## Branches and pull requests
+
+`main` is protected: no direct pushes, not even for admins. Every change goes through a pull request whose `CI` check (type check, tests, build) passes, and is squash-merged; the branch is deleted on merge.
+
+1. Branch off the latest `main`: `feature/<slug>` for features, `fix/<slug>` for fixes, `release/X.Y.Z` for a release.
+2. Commit, push, open a PR: `gh pr create -B main -t "<title>" -b "<what and why, how it was tested>"`.
+3. Add a line under `## [Unreleased]` in `CHANGELOG.md` in the same PR.
+4. Wait for CI (`gh pr checks --watch`), then `gh pr merge --squash`.
+
 ## Releases
 
-1. Add the changes under a new version heading in `CHANGELOG.md` (the release notes are cut from it), bump `version` in `package.json`.
-2. Commit, then `git tag vX.Y.Z && git push origin main vX.Y.Z`.
+Releases are cut from `main` only.
+
+1. Branch `release/X.Y.Z`: move the `## [Unreleased]` entries under a new `## [X.Y.Z] - <date>` heading (the release notes are cut from it) and bump `version` in `package.json`. PR and merge as above.
+2. Tag the merged commit on `main`: `git checkout main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z`.
 3. `.github/workflows/android-release.yml` checks, tests, builds, signs and publishes `headlog-X.Y.Z.apk`. Obtainium picks it up.
 
 `versionCode` is `major*10000 + minor*100 + patch` and must grow with every release. The signing key is a repository secret; the owner keeps the keystore outside the repository. Android only installs updates signed with the same key, so never change the signing setup.

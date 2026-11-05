@@ -15,7 +15,7 @@
   import { data, endEpisode, load, logDrinkFromPreset, ongoingEpisode, setRelief, startClock } from '$lib/store.svelte';
   import { applyDrinkCheckins, applyHeadacheChecks, applyReminders, onNotificationAction, planDrinkCheckins, planHeadacheChecks, planReminders } from '$lib/reminders';
   import { syncQuietly } from '$lib/sync.svelte';
-  import { applyTheme, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
+  import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
 
   const tabs = $derived([
     { label: t('tab.today'), icon: House },
@@ -63,6 +63,10 @@
     document.addEventListener('visibilitychange', onHide);
     const stopClock = startClock();
     const stopRelief = onNotificationAction({
+      opened: () => {
+        closeAllSheets();
+        show(0, false);
+      },
       relief: (id, relief) => void setRelief(id, relief),
       headacheGone: (id) => void endEpisode(id),
       drink: (id) => void logDrinkFromPreset(id)
