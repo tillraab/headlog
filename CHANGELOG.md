@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-05
+
 ### Changed
 
 - When the forecast is not green, a marker at the top of Today says so; tapping it opens the forecast.
