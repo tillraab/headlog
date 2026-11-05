@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Hydration goal streak: 🔥 days in a row on Today, current and best streak in Insights, and a small celebration with confetti when you reach the goal, with milestones at 3, 7, 14, 21, 30, 50 and 100 days.
+
 ### Changed
 
 - Tapping a notification or one of its buttons always opens Today, not the screen the app was left on.

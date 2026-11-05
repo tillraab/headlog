@@ -17,6 +17,16 @@ export function toast(text: string, undo?: () => unknown) {
   setTimeout(() => dismiss(id), undo ? 5000 : 2500);
 }
 
+/** A short full-screen celebration, e.g. for reaching the hydration goal. */
+export const celebration = $state<{ id: number; title: string; text: string }>({ id: 0, title: '', text: '' });
+
+export function celebrate(title: string, text: string) {
+  celebration.id++;
+  celebration.title = title;
+  celebration.text = text;
+  tap('heavy');
+}
+
 export function dismiss(id: number) {
   toasts.list = toasts.list.filter((t) => t.id !== id);
 }

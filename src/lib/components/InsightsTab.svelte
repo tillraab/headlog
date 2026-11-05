@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { monthlyCounts, periodStats } from '$lib/analysis';
+  import { hydrationStreak, monthlyCounts, periodStats } from '$lib/analysis';
   import { formatDuration, formatLiters } from '$lib/days';
   import { fmt, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -12,6 +12,7 @@
   let span = $state(90);
 
   const stats = $derived(periodStats(data, clock.now, span));
+  const hydration = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
   const months = $derived(monthlyCounts(data, clock.now, span === 365 ? 12 : 6));
   const hasData = $derived(stats.episodes > 0 || stats.intakes > 0 || stats.avgWaterMl !== null);
   const waterDiff = $derived(
@@ -60,6 +61,15 @@
           <p class="text-xs leading-tight text-muted">{tile.label}</p>
         </div>
       {/each}
+    </section>
+
+    <section class="card flex items-center gap-3 p-4">
+      <span class="text-3xl">🔥</span>
+      <div class="flex-1">
+        <p class="text-sm font-semibold">{t('streak.label')}</p>
+        <p class="text-xs text-muted">{t('streak.best', { n: hydration.best })}</p>
+      </div>
+      <p class="text-2xl font-semibold text-water tabular">{hydration.current}</p>
     </section>
 
     <section class="card p-4">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { headacheDays, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty } from './analysis';
+import { headacheDays, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty } from './analysis';
 import type { Drink, Episode, Intake, MedCategory, Medication } from './db';
 import { lastDays } from './days';
 
@@ -174,5 +174,30 @@ describe('periodStats', () => {
 
   it('places episode starts on the right weekday, Monday first', () => {
     expect(stats.weekday).toEqual([1, 0, 0, 0, 0, 0, 1]);
+  });
+});
+
+describe('hydrationStreak', () => {
+  const glass = (time: string, ml = 2000): Drink => ({ ...drink(time, ml) });
+  const today = at('2026-03-10T12:00');
+
+  it('counts the days in a row up to yesterday while today is still open', () => {
+    const drinks = [glass('2026-03-07T10:00'), glass('2026-03-08T10:00'), glass('2026-03-09T10:00'), glass('2026-03-10T09:00', 500)];
+    expect(hydrationStreak(drinks, 2000, today)).toEqual({ current: 3, best: 3, todayReached: false });
+  });
+
+  it('adds today once the goal is reached', () => {
+    const drinks = [glass('2026-03-09T10:00'), glass('2026-03-10T09:00')];
+    expect(hydrationStreak(drinks, 2000, today).current).toBe(2);
+  });
+
+  it('starts over after a missed day', () => {
+    const drinks = [glass('2026-03-07T10:00'), glass('2026-03-09T10:00', 1000)];
+    expect(hydrationStreak(drinks, 2000, today).current).toBe(0);
+  });
+
+  it('remembers the best streak', () => {
+    const drinks = ['01', '02', '03', '04', '08'].map((d) => glass(`2026-03-${d}T10:00`));
+    expect(hydrationStreak(drinks, 2000, today).best).toBe(4);
   });
 });
