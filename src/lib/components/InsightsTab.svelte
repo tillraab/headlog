@@ -20,6 +20,10 @@
     const days = periodKeys.filter((k) => byDay.has(k));
     return days.length ? days.reduce((s, k) => s + byDay.get(k)!, 0) / days.length : null;
   });
+  const sleepAvg = $derived.by(() => {
+    const nights = periodKeys.map((k) => data.sleep.get(k)).filter((n) => n !== undefined);
+    return nights.length ? nights.reduce((s, n) => s + n.asleepMs, 0) / nights.length : null;
+  });
   const alcohol = $derived.by(() => {
     const days = alcoholDays(data.drinks);
     return periodKeys.filter((k) => days.has(k)).length;
@@ -74,8 +78,12 @@
       {/each}
     </section>
 
-    {#if caffeine !== null || alcohol}
-      <section class="grid grid-cols-2 gap-2">
+    {#if caffeine !== null || alcohol || sleepAvg !== null}
+      <section class="grid grid-cols-3 gap-2">
+        <div class="card p-3">
+          <p class="text-lg font-semibold tabular">{sleepAvg === null ? '–' : formatDuration(sleepAvg)}</p>
+          <p class="text-xs leading-tight text-muted">{t('sleep.avg')}</p>
+        </div>
         <div class="card p-3">
           <p class="text-lg font-semibold tabular">{caffeine === null ? '–' : `${Math.round(caffeine)} mg`}</p>
           <p class="text-xs leading-tight text-muted">{t('drink.caffeineAvg')}</p>

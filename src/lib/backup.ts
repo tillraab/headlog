@@ -4,18 +4,22 @@ import { Share } from '@capacitor/share';
 import { format } from 'date-fns';
 import { db, type HeadLogDb } from './db';
 
+/** Tables every backup has. */
 const TABLES = ['episodes', 'medications', 'intakes', 'drinkPresets', 'drinks', 'settings'] as const;
+/** Tables added later; older backups do not have them. */
+const OPTIONAL_TABLES = ['sleep'] as const;
+const ALL_TABLES = [...TABLES, ...OPTIONAL_TABLES];
 
 export interface Backup {
   app: 'headlog';
   version: 1;
   exportedAt: string;
-  tables: Record<(typeof TABLES)[number], unknown[]>;
+  tables: Record<(typeof TABLES)[number], unknown[]> & Partial<Record<(typeof OPTIONAL_TABLES)[number], unknown[]>>;
 }
 
 export async function createBackup(database: HeadLogDb = db): Promise<Backup> {
   const tables = {} as Backup['tables'];
-  for (const name of TABLES) tables[name] = await database.table(name).toArray();
+  for (const name of ALL_TABLES) tables[name] = await database.table(name).toArray();
   return { app: 'headlog', version: 1, exportedAt: new Date().toISOString(), tables };
 }
 
@@ -26,17 +30,17 @@ export function isBackup(value: unknown): value is Backup {
 
 /** Replaces all data with the backup. */
 export async function restoreBackup(backup: Backup, database: HeadLogDb = db) {
-  await database.transaction('rw', TABLES.map((t) => database.table(t)), async () => {
-    for (const name of TABLES) {
+  await database.transaction('rw', ALL_TABLES.map((t) => database.table(t)), async () => {
+    for (const name of ALL_TABLES) {
       await database.table(name).clear();
-      await database.table(name).bulkAdd(backup.tables[name]);
+      await database.table(name).bulkAdd(backup.tables[name] ?? []);
     }
   });
 }
 
 export async function wipe(database: HeadLogDb = db) {
-  await database.transaction('rw', TABLES.map((t) => database.table(t)), async () => {
-    for (const name of TABLES) await database.table(name).clear();
+  await database.transaction('rw', ALL_TABLES.map((t) => database.table(t)), async () => {
+    for (const name of ALL_TABLES) await database.table(name).clear();
   });
 }
 

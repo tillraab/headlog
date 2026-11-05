@@ -67,3 +67,12 @@ describe('loadDemo', () => {
     expect(latest!.time).toBeLessThanOrEqual(now);
   });
 });
+
+describe('older backups', () => {
+  it('restore without the sleep table', async () => {
+    const backup = await createBackup(db);
+    delete backup.tables.sleep;
+    await restoreBackup(backup, db);
+    expect(await db.sleep.count()).toBe(0);
+  });
+});

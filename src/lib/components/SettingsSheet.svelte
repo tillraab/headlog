@@ -5,9 +5,10 @@
   import { MED_COLORS, type DrinkPreset, type MedCategory, type Medication } from '$lib/db';
   import { loadDemo } from '$lib/demo';
   import { fmt, i18n, setLang, t, type Lang } from '$lib/i18n.svelte';
-  import { data, deleteDrinkPreset, deleteMedication, load, saveDrinkPreset, saveMedication, saveSettings, swapOrder, translateDrinkNames, updateWeather } from '$lib/store.svelte';
+  import { data, deleteDrinkPreset, deleteMedication, load, saveDrinkPreset, saveMedication, saveSettings, swapOrder, translateDrinkNames, updateSleep, updateWeather } from '$lib/store.svelte';
   import { MAX_CHECKIN_TIMES, requestReminderPermission } from '$lib/reminders';
   import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
+  import { openUsageAccessSettings, screenAccess } from '$lib/sleep';
   import { searchPlaces, type Place } from '$lib/weather';
   import { applyTheme, openSheet, toast, type Theme } from '$lib/ui.svelte';
   import Sheet from './Sheet.svelte';
@@ -103,6 +104,21 @@
   }
 
   let newCheckin = $state('');
+  let access = $state<{ supported: boolean; granted: boolean } | null>(null);
+
+  /** Checks usage access again, e.g. after returning from Android's settings. */
+  async function checkAccess() {
+    access = await screenAccess();
+    if (access.granted) await updateSleep();
+  }
+
+  $effect(() => {
+    void checkAccess();
+    const onVisible = () => document.visibilityState === 'visible' && void checkAccess();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  });
+
   let placeQuery = $state('');
   let places = $state<(Place & { region: string })[]>([]);
   let placeError = $state('');
@@ -496,6 +512,35 @@
           </select>
         </label>
       {/each}
+    {/if}
+  </div>
+
+  {@render group(t('sleep.title'), t('sleep.hint'))}
+  <div class="card flex flex-col gap-3 p-4 text-body">
+    {#if access && !access.supported}
+      <p class="text-sm text-muted">{t('sleep.unsupported')}</p>
+    {:else}
+      <label class="flex items-center justify-between gap-4">
+        {t('sleep.setting')}
+        <input
+          type="checkbox"
+          class="size-6 shrink-0 accent-primary"
+          checked={data.settings.sleep.enabled}
+          onchange={async (e) => {
+            await saveSettings({ sleep: { enabled: e.currentTarget.checked } });
+            await checkAccess();
+          }}
+        />
+      </label>
+      {#if data.settings.sleep.enabled && access?.granted}
+        <p class="text-xs text-muted">{data.sleep.size ? t('sleep.nights', { n: data.sleep.size }) : t('sleep.none')}</p>
+      {/if}
+      {#if data.settings.sleep.enabled && access && !access.granted}
+        <p class="text-xs text-muted">{t('sleep.allowHint')}</p>
+        <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={() => openUsageAccessSettings()}>
+          {t('sleep.allow')}
+        </button>
+      {/if}
     {/if}
   </div>
 

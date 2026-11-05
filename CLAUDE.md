@@ -28,12 +28,13 @@ Run `bun run check` and `bun run test` before every commit.
 - `src/lib/reminders.ts`: local notifications. Hydration reminders when behind the goal, drink check-ins at fixed times with drink buttons, "did it help?" after an intake, "still a headache?" every N hours.
 - `src/lib/backup.ts`: JSON backup and restore, CSV export, `saveFile` (Android share sheet or browser download).
 - `src/lib/gist.ts`, `sync.svelte.ts`: optional backup to a secret GitHub Gist.
+- `src/lib/sleep.ts` and `android/.../ScreenEventsPlugin.java`: sleep estimate from Android's screen on/off events (`UsageStatsManager`, usage access granted by the user). `estimateNight` is pure and tested; `syncNights` recomputes the last 8 nights on app start and return, but never a night the user edited (`source: 'manual'`). Moving the emulator clock rewrites usage event times, so a night cannot be simulated there; test the algorithm with unit tests.
 - `src/lib/weather.ts`: Open-Meteo place search and daily weather (archive for old days, forecast API for the last two weeks and tomorrow), stored in the `weather` table by day. Not part of backups; it can always be fetched again. `updateWeather()` in the store syncs at most every 3 hours.
 - `src/lib/i18n.svelte.ts`: English and German strings, `t()`, date formatting `fmt()`, tag labels.
 - `src/lib/ui.svelte.ts`: toasts with undo, haptics, sheet stack, theme, datetime-local helpers.
 - `src/lib/editor.svelte.ts`: which entry the editor sheet shows.
 - `src/lib/demo.ts`: 90 days of seeded demo data (Settings → Load demo data).
-- `android/`: Capacitor project. Hand-edited: `app/build.gradle` (version and signing from the environment), `AndroidManifest.xml` (`USE_EXACT_ALARM`), `res/drawable/ic_stat_headlog.xml` (notification icon). Icons and splash images are generated.
+- `android/`: Capacitor project. Hand-edited: `app/build.gradle` (version and signing from the environment), `AndroidManifest.xml` (`USE_EXACT_ALARM`, `PACKAGE_USAGE_STATS`), `MainActivity.java` (registers `ScreenEventsPlugin`), `res/drawable/ic_stat_headlog.xml` (notification icon). Icons and splash images are generated.
 - `assets/icon.svg`: icon source. `<defs>`, then `<g id="background">`, then `<g id="foreground">` as the last element; `scripts/generate-icons.mjs` relies on that order.
 
 ## Rules that are easy to break
@@ -42,7 +43,7 @@ Run `bun run check` and `bun run test` before every commit.
 
 - Dexie schema is at `version(1)`. Adding a field that is not indexed needs no new version; make it optional in the type and handle `undefined` (see `Medication.limitDays`). Changing indexes needs `this.version(2).stores(...)` with an upgrade, never an edit of version 1.
 - Intakes and drinks copy name, dose and category from their list entry, so history survives edits and deletes of the list. Keep it that way.
-- Backups are `{ app: 'headlog', version: 1, tables }`. Restoring must keep working for old backup files. New settings get defaults through the merge in `load()`.
+- Backups are `{ app: 'headlog', version: 1, tables }`. Restoring must keep working for old backup files: tables added later (`sleep`) go into `OPTIONAL_TABLES` in `backup.ts`, so backups without them stay valid. New settings get defaults through the merge in `load()`.
 - The Gist token is stored in `localStorage`, never in IndexedDB, so it never ends up inside a backup. Connecting to an account that already has a backup must offer a restore before anything is uploaded.
 - Automatic Gist uploads must never replace a real backup with nothing: they skip an empty diary, and "Delete all data" and "Load demo data" pause them (`pauseSync`) until a manual "Back up now" or a restore. Keep both guards when touching sync.
 - Renamed or retyped settings need a migration in `load()` (see the old boolean `reliefCheck` turning into `reliefCheckMinutes`).
