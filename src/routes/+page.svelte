@@ -11,7 +11,8 @@
   import TodayTab from '$lib/components/TodayTab.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
   import { i18n, t } from '$lib/i18n.svelte';
-  import { data, load, startClock } from '$lib/store.svelte';
+  import { data, load, setRelief, startClock } from '$lib/store.svelte';
+  import { applyReminders, onReliefAnswer, planReminders } from '$lib/reminders';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
 
@@ -36,15 +37,27 @@
     active = Math.round(pager.scrollLeft / pager.clientWidth);
   }
 
+  /** Reschedules water reminders after every drink, settings change and return to the app. */
+  function reschedule() {
+    if (!data.ready) return;
+    const now = Date.now();
+    const start = new Date(now).setHours(0, 0, 0, 0);
+    const todayMl = data.drinks.filter((d) => d.time >= start).reduce((s, d) => s + d.ml, 0);
+    void applyReminders(planReminders(now, data.settings.reminders, data.settings.waterGoalMl, todayMl)).catch(() => {});
+  }
+
+  $effect(reschedule);
+
   onMount(() => {
     document.documentElement.lang = i18n.lang;
     void load().then(() => {
       applyTheme(data.settings.theme);
       syncQuietly();
     });
-    const onHide = () => document.visibilityState === 'hidden' && syncQuietly();
+    const onHide = () => (document.visibilityState === 'hidden' ? syncQuietly() : reschedule());
     document.addEventListener('visibilitychange', onHide);
     const stopClock = startClock();
+    const stopRelief = onReliefAnswer((id, relief) => void setRelief(id, relief));
     const media = matchMedia('(prefers-color-scheme: dark)');
     const onScheme = () => applyTheme(data.settings.theme);
     media.addEventListener('change', onScheme);
@@ -62,6 +75,7 @@
 
     return () => {
       stopClock();
+      stopRelief();
       document.removeEventListener('visibilitychange', onHide);
       media.removeEventListener('change', onScheme);
       window.removeEventListener('resize', onResize);

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Droplets, Pill, Plus, Zap } from '@lucide/svelte';
+  import { Droplets, Pill, Zap } from '@lucide/svelte';
   import { format, isToday, startOfDay } from 'date-fns';
-  import { intakeDays, periodStats, tenTwenty } from '$lib/analysis';
+  import { intakeDays, medicationLimits, periodStats, tenTwenty } from '$lib/analysis';
   import { formatDuration, formatLiters } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { fmt, t } from '$lib/i18n.svelte';
@@ -17,13 +17,14 @@
   const rule = $derived(tenTwenty(new Set(intakeDays(data.intakes).keys()), clock.now, data.settings.limit));
   const streak = $derived(periodStats(data, clock.now, 1).clearStreak);
   const meds = $derived(data.medications);
+  const limits = $derived(new Map(medicationLimits(data.intakes, data.medications, clock.now).map((l) => [l.med.id, l.rule])));
   const presets = $derived(data.drinkPresets);
   const todayIntakes = $derived(data.intakes.filter((i) => i.time >= dayStart));
   const todayDrinks = $derived(data.drinks.filter((d) => d.time >= dayStart));
   const waterMl = $derived(todayDrinks.reduce((sum, d) => sum + d.ml, 0));
   const waterPct = $derived(Math.min(1, waterMl / data.settings.waterGoalMl));
   const unrated = $derived(
-    data.intakes.findLast((i) => i.relief === null && clock.now - i.time > 45 * 60000 && clock.now - i.time < 12 * 3600000)
+    data.intakes.findLast((i) => i.relief === null && clock.now - i.time > 60 * 60000 && clock.now - i.time < 12 * 3600000)
   );
   const todayEpisodes = $derived(data.episodes.filter((e) => (e.end ?? clock.now) >= dayStart));
 
@@ -146,12 +147,23 @@
             style:border-left-color={med.color}
             onclick={async () => {
               tap('medium');
+              const before = limits.get(med.id);
               const id = await logIntake(med);
-              toast(t('toast.intake', { name: med.name }), undoFor('intakes', id));
+              const over = before && before.ifTakenToday > before.limit;
+              toast(
+                over ? t('toast.overLimit', { name: med.name, n: before.ifTakenToday, limit: before.limit }) : t('toast.intake', { name: med.name }),
+                undoFor('intakes', id)
+              );
             }}
           >
             <span class="font-semibold">{med.name}</span>
             <span class="text-xs text-muted">{med.dose}</span>
+            {#if limits.get(med.id)}
+              {@const r = limits.get(med.id)!}
+              <span class="mt-0.5 text-2xs font-semibold tabular {r.status === 'over' ? 'text-over' : r.status === 'caution' ? 'text-caution' : 'text-muted'}">
+                {t('tenTwenty.limitCount', { n: r.count, limit: r.limit })}
+              </span>
+            {/if}
             {#if count}
               <span class="absolute top-2 right-2 grid size-6 place-items-center rounded-full bg-med text-xs font-semibold text-white tabular">{count}</span>
             {/if}
@@ -225,13 +237,5 @@
     {:else}
       <p class="px-2 pb-3 text-sm text-muted">{t('today.nothing')}</p>
     {/if}
-    <div class="flex gap-2 px-2 pt-1 pb-2">
-      <button
-        class="press flex items-center gap-1 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-medium"
-        onclick={() => meds[0] && edit({ kind: 'intake', item: { time: Date.now(), medId: meds[0].id, name: meds[0].name, dose: meds[0].dose, category: meds[0].category, relief: null } })}
-      >
-        <Plus size={14} />{t('day.addMed')}
-      </button>
-    </div>
   </section>
 </div>

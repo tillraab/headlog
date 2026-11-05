@@ -1,14 +1,28 @@
 import { db, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication } from './db';
 import { i18n } from './i18n.svelte';
+import { cancelReliefCheck, scheduleReliefCheck } from './reminders';
 import type { Theme } from './ui.svelte';
 
 export interface Settings {
   waterGoalMl: number;
   limit: number;
   theme: Theme;
+  /** Name printed on the doctor report. */
+  reportName: string;
+  /** Water reminders: half the goal by `noon`, the full goal by `evening` (hours of the day). */
+  reminders: { enabled: boolean; noon: number; evening: number };
+  /** Ask by notification whether an intake helped. */
+  reliefCheck: boolean;
 }
 
-const DEFAULT_SETTINGS: Settings = { waterGoalMl: 2000, limit: 10, theme: 'system' };
+const DEFAULT_SETTINGS: Settings = {
+  waterGoalMl: 2000,
+  limit: 10,
+  theme: 'system',
+  reportName: '',
+  reminders: { enabled: false, noon: 12, evening: 18 },
+  reliefCheck: true
+};
 
 /** All data in memory. A diary stays small, so every write reloads everything. */
 export const data = $state({
@@ -70,7 +84,8 @@ export async function saveEpisode(episode: Draft<Episode>) {
 }
 
 export async function saveIntake(intake: Draft<Intake>) {
-  await db.intakes.put($state.snapshot(intake));
+  const id = await db.intakes.put($state.snapshot(intake));
+  if (intake.relief !== null) void cancelReliefCheck(id).catch(() => {});
   await load();
 }
 
@@ -88,6 +103,7 @@ export async function logIntake(med: Medication, time = Date.now()): Promise<num
     category: med.category,
     relief: null
   });
+  if (data.settings.reliefCheck) void scheduleReliefCheck({ id, time, name: med.name }).catch(() => {});
   await load();
   return id;
 }
@@ -110,11 +126,18 @@ type Table = 'episodes' | 'intakes' | 'drinks';
 export async function remove(table: Table, id: number): Promise<() => Promise<void>> {
   const row = await db.table(table).get(id);
   await db.table(table).delete(id);
+  if (table === 'intakes') void cancelReliefCheck(id).catch(() => {});
   await load();
   return async () => {
     if (row) await db.table(table).put(row);
     await load();
   };
+}
+
+/** Stores an answer given in a notification. */
+export async function setRelief(intakeId: number, relief: number) {
+  await db.intakes.update(intakeId, { relief });
+  await load();
 }
 
 export async function saveMedication(med: Draft<Medication>) {

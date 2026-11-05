@@ -5,6 +5,8 @@
   import { loadDemo } from '$lib/demo';
   import { fmt, i18n, setLang, t, type Lang } from '$lib/i18n.svelte';
   import { data, deleteDrinkPreset, deleteMedication, load, saveDrinkPreset, saveMedication, saveSettings, swapOrder } from '$lib/store.svelte';
+  import { requestReminderPermission } from '$lib/reminders';
+  import { doctorReport } from '$lib/report';
   import { connect, disconnect, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
   import { applyTheme, toast, type Theme } from '$lib/ui.svelte';
   import Sheet from './Sheet.svelte';
@@ -83,6 +85,21 @@
   }
 
   let token = $state('');
+  let reportMonths = $state(3);
+
+  async function exportPdf() {
+    const now = Date.now();
+    const pdf = doctorReport({ ...$state.snapshot(data), limit: data.settings.limit, name: data.settings.reportName, version: __APP_VERSION__ }, now, reportMonths);
+    await saveFile(`headlog-report-${new Date(now).toISOString().slice(0, 10)}.pdf`, pdf, 'application/pdf');
+  }
+
+  async function toggleReminders(enabled: boolean) {
+    if (enabled && !(await requestReminderPermission())) {
+      toast(t('rem.denied'));
+      enabled = false;
+    }
+    await saveSettings({ reminders: { ...data.settings.reminders, enabled } });
+  }
 
   async function guarded(task: () => Promise<unknown>) {
     try {
@@ -150,7 +167,9 @@
             <span class="size-3.5 rounded-full" style:background-color={med.color}></span>
             <span class="flex flex-col">
               <span class="text-body font-medium">{med.name} <span class="text-muted">{med.dose}</span></span>
-              <span class="text-xs text-muted">{t(`cat.${med.category}`)}</span>
+              <span class="text-xs text-muted">
+                {t(`cat.${med.category}`)}{med.limitDays ? ` · ${t('set.limitOption', { n: med.limitDays })}` : ''}
+              </span>
             </span>
           </button>
           {@render orderButtons(data.medications, i, 'medications')}
@@ -165,10 +184,21 @@
               {t('set.dose')}
               <input class="bg-surface" value={med.dose} placeholder="400 mg" onchange={(e) => updateMed(med, { dose: e.currentTarget.value.trim() })} />
             </label>
-            <label class="col-span-2 flex flex-col gap-1 text-xs text-muted">
+            <label class="flex flex-col gap-1 text-xs text-muted">
               {t('set.category')}
               <select class="bg-surface" value={med.category} onchange={(e) => updateMed(med, { category: e.currentTarget.value as MedCategory })}>
                 {#each CATEGORIES as c (c)}<option value={c}>{t(`cat.${c}`)}</option>{/each}
+              </select>
+            </label>
+            <label class="flex flex-col gap-1 text-xs text-muted">
+              {t('set.limitDays')}
+              <select
+                class="bg-surface"
+                value={med.limitDays ?? 0}
+                onchange={(e) => updateMed(med, { limitDays: Number(e.currentTarget.value) || undefined })}
+              >
+                <option value={0}>{t('set.limitNone')}</option>
+                {#each [2, 3, 4, 5, 6, 8, 10, 12, 15] as n (n)}<option value={n}>{t('set.limitOption', { n })}</option>{/each}
               </select>
             </label>
             <div class="col-span-2 flex items-center gap-2">
@@ -273,6 +303,42 @@
     </div>
   </div>
 
+  {@render group(t('rem.title'), t('rem.hint'))}
+  <div class="card flex flex-col gap-4 p-4">
+    <label class="flex items-center justify-between gap-4 text-body">
+      {t('rem.reliefSetting')}
+      <input
+        type="checkbox"
+        class="size-6 shrink-0 accent-primary"
+        checked={data.settings.reliefCheck}
+        onchange={(e) => saveSettings({ reliefCheck: e.currentTarget.checked })}
+      />
+    </label>
+    <label class="flex items-center justify-between gap-4 text-body">
+      {t('rem.enabled')}
+      <input
+        type="checkbox"
+        class="size-6 accent-primary"
+        checked={data.settings.reminders.enabled}
+        onchange={(e) => toggleReminders(e.currentTarget.checked)}
+      />
+    </label>
+    {#if data.settings.reminders.enabled}
+      {#each [['noon', [10, 11, 12, 13, 14, 15]], ['evening', [16, 17, 18, 19, 20, 21]]] as const as [field, hours] (field)}
+        <label class="flex items-center justify-between gap-4 text-body">
+          {t(field === 'noon' ? 'rem.noon' : 'rem.evening')}
+          <select
+            class="w-28"
+            value={data.settings.reminders[field]}
+            onchange={(e) => saveSettings({ reminders: { ...data.settings.reminders, [field]: Number(e.currentTarget.value) } })}
+          >
+            {#each hours as h (h)}<option value={h}>{String(h).padStart(2, '0')}:00</option>{/each}
+          </select>
+        </label>
+      {/each}
+    {/if}
+  </div>
+
   {@render group(t('sync.title'), t('sync.hint'))}
   <div class="card flex flex-col gap-3 p-4 text-body">
     {#if sync.link}
@@ -310,6 +376,18 @@
   </div>
 
   {@render group(t('set.data'))}
+  <div class="card mb-2 flex flex-col gap-3 p-4">
+    <label class="flex flex-col gap-1 text-xs text-muted">
+      {t('pdf.name')}
+      <input value={data.settings.reportName} placeholder={t('pdf.namePlaceholder')} onchange={(e) => saveSettings({ reportName: e.currentTarget.value.trim() })} />
+    </label>
+    <div class="flex gap-2">
+      <select class="w-32" bind:value={reportMonths}>
+        {#each [1, 3, 6, 12] as n (n)}<option value={n}>{t('pdf.months', { n })}</option>{/each}
+      </select>
+      <button class="press flex-1 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-fg" onclick={exportPdf}>{t('pdf.button')}</button>
+    </div>
+  </div>
   <div class="card flex flex-col p-1 text-left text-body">
     <button class="press rounded-xl px-3 py-3 text-left" onclick={exportJson}>{t('set.export')}</button>
     <button class="press rounded-xl px-3 py-3 text-left" onclick={() => fileInput?.click()}>{t('set.import')}</button>

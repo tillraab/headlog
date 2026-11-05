@@ -1,5 +1,5 @@
 import { addDays, endOfMonth, getDay, getHours, startOfMonth } from 'date-fns';
-import { ACUTE_CATEGORIES, type Drink, type Episode, type Intake, type MedCategory } from './db';
+import { ACUTE_CATEGORIES, type Drink, type Episode, type Intake, type MedCategory, type Medication } from './db';
 import { dayKey, dayRange, keyToDate, lastDays } from './days';
 
 /** Peak intensity per day touched by a headache. Ongoing episodes run until `now`. */
@@ -76,8 +76,18 @@ export function tenTwenty(medDays: Set<string>, today: number | Date, limit = 10
 
 export function ruleStatus(count: number, limit: number): RuleStatus {
   if (count > limit) return 'over';
-  if (count >= limit - 2) return 'caution';
+  if (count >= Math.ceil(limit * 0.8)) return 'caution';
   return 'ok';
+}
+
+/** The 30-day count for each medication that has a personal limit. */
+export function medicationLimits(intakes: Intake[], medications: Medication[], today: number | Date) {
+  return medications
+    .filter((m) => m.limitDays)
+    .map((med) => {
+      const days = new Set(intakes.filter((i) => i.medId === med.id).map((i) => dayKey(i.time)));
+      return { med, rule: tenTwenty(days, today, med.limitDays) };
+    });
 }
 
 /** Rolling 10/20 counts for the `span` days ending today. */

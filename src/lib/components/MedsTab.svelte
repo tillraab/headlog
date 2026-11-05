@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Info } from '@lucide/svelte';
-  import { intakeDays, MONTHLY_LIMITS, monthlyCategoryDays, periodStats, rollingMedDays, tenTwenty } from '$lib/analysis';
+  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, periodStats, rollingMedDays, tenTwenty, type RuleStatus } from '$lib/analysis';
   import { keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -11,6 +11,8 @@
   const max = $derived(Math.max(rule.limit + 4, ...rolling.map((r) => r.count)));
   const monthly = $derived(monthlyCategoryDays(data.intakes, new Date(clock.now)));
   const perMed = $derived(periodStats(data, clock.now, 30).meds);
+  const personal = $derived(medicationLimits(data.intakes, data.medications, clock.now));
+  const toneOf = (status: RuleStatus) => ({ ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' })[status];
   const tone = $derived({ ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' }[rule.status]);
   const label = $derived({ ok: t('tenTwenty.ok'), caution: t('tenTwenty.caution'), over: t('tenTwenty.over') }[rule.status]);
   const colorOf = (name: string) => data.medications.find((m) => m.name === name)?.color ?? 'var(--color-med)';
@@ -81,6 +83,35 @@
       {/if}
     </div>
   </section>
+
+  {#if personal.length}
+    <section class="card p-4">
+      <h2 class="text-sm font-semibold">{t('tenTwenty.personal')}</h2>
+      <p class="mb-3 text-xs text-muted">{t('tenTwenty.personalHint')}</p>
+      <ul class="flex flex-col gap-3">
+        {#each personal as { med, rule: r } (med.id)}
+          <li class="flex flex-col gap-1 text-sm">
+            <div class="flex items-center gap-2">
+              <span class="size-3 rounded-full" style:background-color={med.color}></span>
+              <span class="flex-1 font-medium">{med.name}</span>
+              <span class="font-semibold tabular" style:color={toneOf(r.status)}>{t('tenTwenty.limitCount', { n: r.count, limit: r.limit })}</span>
+            </div>
+            <div class="flex gap-0.5">
+              {#each { length: r.limit } as _, i (i)}
+                <div class="h-2 flex-1 rounded-full" style:background-color={i < r.count ? toneOf(r.status) : 'var(--color-surface-2)'}></div>
+              {/each}
+              {#each { length: Math.max(0, r.count - r.limit) } as _, i (i)}
+                <div class="h-2 flex-1 rounded-full bg-over"></div>
+              {/each}
+            </div>
+            {#if r.nextRelief}
+              <p class="text-xs text-muted">{t('tenTwenty.nextRelief', { date: fmt(keyToDate(r.nextRelief), 'EEE d. MMM') })}</p>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
 
   <section class="card p-4">
     <h2 class="mb-3 text-sm font-semibold">{t('tenTwenty.window')}</h2>

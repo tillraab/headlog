@@ -66,16 +66,25 @@ export async function createCsv(database: HeadLogDb = db): Promise<string> {
 }
 
 /** Hands a file to the Android share sheet, or downloads it in a browser. */
-export async function saveFile(name: string, content: string, mime: string) {
+export async function saveFile(name: string, content: string | Uint8Array, mime: string) {
   if (Capacitor.isNativePlatform()) {
-    const { uri } = await Filesystem.writeFile({ path: name, data: content, directory: Directory.Cache, encoding: Encoding.UTF8 });
+    const { uri } =
+      typeof content === 'string'
+        ? await Filesystem.writeFile({ path: name, data: content, directory: Directory.Cache, encoding: Encoding.UTF8 })
+        : await Filesystem.writeFile({ path: name, data: toBase64(content), directory: Directory.Cache });
     await Share.share({ title: name, files: [uri] });
     return;
   }
-  const url = URL.createObjectURL(new Blob([content], { type: mime }));
+  const url = URL.createObjectURL(new Blob([content as BlobPart], { type: mime }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
 }

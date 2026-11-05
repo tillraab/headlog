@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { headacheDays, intakeDays, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty } from './analysis';
-import type { Drink, Episode, Intake, MedCategory } from './db';
+import { headacheDays, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty } from './analysis';
+import type { Drink, Episode, Intake, MedCategory, Medication } from './db';
 import { lastDays } from './days';
 
 const at = (s: string) => new Date(s).getTime();
@@ -78,6 +78,32 @@ describe('ruleStatus', () => {
     [11, 'over']
   ] as const)('%i of 10 is %s', (count, status) => {
     expect(ruleStatus(count, 10)).toBe(status);
+  });
+
+  it.each([
+    [3, 'ok'],
+    [4, 'caution'],
+    [6, 'over']
+  ] as const)('%i of 5 is %s', (count, status) => {
+    expect(ruleStatus(count, 5)).toBe(status);
+  });
+});
+
+describe('medicationLimits', () => {
+  const meds: Medication[] = [
+    { id: 1, name: 'Ibuprofen', dose: '', category: 'analgesic', color: '', order: 0 },
+    { id: 2, name: 'Sumatriptan', dose: '', category: 'triptan', color: '', order: 1, limitDays: 5 }
+  ];
+
+  it('counts days per medication with a personal limit only', () => {
+    const intakes = [
+      { ...intake('2026-03-20T08:00', 'triptan'), medId: 2 },
+      { ...intake('2026-03-20T20:00', 'triptan'), medId: 2 },
+      { ...intake('2026-03-25T08:00', 'triptan'), medId: 2 },
+      intake('2026-03-26T08:00')
+    ];
+    const result = medicationLimits(intakes, meds, at('2026-03-31T12:00'));
+    expect(result.map((r) => [r.med.name, r.rule.count, r.rule.limit])).toEqual([['Sumatriptan', 2, 5]]);
   });
 });
 

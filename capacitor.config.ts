@@ -8,6 +8,10 @@ const config: CapacitorConfig = {
   plugins: {
     SystemBars: {
       insetsHandling: 'css'
+    },
+    LocalNotifications: {
+      smallIcon: 'ic_stat_headlog',
+      iconColor: '#5b4bd6'
     }
   }
 };

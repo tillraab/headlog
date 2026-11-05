@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- Doctor report as PDF: key figures, a headache calendar per month, monthly overview, medication with relief ratings and personal limits, triggers, and a list of all headaches. Choose 1, 3, 6 or 12 months and an optional name.
+- Personal limit per medication, for example at most 5 days with a triptan in any 30 days. Shown on the medication button, in the Meds tab and in the report.
+- Notification one hour after taking medication asking whether it helped, with No / A bit / Yes buttons.
+- Water reminders: at noon when less than half the daily goal is reached, in the evening when the goal is not reached. Times are adjustable.
+
+### Changed
+
+- Removed the extra "+ Medication" button from today's log. Past intakes can be added from the calendar.
+
 ## [0.2.0] - 2026-11-05
 
 ### Added
