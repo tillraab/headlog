@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-05
+
 ### Added
 
 - Doctor report as PDF: key figures, a headache calendar per month, monthly overview, medication with relief ratings and personal limits, triggers, and a list of all headaches. Choose 1, 3, 6 or 12 months and an optional name.
