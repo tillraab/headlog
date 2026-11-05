@@ -4,6 +4,8 @@
 
 ### Added
 
+- Each headache in the calendar's day view shows how much you drank in the 72 hours before it, compared with what is usual for you.
+
 - Sleep estimate from screen activity (Android 9+, needs usage access): the night is the longest screen-off stretch, joined across wake breaks of up to 90 minutes, which are listed and left out of the sleep time. Today shows last night, the calendar's day view each night, Insights the average. Every night can be corrected by hand. Backups include the nights.
 
 - Weather: choose your home town in Settings, and HeadLog stores the weather of every day since your first entry from Open-Meteo: air pressure and its largest 24-hour drop, temperatures, humidity and rain. The calendar's day view shows it, and Today warns when the pressure falls by 6 hPa or more today or tomorrow. Only the town's coordinates are sent.

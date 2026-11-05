@@ -6,6 +6,7 @@
   import { edit } from '$lib/editor.svelte';
   import { fmt, t, tagLabel } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
+  import { hydrationBefore } from '$lib/analysis';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
   import Sheet from './Sheet.svelte';
 
@@ -63,6 +64,7 @@
     {/if}
 
     {#each episodes as ep (ep.id)}
+      {@const before = hydrationBefore(data.drinks, ep.start)}
       <button class="press flex items-start gap-3 rounded-2xl bg-pain-soft p-3 text-left" onclick={() => edit({ kind: 'episode', item: ep })}>
         <span class="grid size-9 shrink-0 place-items-center rounded-full bg-pain text-white"><Zap size={18} /></span>
         <span class="flex flex-col text-sm">
@@ -75,6 +77,11 @@
             <span class="text-xs text-muted">{ep.tags.map((tag) => tagLabel(tag)).join(' · ')}</span>
           {/if}
           {#if ep.note}<span class="mt-1 text-xs italic">{ep.note}</span>{/if}
+          {#if before.ml || before.usual}
+            <span class="mt-1 text-xs text-muted">
+              💧 {t('day.hydrationBefore', { ml: formatLiters(before.ml) })}{before.usual ? ` ${t('day.hydrationUsual', { ml: formatLiters(before.usual) })}` : ''}
+            </span>
+          {/if}
         </span>
       </button>
     {/each}
