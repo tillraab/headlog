@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-05
+
+### Changed
+
+- New app icon: a brain in sagittal view with a lightning bolt.
+
 ## [0.3.0] - 2026-11-05
 
 ### Added
