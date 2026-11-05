@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Headache risk for today and tomorrow, learned from your own data: for each factor (pressure drop, little to drink the day before, short night, alcohol, less caffeine than usual) HeadLog compares how often a headache started with and without it. Today shows a warning with the estimated chance, the usual chance, the reasons and a tip. An evening notification (20:00 by default, adjustable or off) warns when tomorrow looks risky.
+
+### Changed
+
+- The pressure drop hint on Today is part of the new risk warning.
+
 ## [0.9.0] - 2026-11-05
 
 ### Added

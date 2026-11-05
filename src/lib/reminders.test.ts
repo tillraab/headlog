@@ -4,7 +4,8 @@ import { i18n } from './i18n.svelte';
 beforeAll(() => {
   i18n.lang = 'en';
 });
-import { planDrinkCheckins, planHeadacheChecks, planReminders } from './reminders';
+import { planDrinkCheckins, planHeadacheChecks, planReminders, planRiskAlert } from './reminders';
+import type { Risk } from './risk';
 
 const at = (s: string) => new Date(s).getTime();
 const on = { enabled: true, noon: 12, evening: 18 };
@@ -107,5 +108,23 @@ describe('planDrinkCheckins', () => {
   it('gives every check-in its own id', () => {
     const ids = planDrinkCheckins(at('2026-03-02T08:00'), { enabled: true, times: ['08:30', '09:00', '12:00', '18:00'] }, 2000, []).map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('planRiskAlert', () => {
+  const stats = { key: 'pressure' as const, withRate: 0.5, withoutRate: 0.1, nWith: 10, nWithout: 40, ratio: 5 };
+  const risk: Risk = { day: 'tomorrow', usual: 0.1, estimate: 0.5, ratio: 5, level: 'high', factors: [{ key: 'pressure', value: 9, stats }] };
+
+  it('warns at the chosen hour when tomorrow is risky', () => {
+    const [alert] = planRiskAlert(at('2026-03-02T15:00'), { enabled: true, hour: 20 }, risk);
+    expect([new Date(alert.at).getHours(), alert.body.startsWith('About 50 % – usually 10 %')]).toEqual([20, true]);
+  });
+
+  it('stays silent for a possible trigger without data', () => {
+    expect(planRiskAlert(at('2026-03-02T15:00'), { enabled: true, hour: 20 }, { ...risk, level: 'possible' })).toEqual([]);
+  });
+
+  it('stays silent after the hour has passed', () => {
+    expect(planRiskAlert(at('2026-03-02T21:00'), { enabled: true, hour: 20 }, risk)).toEqual([]);
   });
 });
