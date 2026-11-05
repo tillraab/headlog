@@ -3,9 +3,11 @@
   import { edit } from '$lib/editor.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import TimelineChart from './TimelineChart.svelte';
-  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
+  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, monthlyLimitedDays, MULTIPLE_CLASSES_LIMIT, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
+  import { format, getDay } from 'date-fns';
+  import { ACUTE_CATEGORIES, type MedCategory } from '$lib/db';
   import { dayKey, keyToDate } from '$lib/days';
-  import { fmt, t } from '$lib/i18n.svelte';
+  import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
 
   const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
@@ -13,6 +15,25 @@
   const rule = $derived(tenTwenty(medDays, clock.now, data.settings.limit));
   const rolling = $derived(rollingDays(medDays, clock.now, 90));
   const monthly = $derived(monthlyCategoryDays(data.intakes, new Date(clock.now)));
+  /** One row per class with an overuse limit used this month, plus the rule for several classes together. */
+  const overuseRows = $derived.by(() => {
+    const rows = (Object.keys(MONTHLY_LIMITS) as MedCategory[])
+      .filter((c) => monthly.has(c))
+      .map((c) => ({ label: t(`cat.${c}`), days: monthly.get(c)!, limit: MONTHLY_LIMITS[c]! }));
+    if (rows.length > 1) rows.push({ label: t('overuse.multiple'), days: monthlyLimitedDays(data.intakes, new Date(clock.now)), limit: MULTIPLE_CLASSES_LIMIT });
+    return rows;
+  });
+  /** Intakes per day of the 30-day window, and the grid's empty cells before the first day. */
+  const intakesOn = $derived.by(() => {
+    const map = new Map<string, typeof data.intakes>();
+    for (const i of data.intakes) {
+      const key = dayKey(i.time);
+      map.set(key, [...(map.get(key) ?? []), i]);
+    }
+    return map;
+  });
+  const gridOffset = $derived((getDay(keyToDate(rule.days[0].key)) + 6) % 7);
+  let selectedDay = $state<string | null>(null);
   const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
   const reliefLabels = $derived([t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')]);
   /** Intakes and relief ratings per medication over the last 90 days. */
@@ -141,15 +162,54 @@
   {/if}
 
   <section class="card p-4">
-    <h2 class="mb-3 text-sm font-semibold">{t('tenTwenty.window')}</h2>
-    <div class="grid grid-cols-10 gap-1">
+    <h2 class="text-sm font-semibold">{t('tenTwenty.window')}</h2>
+    <p class="mb-3 text-xs text-muted">{t('grid.hint')}</p>
+    <div class="grid grid-cols-7 gap-1 text-center">
+      {#each weekdayShort() as wd (wd)}<span class="text-caption font-medium text-muted">{wd}</span>{/each}
+      {#each { length: gridOffset } as _, i (i)}<span></span>{/each}
       {#each rule.days as d (d.key)}
-        <div
-          class="flex aspect-square items-center justify-center rounded-md text-2xs tabular {d.med ? 'bg-med font-semibold text-white' : 'bg-surface-2 text-muted'}"
-          title={d.key}
+        {@const taken = intakesOn.get(d.key) ?? []}
+        {@const date = keyToDate(d.key)}
+        <button
+          class="press relative flex aspect-square flex-col items-center justify-center rounded-lg text-xs tabular
+            {d.med ? 'bg-med-soft font-semibold' : 'bg-surface-2 text-muted'} {selectedDay === d.key ? 'ring-2 ring-primary' : ''}"
+          onclick={() => (selectedDay = selectedDay === d.key ? null : d.key)}
         >
-          {keyToDate(d.key).getDate()}
-        </div>
+          {#if date.getDate() === 1 || d === rule.days[0]}<span class="absolute top-0.5 text-[8px] font-medium uppercase text-muted">{fmt(date, 'MMM')}</span>{/if}
+          {date.getDate()}
+          <span class="absolute bottom-1 flex gap-0.5">
+            {#each taken.slice(0, 3) as intake (intake.id)}
+              <span class="size-1.5 rounded-full" style:background-color={ACUTE_CATEGORIES.includes(intake.category) ? colorOf(intake.name) : 'var(--color-muted)'}></span>
+            {/each}
+          </span>
+        </button>
+      {/each}
+    </div>
+    {#if selectedDay}
+      {@const taken = intakesOn.get(selectedDay) ?? []}
+      <div class="mt-3 rounded-xl bg-surface-2 p-3 text-sm">
+        <p class="mb-1 text-xs font-semibold">{fmt(keyToDate(selectedDay), 'EEEE, d. MMMM')}</p>
+        {#if taken.length}
+          <ul class="flex flex-col gap-1">
+            {#each taken as intake (intake.id)}
+              <li class="flex items-center gap-2 text-xs">
+                <span class="size-2 rounded-full" style:background-color={colorOf(intake.name)}></span>
+                <span class="flex-1">{format(intake.time, 'HH:mm')} {intake.name} {intake.dose}</span>
+                <span class="text-muted">{ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')}</span>
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="text-xs text-muted">{t('grid.none')}</p>
+        {/if}
+      </div>
+    {/if}
+    <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+      <span class="flex items-center gap-1.5"><span class="size-3 rounded bg-med-soft"></span>{t('grid.legendDay')}</span>
+      {#each data.medications as med (med.id)}
+        <span class="flex items-center gap-1.5">
+          <span class="size-2 rounded-full" style:background-color={ACUTE_CATEGORIES.includes(med.category) ? med.color : 'var(--color-muted)'}></span>{med.name}
+        </span>
       {/each}
     </div>
   </section>
@@ -224,32 +284,30 @@
     </section>
   {/if}
 
-  {#if monthly.size}
-    <section class="card p-4">
-      <h2 class="mb-1 text-sm font-semibold">{t('tenTwenty.monthly')} · {fmt(clock.now, 'LLLL')}</h2>
-      <p class="mb-3 text-xs text-muted">{t('tenTwenty.monthlyHint')}</p>
-      <ul class="flex flex-col gap-3">
-        {#each [...monthly] as [category, days] (category)}
-          {@const limit = MONTHLY_LIMITS[category]}
-          <li class="flex flex-col gap-1 text-sm">
-            <div class="flex justify-between">
-              <span>{t(`cat.${category}`)}</span>
-              <span class="tabular">{days}{limit ? ` / ${limit}` : ''}</span>
-            </div>
-            {#if limit}
-              <div class="h-2 overflow-hidden rounded-full bg-surface-2">
-                <div
-                  class="h-full rounded-full"
-                  style:width="{Math.min(100, (days / limit) * 100)}%"
-                  style:background-color={days >= limit ? 'var(--color-over)' : days >= limit * 0.7 ? 'var(--color-caution)' : 'var(--color-ok)'}
-                ></div>
-              </div>
-            {/if}
-          </li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
+  <section class="card p-4">
+    <h2 class="text-sm font-semibold">{t('overuse.title')} · {fmt(clock.now, 'LLLL')}</h2>
+    <p class="mb-3 text-xs text-muted">{t('overuse.hint')}</p>
+    <ul class="flex flex-col gap-3">
+      {#each overuseRows as row (row.label)}
+        <li class="flex flex-col gap-1 text-sm">
+          <div class="flex justify-between">
+            <span>{row.label}</span>
+            <span class="tabular">{row.days} / {row.limit} {t('overuse.days')}</span>
+          </div>
+          <div class="h-2 overflow-hidden rounded-full bg-surface-2">
+            <div
+              class="h-full rounded-full"
+              style:width="{Math.min(100, (row.days / row.limit) * 100)}%"
+              style:background-color={row.days >= row.limit ? 'var(--color-over)' : row.days >= row.limit * 0.7 ? 'var(--color-caution)' : 'var(--color-ok)'}
+            ></div>
+          </div>
+        </li>
+      {:else}
+        <li class="text-sm text-muted">{t('overuse.none')}</li>
+      {/each}
+    </ul>
+    <p class="mt-3 text-xs text-muted">{t('overuse.notCounted')}</p>
+  </section>
 
   <p class="px-2 text-center text-xs text-muted">{t('tenTwenty.disclaimer')}</p>
 </div>

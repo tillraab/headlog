@@ -1,12 +1,13 @@
 <script lang="ts">
   import { Plus, Trash2 } from '@lucide/svelte';
-  import { MED_COLORS, type MedCategory, type Medication } from '$lib/db';
+  import { guessCategory, MED_COLORS, type MedCategory, type Medication } from '$lib/db';
+  import { toast } from '$lib/ui.svelte';
   import { t } from '$lib/i18n.svelte';
   import { data, deleteMedication, saveMedication } from '$lib/store.svelte';
   import OrderButtons from './OrderButtons.svelte';
   import Sheet from './Sheet.svelte';
 
-  const CATEGORIES: MedCategory[] = ['analgesic', 'triptan', 'combination', 'opioid', 'preventive', 'other'];
+  const CATEGORIES: MedCategory[] = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'antiemetic', 'preventive', 'other'];
 
   let openMed = $state<number | null>(null);
 
@@ -19,6 +20,14 @@
       order: data.medications.length ? Math.max(...data.medications.map((m) => m.order)) + 1 : 0
     });
     openMed = data.medications[data.medications.length - 1]?.id ?? null;
+  }
+
+  /** Renames, and picks the category when the name is a known active ingredient or brand. */
+  async function rename(med: Medication, name: string) {
+    if (!name) return;
+    const category = guessCategory(name);
+    await updateMed(med, category ? { name, category } : { name });
+    if (category && category !== med.category) toast(t('set.categoryGuessed', { category: t(`cat.${category}`) }));
   }
 
   async function updateMed(med: Medication, patch: Partial<Medication>) {
@@ -53,7 +62,7 @@
           <div class="grid grid-cols-2 gap-2 px-3 pb-3">
             <label class="flex flex-col gap-1 text-xs text-muted">
               {t('set.name')}
-              <input class="bg-surface" value={med.name} onchange={(e) => updateMed(med, { name: e.currentTarget.value.trim() || med.name })} />
+              <input class="bg-surface" value={med.name} onchange={(e) => rename(med, e.currentTarget.value.trim())} />
             </label>
             <label class="flex flex-col gap-1 text-xs text-muted">
               {t('set.dose')}
@@ -65,6 +74,7 @@
                 {#each CATEGORIES as c (c)}<option value={c}>{t(`cat.${c}`)}</option>{/each}
               </select>
             </label>
+            <p class="col-span-2 -mt-1 rounded-lg bg-surface px-2.5 py-2 text-xs text-muted">{t(`catDesc.${med.category}`)}</p>
 
             <div class="col-span-2 flex flex-col gap-1 text-xs text-muted">
               {t('set.limitDays')}

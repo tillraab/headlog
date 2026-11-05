@@ -166,13 +166,27 @@ export function rollingDays(days: Set<string>, today: number | Date, span: numbe
   return result;
 }
 
-/** Monthly overuse thresholds from the ICHD-3 criteria for medication-overuse headache. */
+/**
+ * Days per month from which ICHD-3 (8.2, medication-overuse headache) speaks of overuse, when it
+ * goes on for more than 3 months: 15 for simple pain relievers, 10 for the others.
+ */
 export const MONTHLY_LIMITS: Partial<Record<MedCategory, number>> = {
   analgesic: 15,
   triptan: 10,
+  ergotamine: 10,
   combination: 10,
   opioid: 10
 };
+
+/** ICHD-3 8.2.6: several of these classes together on 10 or more days a month also count as overuse. */
+export const MULTIPLE_CLASSES_LIMIT = 10;
+
+/** Days in the month of `month` with medication from any class that has an overuse limit. */
+export function monthlyLimitedDays(intakes: Intake[], month: Date): number {
+  const from = startOfMonth(month).getTime();
+  const to = endOfMonth(month).getTime();
+  return new Set(intakes.filter((i) => i.time >= from && i.time <= to && MONTHLY_LIMITS[i.category] !== undefined).map((i) => dayKey(i.time))).size;
+}
 
 /** Days per category in the calendar month containing `month`. */
 export function monthlyCategoryDays(intakes: Intake[], month: Date): Map<MedCategory, number> {
