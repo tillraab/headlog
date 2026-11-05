@@ -1,8 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { addDays, format, setHours, startOfDay } from 'date-fns';
+import { addDays, format, isSameDay, setHours, startOfDay } from 'date-fns';
 import { formatDuration, formatLiters } from './days';
-import { t } from './i18n.svelte';
+import { fmt, t } from './i18n.svelte';
 
 export interface ReminderSettings {
   enabled: boolean;
@@ -226,15 +226,23 @@ export function planDrinkCheckins(
       if (at <= now) return;
       if (lastDrink !== null && lastDrink <= at && at - lastDrink < CHECKIN_QUIET_MINUTES * 60000) return;
       const ml = d === 0 ? todayMl : 0;
+      const amount = t('rem.checkinBody', { ml: formatLiters(ml), goal: formatLiters(goalMl) });
+      const sameDay = lastDrink !== null && isSameDay(lastDrink, at);
       plan.push({
         id: CHECKIN_FIRST_ID + d * MAX_CHECKIN_TIMES + i,
         at,
-        title: t('rem.checkinTitle'),
-        body: t('rem.checkinBody', { ml: formatLiters(ml), goal: formatLiters(goalMl) })
+        title: sameDay ? t('rem.checkinTitleSince', { time: format(lastDrink, 'HH:mm') }) : t('rem.checkinTitle'),
+        body: lastDrink === null || sameDay ? amount : `${t('rem.checkinLast', { time: lastDrinkLabel(lastDrink, at) })} ${amount}`
       });
     });
   }
   return plan;
+}
+
+/** "yesterday 21:30" or "Mon 5 Nov 21:30", seen from the day of the check-in. */
+function lastDrinkLabel(lastDrink: number, at: number): string {
+  if (isSameDay(lastDrink, addDays(at, -1))) return `${t('versions.yesterday').toLowerCase()} ${format(lastDrink, 'HH:mm')}`;
+  return fmt(lastDrink, 'EEE d. MMM HH:mm');
 }
 
 /** Replaces the pending check-ins with the plan, with buttons for the first three drinks. */

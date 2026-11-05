@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-05
+
+### Changed
+
+- Drink check-ins name your last drink: "What did you drink since 10:20?", or "Last drink: yesterday 21:30" for the first check-in of the day.
+
 ## [0.6.0] - 2026-11-05
 
 ### Added

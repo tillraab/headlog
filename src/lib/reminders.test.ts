@@ -1,4 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { i18n } from './i18n.svelte';
+
+beforeAll(() => {
+  i18n.lang = 'en';
+});
 import { planDrinkCheckins, planHeadacheChecks, planReminders } from './reminders';
 
 const at = (s: string) => new Date(s).getTime();
@@ -76,6 +81,16 @@ describe('planDrinkCheckins', () => {
   it('keeps a check-in more than an hour after the last drink', () => {
     const plan = planDrinkCheckins(at('2026-03-02T08:30'), on, 2000, 250, at('2026-03-02T08:30'));
     expect(new Date(plan[0].at).getHours()).toBe(10);
+  });
+
+  it('asks for drinks since the last one on the same day', () => {
+    const [first] = planDrinkCheckins(at('2026-03-02T11:00'), on, 2000, 250, at('2026-03-02T10:20'));
+    expect(first.title).toBe('💧 What did you drink since 10:20?');
+  });
+
+  it('names the last drink of the day before in the text', () => {
+    const [first] = planDrinkCheckins(at('2026-03-02T08:00'), on, 2000, 0, at('2026-03-01T21:30'));
+    expect([first.title, first.body]).toEqual(['💧 What did you drink?', 'Last drink: yesterday 21:30. 0.0 l of 2.0 l so far today.']);
   });
 
   it('ignores a drink logged after the check-in time', () => {
