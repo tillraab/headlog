@@ -19,7 +19,8 @@ Run `bun run check` and `bun run test` before every commit.
 ## Layout
 
 - `src/routes/+page.svelte`: the whole app shell. Swipeable tabs (CSS scroll snap), bottom nav, Android back button, app lifecycle (load, Gist sync on leave, reminder rescheduling in an `$effect`, notification button handling).
-- `src/lib/components/`: `TodayTab`, `CalendarTab` (+ `DaySheet`), `MedsTab` (10/20 rule and personal limits), `InsightsTab`, `SettingsSheet`, `EditorSheet` (edit any episode, intake or drink), shared `Sheet`, `Toasts`, `BarChart`, `IntensityPicker`, `RuleBadge`.
+- `src/lib/components/`: tabs `TodayTab` (built from snippets; medication moves above hydration during a headache), `MedsTab` (10/20 rule, personal limits, how well each medication works, recent intakes), `CalendarTab` (+ `DaySheet`), `InsightsTab` (sections Overview, Connections, Hydration, Patterns; `TimelineChart`, `ComparisonChart`). Sheets: `SettingsSheet`, `MedListSheet` and `DrinkListSheet` (the lists and the hydration goal, opened from Today, Meds and Settings), `ReportSheet`, `EditorSheet` (edit any episode, intake, drink or night), `VersionsSheet`. Cards: `RiskCard`, `WelcomeCard` (until the first entry). Shared: `Sheet`, `Toasts`, `Celebration`, `BarChart`, `IntensityPicker`, `RuleBadge`, `OrderButtons`.
+- Things go where they are used: list editing next to the list, reports in Insights, settings only for what has no better home.
 - `src/lib/db.ts`: Dexie schema, entity types, default medication and drink lists, `seed`.
 - `src/lib/store.svelte.ts`: all data in one `$state` object. Every write goes to Dexie and then calls `load()`, which reloads everything. `Settings` lives here with its defaults.
 - `src/lib/analysis.ts`: pure functions for headache days, medication days, the 10/20 rule, personal limits, rolling counts, monthly counts, period stats. Well tested; put new statistics here, not in components.

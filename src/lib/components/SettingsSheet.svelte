@@ -3,6 +3,7 @@
   import { createBackup, isBackup, restoreBackup, saveFile, wipe } from '$lib/backup';
   import { loadDemo } from '$lib/demo';
   import { fmt, i18n, setLang, t, type Lang } from '$lib/i18n.svelte';
+  import { formatLiters } from '$lib/days';
   import { data, load, saveSettings, translateDrinkNames, updateSleep, updateWeather } from '$lib/store.svelte';
   import { MAX_CHECKIN_TIMES, requestReminderPermission } from '$lib/reminders';
   import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
@@ -199,19 +200,11 @@
     </button>
     <button class="press flex items-center justify-between rounded-xl px-3 py-3 text-left" onclick={() => openSheet('drinkList')}>
       <span>💧 {t('set.drinks')}</span>
-      <span class="flex items-center gap-1 text-sm text-muted">{data.drinkPresets.length}<ChevronRight size={16} /></span>
+      <span class="flex items-center gap-1 text-sm text-muted">{t('set.goalShort', { goal: formatLiters(data.settings.waterGoalMl) })}<ChevronRight size={16} /></span>
     </button>
   </div>
   {@render group(t('set.general'))}
   <div class="card flex flex-col gap-4 p-4">
-    <label class="flex items-center justify-between gap-4 text-body">
-      {t('set.waterGoal')}
-      <select class="w-28" value={data.settings.waterGoalMl} onchange={(e) => saveSettings({ waterGoalMl: Number(e.currentTarget.value) })}>
-        {#each [1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3500, 4000] as ml (ml)}
-          <option value={ml}>{(ml / 1000).toLocaleString()} l</option>
-        {/each}
-      </select>
-    </label>
     <label class="flex items-center justify-between gap-4 text-body">
       {t('set.limit')}
       <select class="w-20" value={data.settings.limit} onchange={(e) => saveSettings({ limit: Number(e.currentTarget.value) })}>

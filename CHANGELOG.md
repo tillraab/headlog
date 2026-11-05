@@ -4,11 +4,14 @@
 
 ### Added
 
+- Welcome card on Today until the first entry: set up medication, drinks and hydration goal, and the optional extras, with a pointer to the demo data.
+
 - Meds tab: how well each medication works (relief ratings of the last 90 days as a bar), the last eight intakes with their rating, tap to edit or rate, and a button to edit your medication.
 - Pencil buttons on the hydration and medication cards of Today open the drink and medication lists directly.
 
 ### Changed
 
+- The hydration goal sits with your drinks.
 - Your medication and drink lists open as their own panels from Today, Meds and Settings, instead of filling the top of Settings.
 - Insights is grouped into Overview, Connections, Hydration and Patterns. The report button opens a sheet with name, period and PDF or CSV; the doctor section left Settings. How well medication works moved to the Meds tab.
 
