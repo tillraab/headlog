@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Pressure drops follow the measure of the study they come from (Kimoto et al. 2011): the daily mean pressure against the day before, unfavourable at more than 5 hPa. Before, HeadLog took the largest fall within any 24 hours and 6 hPa. Weather stored so far is fetched again once.
+
 ## [0.15.1] - 2026-11-05
 
 ### Fixed

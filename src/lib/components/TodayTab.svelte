@@ -9,7 +9,6 @@
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
   import { celebrate, openSheet, tap, toast } from '$lib/ui.svelte';
   import { prognosis } from '$lib/prognosis';
-  import { PRESSURE_DROP_HPA } from '$lib/weather';
   import PrognosisCard from './PrognosisCard.svelte';
   import WelcomeCard from './WelcomeCard.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
@@ -19,7 +18,7 @@
 
   const ongoing = $derived(ongoingEpisode());
   const forecast = $derived(
-    prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl, dropHpa: PRESSURE_DROP_HPA }, clock.now)
+    prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, clock.now)
   );
   let forecastOpen = $state(false);
   let forecastCard = $state<HTMLDivElement>();

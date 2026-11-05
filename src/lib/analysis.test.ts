@@ -265,11 +265,11 @@ describe('timeline and compareDays', () => {
   });
 
   it('compares headache days with clear days per factor', () => {
-    const rows = Object.fromEntries(compareDays(data, keys, now, 6).map((r) => [r.key, [r.headache, r.clear]]));
+    const rows = Object.fromEntries(compareDays(data, keys, now).map((r) => [r.key, [r.headache, r.clear]]));
     expect(rows).toEqual({ hydration: [1000, 2000], sleep: [5, 8], pressure: [1, 0] });
   });
 
   it('leaves out factors with fewer than three days on a side', () => {
-    expect(compareDays({ ...data, episodes: data.episodes.slice(0, 2) }, keys, now, 6)).toEqual([]);
+    expect(compareDays({ ...data, episodes: data.episodes.slice(0, 2) }, keys, now)).toEqual([]);
   });
 });
