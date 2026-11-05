@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The opened forecast explains itself: how the light is made, and for every factor its status (fine, unfavourable, no data), a "why" sentence with your numbers and the rule with its thresholds.
+
+### Fixed
+
+- The detail box above the Insights charts keeps its height, so the charts no longer jump while you move through the days.
+
 ## [0.14.1] - 2026-11-05
 
 ### Fixed

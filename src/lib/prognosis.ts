@@ -33,10 +33,10 @@ export interface Prognosis {
   /** Number of unfavourable factors. */
   bad: number;
   weather: { status: Status; today?: WeatherDay; tomorrow?: WeatherDay; drop: number };
-  hydration: { status: Status; today: number; yesterday: number | null; expected: number; goal: number };
+  hydration: { status: Status; today: number; yesterday: number | null; expected: number; goal: number; behind: boolean; lowYesterday: boolean };
   sleep: { status: Status; night?: Night; average: number | null };
   alcohol: { status: Status; yesterday: boolean; today: boolean };
-  caffeine: { status: Status; today: number; usual: number | null };
+  caffeine: { status: Status; today: number; usual: number | null; tooEarly: boolean };
 }
 
 /** Fluid that should have been reached by `now` to meet the goal by the evening. */
@@ -93,10 +93,10 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
     light: bad >= 3 ? 'red' : bad === 2 ? 'yellow' : 'green',
     bad,
     weather: { status: weatherStatus, today: todayWeather, tomorrow: tomorrowWeather, drop },
-    hydration: { status: hydrationStatus, today: todayMl, yesterday: yesterdayMl, expected, goal: input.goalMl },
+    hydration: { status: hydrationStatus, today: todayMl, yesterday: yesterdayMl, expected, goal: input.goalMl, behind: behindToday, lowYesterday },
     sleep: { status: sleepStatus, night, average },
     alcohol: { status: alcoholStatus, yesterday: alcohol.has(yesterday), today: alcohol.has(today) },
-    caffeine: { status: caffeineStatus, today: caffeineToday, usual }
+    caffeine: { status: caffeineStatus, today: caffeineToday, usual, tooEarly: getHours(now) < CAFFEINE_FROM_HOUR }
   };
 }
 

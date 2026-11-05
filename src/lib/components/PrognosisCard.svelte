@@ -4,7 +4,7 @@
   import { formatDuration, formatLiters } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { t } from '$lib/i18n.svelte';
-  import { badFactors, prognosis, type Status } from '$lib/prognosis';
+  import { badFactors, CAFFEINE_DROP, LOW_HYDRATION, prognosis, SHORT_SLEEP_HOURS, type Status } from '$lib/prognosis';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
@@ -18,6 +18,23 @@
   const LIGHT = { green: 'var(--color-ok)', yellow: 'var(--color-caution)', red: 'var(--color-over)' };
   const STATUS: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
   const hm = (time: number) => format(time, 'HH:mm');
+
+  function hydrationWhy(): string {
+    const h = p.hydration;
+    if (h.status === 'unknown') return t('prog.why.hydrationUnknown');
+    if (h.behind) return t('prog.why.hydrationBehind', { ml: formatLiters(h.today), pace: formatLiters(h.expected * LOW_HYDRATION) });
+    if (h.lowYesterday) return t('prog.why.hydrationYesterday', { ml: formatLiters(h.yesterday ?? 0), limit: formatLiters(h.goal * LOW_HYDRATION) });
+    if (h.today >= h.goal) return t('prog.why.hydrationGoal');
+    return t('prog.why.hydrationOk');
+  }
+
+  function caffeineWhy(): string {
+    const c = p.caffeine;
+    if (c.tooEarly) return t('prog.why.caffeineEarly');
+    if (c.status === 'unknown') return t('prog.why.caffeineLittle');
+    const values = { mg: Math.round(c.today), half: Math.round((c.usual ?? 0) * CAFFEINE_DROP) };
+    return t(c.status === 'bad' ? 'prog.why.caffeineBad' : 'prog.why.caffeineOk', values);
+  }
 
   /** The tip for the first unfavourable factor, in the order weather, hydration, sleep, alcohol, caffeine. */
   const tip = $derived.by(() => {
@@ -52,8 +69,24 @@
   }
 </script>
 
-{#snippet dot(status: Status)}
-  <span class="mt-1.5 size-2.5 shrink-0 rounded-full" style:background-color={STATUS[status]}></span>
+{#snippet factor(status: Status, title: string, facts: string[], why: string, rule: string, action?: () => void)}
+  <div class="flex gap-2.5">
+    <span class="mt-1 size-2.5 shrink-0 rounded-full" style:background-color={STATUS[status]}></span>
+    <div class="flex flex-1 flex-col gap-0.5">
+      <p class="flex items-center gap-2">
+        <span class="font-medium">{title}</span>
+        <span class="rounded-full px-2 py-0.5 text-2xs font-semibold" style:color={STATUS[status]} style:background-color="color-mix(in oklab, {STATUS[status]} 14%, transparent)">
+          {t(`prog.status.${status}`)}
+        </span>
+        {#if action}
+          <button class="press ml-auto grid size-6 place-items-center rounded-full text-muted" onclick={action} aria-label={title}><Pencil size={12} /></button>
+        {/if}
+      </p>
+      {#each facts.filter(Boolean) as fact, i (i)}<p class="text-xs text-muted tabular">{fact}</p>{/each}
+      <p class="text-xs"><span class="font-semibold">{t('prog.why')}</span> {why}</p>
+      <p class="text-2xs text-muted">{t('prog.ruleLabel')} {rule}</p>
+    </div>
+  </div>
 {/snippet}
 
 <section class="card overflow-hidden">
@@ -86,77 +119,72 @@
 
   {#if open}
     <div class="flex flex-col gap-3 px-4 pb-4 text-sm">
-      <div class="flex gap-2">
-        {@render dot(p.weather.status)}
-        <div class="flex-1">
-          <p class="font-medium">{t('prog.weather')}</p>
-          {#if p.weather.status === 'unknown'}
-            <button class="text-xs text-primary underline underline-offset-4" onclick={() => openSheet('settings')}>{t('prog.noWeather')}</button>
-          {:else}
-            {#if p.weather.today}<p class="text-xs text-muted tabular">{t('prog.today')}: {weatherLine(p.weather.today)}</p>{/if}
-            {#if p.weather.tomorrow}<p class="text-xs text-muted tabular">{t('prog.tomorrow')}: {weatherLine(p.weather.tomorrow)}</p>{/if}
-          {/if}
-        </div>
-      </div>
+      <p class="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('prog.how')}</p>
 
-      <div class="flex gap-2">
-        {@render dot(p.hydration.status)}
-        <div class="flex-1">
-          <p class="font-medium">{t('prog.hydration')}</p>
-          <p class="text-xs text-muted tabular">{t('prog.hydrationToday', { ml: formatLiters(p.hydration.today), expected: formatLiters(p.hydration.expected) })}</p>
-          {#if p.hydration.yesterday !== null}
-            <p class="text-xs text-muted tabular">{t('prog.hydrationYesterday', { ml: formatLiters(p.hydration.yesterday), goal: formatLiters(p.hydration.goal) })}</p>
-          {/if}
-        </div>
-      </div>
+      {@render factor(
+        p.weather.status,
+        t('prog.weather'),
+        [
+          p.weather.today ? `${t('prog.today')}: ${weatherLine(p.weather.today)}` : '',
+          p.weather.tomorrow ? `${t('prog.tomorrow')}: ${weatherLine(p.weather.tomorrow)}` : ''
+        ],
+        p.weather.status === 'unknown'
+          ? t('prog.why.weatherUnknown')
+          : t(p.weather.status === 'bad' ? 'prog.why.weatherBad' : 'prog.why.weatherOk', { n: Math.round(p.weather.drop), limit: PRESSURE_DROP_HPA }),
+        t('prog.rule.weather', { limit: PRESSURE_DROP_HPA }),
+        p.weather.status === 'unknown' ? () => openSheet('settings') : undefined
+      )}
 
-      <div class="flex gap-2">
-        {@render dot(p.sleep.status)}
-        <div class="flex-1">
-          <p class="font-medium">{t('prog.sleep')}</p>
-          {#if p.sleep.night}
-            {@const night = p.sleep.night}
-            <p class="flex items-center gap-2 text-xs text-muted tabular">
-              {t('prog.sleepNight', { d: formatDuration(night.asleepMs), from: hm(night.start), to: hm(night.end) })}
-              <button class="press grid size-6 place-items-center rounded-full" onclick={() => edit({ kind: 'sleep', item: night })} aria-label={t('sleep.title')}>
-                <Pencil size={12} />
-              </button>
-            </p>
-            {#if night.breaks.length}
-              <p class="text-xs text-muted tabular">
-                {t('sleep.breaks', { n: night.breaks.length, d: formatDuration(night.breaks.reduce((s, b) => s + b.end - b.start, 0)) })}:
-                {night.breaks.map((b) => `${hm(b.start)}–${hm(b.end)}`).join(', ')}
-              </p>
-            {/if}
-            {#if p.sleep.average !== null}<p class="text-xs text-muted tabular">{t('prog.sleepAvg', { d: formatDuration(p.sleep.average * 3600000) })}</p>{/if}
-          {:else}
-            <button class="text-xs text-primary underline underline-offset-4" onclick={() => openSheet('settings')}>{t('prog.noSleep')}</button>
-          {/if}
-        </div>
-      </div>
+      {@render factor(
+        p.hydration.status,
+        t('prog.hydration'),
+        [
+          t('prog.hydrationToday', { ml: formatLiters(p.hydration.today), expected: formatLiters(p.hydration.expected) }),
+          p.hydration.yesterday !== null ? t('prog.hydrationYesterday', { ml: formatLiters(p.hydration.yesterday), goal: formatLiters(p.hydration.goal) }) : ''
+        ],
+        hydrationWhy(),
+        t('prog.rule.hydration', { pace: formatLiters(p.hydration.expected * LOW_HYDRATION), yesterday: formatLiters(p.hydration.goal * LOW_HYDRATION) })
+      )}
+
+      {@render factor(
+        p.sleep.status,
+        t('prog.sleep'),
+        p.sleep.night
+          ? [
+              t('prog.sleepNight', { d: formatDuration(p.sleep.night.asleepMs), from: hm(p.sleep.night.start), to: hm(p.sleep.night.end) }),
+              p.sleep.night.breaks.length
+                ? `${t('sleep.breaks', { n: p.sleep.night.breaks.length, d: formatDuration(p.sleep.night.breaks.reduce((sum, b) => sum + b.end - b.start, 0)) })}: ${p.sleep.night.breaks.map((b) => `${hm(b.start)}–${hm(b.end)}`).join(', ')}`
+                : '',
+              p.sleep.average !== null ? t('prog.sleepAvg', { d: formatDuration(p.sleep.average * 3600000) }) : ''
+            ]
+          : [],
+        !p.sleep.night
+          ? t(data.settings.sleep.enabled ? 'prog.why.sleepNone' : 'prog.why.sleepOff')
+          : t(p.sleep.status === 'bad' ? 'prog.why.sleepBad' : 'prog.why.sleepOk', { d: formatDuration(p.sleep.night.asleepMs), limit: SHORT_SLEEP_HOURS }),
+        t('prog.rule.sleep', { limit: SHORT_SLEEP_HOURS }),
+        p.sleep.night ? () => edit({ kind: 'sleep', item: p.sleep.night! }) : data.settings.sleep.enabled ? undefined : () => openSheet('settings')
+      )}
 
       {#if p.alcohol.status !== 'unknown'}
-        <div class="flex gap-2">
-          {@render dot(p.alcohol.status)}
-          <div class="flex-1">
-            <p class="font-medium">{t('drink.alcohol')}</p>
-            <p class="text-xs text-muted">
-              {p.alcohol.yesterday || p.alcohol.today
-                ? [p.alcohol.yesterday ? t('prog.yesterday') : '', p.alcohol.today ? t('prog.today') : ''].filter(Boolean).join(', ')
-                : t('prog.alcoholNone')}
-            </p>
-          </div>
-        </div>
+        {@render factor(
+          p.alcohol.status,
+          t('prog.alcohol'),
+          [],
+          p.alcohol.status === 'bad'
+            ? t('prog.why.alcoholBad', { when: [p.alcohol.yesterday ? t('prog.yesterday') : '', p.alcohol.today ? t('prog.today') : ''].filter(Boolean).join(t('prog.and')) })
+            : t('prog.why.alcoholOk'),
+          t('prog.rule.alcohol')
+        )}
       {/if}
 
       {#if p.caffeine.usual !== null}
-        <div class="flex gap-2">
-          {@render dot(p.caffeine.status)}
-          <div class="flex-1">
-            <p class="font-medium">{t('prog.caffeine')}</p>
-            <p class="text-xs text-muted tabular">{t('prog.caffeineValue', { mg: Math.round(p.caffeine.today), usual: Math.round(p.caffeine.usual) })}</p>
-          </div>
-        </div>
+        {@render factor(
+          p.caffeine.status,
+          t('prog.caffeine'),
+          [t('prog.caffeineValue', { mg: Math.round(p.caffeine.today), usual: Math.round(p.caffeine.usual) })],
+          caffeineWhy(),
+          t('prog.rule.caffeine', { half: Math.round(p.caffeine.usual * CAFFEINE_DROP) })
+        )}
       {/if}
 
       <p class="text-xs text-muted">💡 {tip}</p>
