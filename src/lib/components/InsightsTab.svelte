@@ -1,42 +1,111 @@
 <script lang="ts">
-  import { alcoholDays, caffeineByDay, hydrationStreak, monthlyCounts, periodStats } from '$lib/analysis';
-  import { lastDays } from '$lib/days';
-  import { formatDuration, formatLiters } from '$lib/days';
+  import { FileText } from '@lucide/svelte';
+  import { alcoholDays, caffeineByDay, compareDays, hydrationStreak, monthlyCounts, periodStats, timeline, type ComparisonKey } from '$lib/analysis';
+  import { formatDuration, formatLiters, keyToDate, lastDays } from '$lib/days';
+  import { exportForDoctor } from '$lib/doctor.svelte';
   import { fmt, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
-  import { FileText } from '@lucide/svelte';
-  import { exportForDoctor } from '$lib/doctor.svelte';
+  import { PRESSURE_DROP_HPA } from '$lib/weather';
   import BarChart from './BarChart.svelte';
+  import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
+  import TimelineChart, { type Row } from './TimelineChart.svelte';
 
   const PERIODS = [30, 90, 365];
   const REPORT_MONTHS: Record<number, number> = { 30: 1, 90: 3, 365: 12 };
+  const SLEEP_REFERENCE_HOURS = 7;
   let span = $state(90);
 
+  const keys = $derived(lastDays(clock.now, span));
   const stats = $derived(periodStats(data, clock.now, span));
-  const hydration = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
-  const periodKeys = $derived(lastDays(clock.now, span));
+  const series = $derived(timeline(data, keys, clock.now));
+  const streak = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
+  const months = $derived(monthlyCounts(data, clock.now, span === 365 ? 12 : 6));
+  const hasData = $derived(stats.episodes > 0 || stats.intakes > 0 || stats.avgWaterMl !== null);
+  const reliefLabels = $derived([t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')]);
+  const maxTag = $derived(Math.max(1, ...stats.tags.map((x) => x.count)));
+
+  const known = (values: (number | null)[]) => values.filter((v): v is number => v !== null);
+  const average = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : null);
+  const sleepAvg = $derived(average(known(series.sleepHours)));
   const caffeine = $derived.by(() => {
     const byDay = caffeineByDay(data.drinks);
-    const days = periodKeys.filter((k) => byDay.has(k));
-    return days.length ? days.reduce((s, k) => s + byDay.get(k)!, 0) / days.length : null;
-  });
-  const sleepAvg = $derived.by(() => {
-    const nights = periodKeys.map((k) => data.sleep.get(k)).filter((n) => n !== undefined);
-    return nights.length ? nights.reduce((s, n) => s + n.asleepMs, 0) / nights.length : null;
+    return average(keys.filter((k) => byDay.has(k)).map((k) => byDay.get(k)!));
   });
   const alcohol = $derived.by(() => {
     const days = alcoholDays(data.drinks);
-    return periodKeys.filter((k) => days.has(k)).length;
+    return keys.filter((k) => days.has(k)).length;
   });
-  const months = $derived(monthlyCounts(data, clock.now, span === 365 ? 12 : 6));
-  const hasData = $derived(stats.episodes > 0 || stats.intakes > 0 || stats.avgWaterMl !== null);
-  const waterDiff = $derived(
-    stats.waterBeforeHeadache !== null && stats.waterBeforeClear
-      ? Math.round((1 - stats.waterBeforeHeadache / stats.waterBeforeClear) * 100)
-      : null
+
+  const rows = $derived.by(() => {
+    const result: Row[] = [
+      { label: t('tl.headache'), summary: t('tl.days', { n: stats.headacheDays }), values: series.headache, color: 'var(--color-pain)', kind: 'bars' }
+    ];
+    const water = known(series.hydration);
+    if (water.length) {
+      result.push({
+        label: t('tl.hydration'),
+        summary: t('tl.hydrationSummary', {
+          ml: formatLiters(average(water)!),
+          n: water.filter((v) => v >= data.settings.waterGoalMl).length
+        }),
+        values: series.hydration,
+        color: 'var(--color-water)',
+        kind: 'bars',
+        reference: data.settings.waterGoalMl
+      });
+    }
+    const sleep = known(series.sleepHours);
+    if (sleep.length) {
+      result.push({
+        label: t('tl.sleep'),
+        summary: t('tl.sleepSummary', { d: formatDuration(average(sleep)! * 3600000), n: sleep.length }),
+        values: series.sleepHours,
+        color: 'var(--color-primary)',
+        kind: 'bars',
+        reference: SLEEP_REFERENCE_HOURS
+      });
+    }
+    if (known(series.pressure).length) {
+      const marks = series.pressureDrop.map((d) => d !== null && d >= PRESSURE_DROP_HPA);
+      result.push({
+        label: t('tl.pressure'),
+        summary: t('tl.pressureSummary', { n: marks.filter(Boolean).length, hpa: PRESSURE_DROP_HPA }),
+        values: series.pressure,
+        color: 'var(--color-muted)',
+        kind: 'line',
+        marks,
+        markColor: 'var(--color-caution)'
+      });
+    }
+    return result;
+  });
+
+  const timelineLabels = $derived([
+    fmt(keyToDate(keys[0]), 'd. MMM'),
+    fmt(keyToDate(keys[Math.floor(keys.length / 2)]), 'd. MMM'),
+    fmt(keyToDate(keys[keys.length - 1]), 'd. MMM')
+  ] as [string, string, string]);
+
+  const comparisons = $derived(compareDays(data, keys, clock.now, PRESSURE_DROP_HPA));
+  const percent = (v: number) => `${Math.round(v * 100)} %`;
+  const FORMAT: Record<ComparisonKey, (v: number) => string> = {
+    hydration: formatLiters,
+    sleep: (v) => formatDuration(v * 3600000),
+    caffeine: (v) => `${Math.round(v)} mg`,
+    pressure: percent,
+    alcohol: percent
+  };
+  const pairs = $derived(
+    comparisons.map(
+      (c): Pair => ({
+        label: t(`cmp.${c.key}`, { n: PRESSURE_DROP_HPA }),
+        headache: c.headache,
+        clear: c.clear,
+        format: FORMAT[c.key],
+        note: t('cmp.note', { h: c.nHeadache, c: c.nClear })
+      })
+    )
   );
-  const reliefLabels = $derived([t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')]);
-  const maxTag = $derived(Math.max(1, ...stats.tags.map((x) => x.count)));
 </script>
 
 <div class="flex flex-col gap-3 pb-6">
@@ -65,11 +134,11 @@
     <section class="grid grid-cols-3 gap-2">
       {#each [
         { label: t('ins.headacheDays'), value: String(stats.headacheDays), cls: 'text-pain' },
-        { label: t('ins.episodes'), value: String(stats.episodes), cls: '' },
         { label: t('ins.avgIntensity'), value: stats.avgIntensity === null ? '–' : stats.avgIntensity.toFixed(1), cls: '' },
         { label: t('ins.avgDuration'), value: stats.avgDurationMs === null ? '–' : formatDuration(stats.avgDurationMs), cls: '' },
         { label: t('ins.medDays'), value: String(stats.medDays), cls: 'text-med' },
-        { label: t('ins.avgWater'), value: stats.avgWaterMl === null ? '–' : formatLiters(stats.avgWaterMl), cls: 'text-water' }
+        { label: t('ins.avgWater'), value: stats.avgWaterMl === null ? '–' : formatLiters(stats.avgWaterMl), cls: 'text-water' },
+        { label: t('sleep.avg'), value: sleepAvg === null ? '–' : formatDuration(sleepAvg * 3600000), cls: 'text-primary' }
       ] as tile (tile.label)}
         <div class="card p-3">
           <p class="text-lg font-semibold tabular {tile.cls}">{tile.value}</p>
@@ -78,30 +147,35 @@
       {/each}
     </section>
 
-    {#if caffeine !== null || alcohol || sleepAvg !== null}
-      <section class="grid grid-cols-3 gap-2">
-        <div class="card p-3">
-          <p class="text-lg font-semibold tabular">{sleepAvg === null ? '–' : formatDuration(sleepAvg)}</p>
-          <p class="text-xs leading-tight text-muted">{t('sleep.avg')}</p>
-        </div>
-        <div class="card p-3">
-          <p class="text-lg font-semibold tabular">{caffeine === null ? '–' : `${Math.round(caffeine)} mg`}</p>
-          <p class="text-xs leading-tight text-muted">{t('drink.caffeineAvg')}</p>
-        </div>
-        <div class="card p-3">
-          <p class="text-lg font-semibold tabular">{alcohol}</p>
-          <p class="text-xs leading-tight text-muted">{t('drink.alcoholDays')}</p>
-        </div>
-      </section>
-    {/if}
+    <section class="card p-4">
+      <h2 class="text-sm font-semibold">{t('tl.title')}</h2>
+      <p class="mb-3 text-xs text-muted">{t('tl.hint')}</p>
+      <TimelineChart {rows} bands={series.headache.map((v) => v > 0)} labels={timelineLabels} />
+    </section>
 
-    <section class="card flex items-center gap-3 p-4">
-      <span class="text-3xl">🔥</span>
-      <div class="flex-1">
-        <p class="text-sm font-semibold">{t('streak.label')}</p>
-        <p class="text-xs text-muted">{t('streak.best', { n: hydration.best })}</p>
+    <section class="card p-4">
+      <h2 class="text-sm font-semibold">{t('cmp.title')}</h2>
+      <p class="mb-3 text-xs text-muted">{t('cmp.hint')}</p>
+      {#if pairs.length}
+        <ComparisonChart {pairs} headacheLabel={t('cmp.headache')} clearLabel={t('cmp.clear')} />
+      {:else}
+        <p class="text-sm text-muted">{t('cmp.empty')}</p>
+      {/if}
+    </section>
+
+    <section class="card grid grid-cols-3 gap-2 p-4">
+      <div>
+        <p class="text-lg font-semibold text-water tabular">🔥 {streak.current}</p>
+        <p class="text-xs leading-tight text-muted">{t('streak.label')}<br />{t('streak.best', { n: streak.best })}</p>
       </div>
-      <p class="text-2xl font-semibold text-water tabular">{hydration.current}</p>
+      <div>
+        <p class="text-lg font-semibold tabular">{caffeine === null ? '–' : `${Math.round(caffeine)} mg`}</p>
+        <p class="text-xs leading-tight text-muted">{t('drink.caffeineAvg')}</p>
+      </div>
+      <div>
+        <p class="text-lg font-semibold tabular">{alcohol}</p>
+        <p class="text-xs leading-tight text-muted">{t('drink.alcoholDays')}</p>
+      </div>
     </section>
 
     <section class="card p-4">
@@ -130,27 +204,6 @@
       <section class="card p-4">
         <h2 class="mb-1 text-sm font-semibold">{t('ins.timeOfDay')}</h2>
         <BarChart height={72} bars={stats.timeOfDay.map((v, i) => ({ label: `${String(i * 3).padStart(2, '0')}`, value: v }))} />
-      </section>
-    {/if}
-
-    {#if stats.waterBeforeHeadache !== null && stats.waterBeforeClear !== null}
-      <section class="card flex flex-col gap-3 p-4">
-        <h2 class="text-sm font-semibold">{t('ins.waterLink')}</h2>
-        {#each [
-          { label: t('ins.waterBefore'), ml: stats.waterBeforeHeadache, color: 'var(--color-pain)' },
-          { label: t('ins.waterClear'), ml: stats.waterBeforeClear, color: 'var(--color-water)' }
-        ] as row (row.label)}
-          {@const max = Math.max(stats.waterBeforeHeadache, stats.waterBeforeClear, data.settings.waterGoalMl)}
-          <div class="flex flex-col gap-1 text-sm">
-            <div class="flex justify-between"><span>{row.label}</span><span class="font-semibold tabular">{formatLiters(row.ml)}</span></div>
-            <div class="h-2.5 overflow-hidden rounded-full bg-surface-2">
-              <div class="h-full rounded-full" style:width="{(row.ml / max) * 100}%" style:background-color={row.color}></div>
-            </div>
-          </div>
-        {/each}
-        <p class="text-sm text-muted">
-          {waterDiff !== null && waterDiff >= 10 ? t('ins.waterMore', { pct: waterDiff }) : t('ins.waterSame')}
-        </p>
       </section>
     {/if}
 

@@ -38,9 +38,10 @@ export async function restoreBackup(backup: Backup, database: HeadLogDb = db) {
   });
 }
 
+/** Deletes everything, including stored weather, which backups leave out. */
 export async function wipe(database: HeadLogDb = db) {
-  await database.transaction('rw', ALL_TABLES.map((t) => database.table(t)), async () => {
-    for (const name of ALL_TABLES) await database.table(name).clear();
+  await database.transaction('rw', [...ALL_TABLES, 'weather'].map((t) => database.table(t)), async () => {
+    for (const name of [...ALL_TABLES, 'weather']) await database.table(name).clear();
   });
 }
 
