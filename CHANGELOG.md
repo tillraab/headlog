@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-05
+
 ### Added
 
 - Each headache in the calendar's day view shows how much you drank in the 72 hours before it, compared with what is usual for you.
