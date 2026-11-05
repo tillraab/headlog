@@ -8,6 +8,7 @@
   import { CAFFEINE_DROP, LOW_HYDRATION, SHORT_SLEEP_HOURS } from '$lib/thresholds';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
+  import TrafficLight, { LIGHT_COLOR } from './TrafficLight.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
 
   let { open = $bindable(false) }: { open?: boolean } = $props();
@@ -16,7 +17,6 @@
     prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, clock.now)
   );
 
-  const LIGHT = { green: 'var(--color-ok)', yellow: 'var(--color-caution)', red: 'var(--color-over)' };
   const STATUS: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
   const hm = (time: number) => format(time, 'HH:mm');
 
@@ -93,14 +93,10 @@
 <section class="card overflow-hidden">
   <button class="press flex w-full flex-col gap-3 p-4 text-left" onclick={() => (open = !open)} aria-expanded={open}>
     <div class="flex items-center gap-3">
-      <span class="flex flex-col gap-1 rounded-full bg-fg p-1.5" aria-hidden="true">
-        {#each ['red', 'yellow', 'green'] as const as light (light)}
-          <span class="size-3 rounded-full" style:background-color={p.light === light ? LIGHT[light] : 'color-mix(in oklab, var(--color-bg) 25%, transparent)'}></span>
-        {/each}
-      </span>
+      <TrafficLight light={p.light} />
       <span class="flex-1">
         <span class="block text-xs text-muted">{t('prog.title')}</span>
-        <span class="block font-semibold" style:color={LIGHT[p.light]}>{t(`prog.${p.light}`)}</span>
+        <span class="block font-semibold" style:color={LIGHT_COLOR[p.light]}>{t(`prog.${p.light}`)}</span>
         <span class="block text-xs text-muted">{t('prog.count', { n: p.bad })}</span>
       </span>
       <ChevronDown size={18} class="shrink-0 text-muted transition-transform {open ? 'rotate-180' : ''}" />
