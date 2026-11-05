@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, caffeineByDay, compareDays, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty, timeline, waterByDay } from './analysis';
+import { alcoholDays, caffeineByDay, compareDays, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, waterByDay } from './analysis';
 import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
 import { lastDays } from './days';
 
@@ -114,16 +114,16 @@ describe('medicationLimits', () => {
   });
 });
 
-describe('rollingMedDays', () => {
+describe('rollingDays', () => {
   it('matches tenTwenty for every day', () => {
     const today = at('2026-03-31T12:00');
     const med = new Set(['2026-01-15', '2026-02-10', '2026-02-11', '2026-03-01', '2026-03-30']);
-    const rolling = rollingMedDays(med, today, 60);
+    const rolling = rollingDays(med, today, 60);
     expect(rolling.map((r) => r.count)).toEqual(rolling.map((r) => tenTwenty(med, new Date(r.key)).count));
   });
 
   it('returns one entry per day of the span', () => {
-    expect(rollingMedDays(new Set(), at('2026-03-31T12:00'), 90)).toHaveLength(90);
+    expect(rollingDays(new Set(), at('2026-03-31T12:00'), 90)).toHaveLength(90);
   });
 });
 

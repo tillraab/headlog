@@ -3,7 +3,7 @@
   import { edit } from '$lib/editor.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import TimelineChart from './TimelineChart.svelte';
-  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, rollingMedDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
+  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
   import { dayKey, keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -11,7 +11,7 @@
   const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   const medDays = $derived(new Set(intakeDays(data.intakes).keys()));
   const rule = $derived(tenTwenty(medDays, clock.now, data.settings.limit));
-  const rolling = $derived(rollingMedDays(medDays, clock.now, 90));
+  const rolling = $derived(rollingDays(medDays, clock.now, 90));
   const monthly = $derived(monthlyCategoryDays(data.intakes, new Date(clock.now)));
   const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
   const reliefLabels = $derived([t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')]);

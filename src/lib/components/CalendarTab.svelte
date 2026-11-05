@@ -1,12 +1,18 @@
 <script lang="ts">
   import { ChevronLeft, ChevronRight } from '@lucide/svelte';
   import { addMonths, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
-  import { headacheDays, intakeDays, waterByDay } from '$lib/analysis';
+  import { headacheDays, intakeDays, rollingDays, waterByDay } from '$lib/analysis';
   import { dayKey, dayRange, formatLiters, keyToDate } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import DaySheet from './DaySheet.svelte';
+  import TimelineChart from './TimelineChart.svelte';
+
+  /** Days shown in the rolling chart. */
+  const ROLLING_SPAN = 90;
+  /** From 15 headache days a month, ICHD-3 speaks of chronic headache (chronic migraine: for more than 3 months). */
+  const CHRONIC_DAYS = 15;
 
   let month = $state(startOfMonth(Date.now()));
   let selected = $state<string | null>(null);
@@ -24,12 +30,7 @@
     water: past.length ? past.reduce((s, k) => s + (water.get(k) ?? 0), 0) / past.length : 0
   });
 
-  const year = $derived(
-    Array.from({ length: 12 }, (_, i) => {
-      const m = startOfMonth(addMonths(clock.now, i - 11));
-      return { month: m, keys: dayRange(m, endOfMonth(m)) };
-    })
-  );
+  const rolling = $derived(rollingDays(new Set(hDays.keys()), clock.now, ROLLING_SPAN));
 
   function open(key: string) {
     selected = key;
@@ -115,26 +116,24 @@
   </section>
 
   <section class="card p-4">
-    <h2 class="mb-3 text-sm font-semibold">{t('cal.year')}</h2>
-    <div class="flex flex-col gap-[3px]">
-      {#each year as row (row.month.getTime())}
-        <div class="flex items-center gap-2">
-          <button class="press w-8 text-left text-2xs text-muted" onclick={() => (month = row.month)}>{fmt(row.month, 'MMM')}</button>
-          <div class="grid flex-1 gap-[2px]" style="grid-template-columns: repeat(31, minmax(0, 1fr))">
-            {#each row.keys as key (key)}
-              {@const intensity = hDays.get(key)}
-              {@const med = mDays.get(key)?.some((i) => i.category !== 'preventive')}
-              <span
-                class="aspect-square rounded-[2px] {intensity ? '' : key > today ? 'bg-surface-2/40' : 'bg-surface-2'}"
-                style:background-color={painStyle(intensity)}
-                style:box-shadow={med ? 'inset 0 0 0 1.5px var(--color-med)' : undefined}
-                title={key}
-              ></span>
-            {/each}
-          </div>
-        </div>
-      {/each}
-    </div>
+    <h2 class="text-sm font-semibold">{t('cal.rolling')}</h2>
+    <p class="mb-3 text-xs text-muted">{t('cal.rollingHint', { n: CHRONIC_DAYS })}</p>
+    <TimelineChart
+      keys={rolling.map((r) => r.key)}
+      bands={rolling.map((r) => hDays.has(r.key))}
+      rows={[
+        {
+          label: t('cal.headacheDays'),
+          summary: t('cal.rollingNow', { n: rolling[rolling.length - 1].count }),
+          values: rolling.map((r) => r.count),
+          colors: rolling.map((r) => (r.count >= CHRONIC_DAYS ? 'var(--color-over)' : 'var(--color-pain)')),
+          color: 'var(--color-pain)',
+          kind: 'bars',
+          format: (v) => String(Math.round(v)),
+          reference: CHRONIC_DAYS
+        }
+      ]}
+    />
   </section>
 </div>
 

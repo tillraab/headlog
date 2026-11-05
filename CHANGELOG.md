@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Calendar: instead of the overview of the last 12 months, a chart of headache days in the last 30 days, rolling, with a line at 15 days, from which ICHD-3 speaks of chronic headache. Tap a day for its count.
+
 - Pressure drops follow the measure of the study they come from (Kimoto et al. 2011): the daily mean pressure against the day before, unfavourable at more than 5 hPa. Before, HeadLog took the largest fall within any 24 hours and 6 hPa. Weather stored so far is fetched again once.
 
 ## [0.15.1] - 2026-11-05
