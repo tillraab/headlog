@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-05
+
 ### Added
 
 - Insights timeline: headaches, hydration, sleep and air pressure as charts on one time axis, with headache days marked as red bands through all of them.
@@ -12,7 +14,6 @@
 
 - Insights shows average sleep among the key figures; the separate hydration comparison is part of the new comparison.
 - Deleting all data also deletes the stored weather.
-
 - The Meds tab comes second, before Calendar.
 
 ## [0.8.0] - 2026-11-05
@@ -20,13 +21,9 @@
 ### Added
 
 - Each headache in the calendar's day view shows how much you drank in the 72 hours before it, compared with what is usual for you.
-
 - Sleep estimate from screen activity (Android 9+, needs usage access): the night is the longest screen-off stretch, joined across wake breaks of up to 90 minutes, which are listed and left out of the sleep time. Today shows last night, the calendar's day view each night, Insights the average. Every night can be corrected by hand. Backups include the nights.
-
 - Weather: choose your home town in Settings, and HeadLog stores the weather of every day since your first entry from Open-Meteo: air pressure and its largest 24-hour drop, temperatures, humidity and rain. The calendar's day view shows it, and Today warns when the pressure falls by 6 hPa or more today or tomorrow. Only the town's coordinates are sent.
-
 - Caffeine and alcohol: each drink in My drinks can have a caffeine amount and be marked as alcoholic. Today shows the caffeine of the day, Insights the average caffeine and the days with alcohol. Alcoholic drinks do not count toward the hydration goal. Coffee (80 mg) and tea (40 mg) get their caffeine automatically, including drinks already logged.
-
 - Hydration goal streak: 🔥 days in a row on Today, current and best streak in Insights, and a small celebration with confetti when you reach the goal, with milestones at 3, 7, 14, 21, 30, 50 and 100 days.
 
 ### Changed
