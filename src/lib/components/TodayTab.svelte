@@ -12,6 +12,7 @@
   import { assessRisk } from '$lib/risk';
   import { PRESSURE_DROP_HPA } from '$lib/weather';
   import RiskCard from './RiskCard.svelte';
+  import WelcomeCard from './WelcomeCard.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
 
@@ -236,6 +237,8 @@
       <button class="press text-sm font-medium text-muted underline underline-offset-4" onclick={earlier}>{t('today.startedEarlier')}</button>
     </section>
   {/if}
+
+  <WelcomeCard />
 
   {#each risks as risk (risk.day)}
     <RiskCard {risk} />
