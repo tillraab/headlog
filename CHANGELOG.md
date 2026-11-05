@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Today: risk warnings take one line each and open on tap; last night's sleep comes after medication; during a headache, medication comes before hydration; the hydration streak shows from the first day.
+
 ## [0.10.0] - 2026-11-05
 
 ### Added

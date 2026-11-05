@@ -84,6 +84,99 @@
   }
 </script>
 
+{#snippet hydrationCard()}
+  <section class="card flex flex-col gap-3 p-4">
+    <div class="flex items-center justify-between">
+      <h2 class="flex items-center gap-2 font-semibold">
+        <Droplets size={18} class="text-water" />
+        {t('today.water')}
+        {#if hydration.current >= 1}
+          <span class="rounded-full bg-water-soft px-2 py-0.5 text-xs font-semibold text-water tabular" title={t('streak.best', { n: hydration.best })}>
+            🔥 {hydration.current}
+          </span>
+        {/if}
+      </h2>
+      <p class="text-sm tabular">
+        <span class="font-semibold">{formatLiters(waterMl)}</span>
+        <span class="text-muted">{waterPct >= 1 ? `· ${t('today.goalReached')} 🎉` : t('today.goal', { goal: formatLiters(data.settings.waterGoalMl) })}</span>
+      </p>
+    </div>
+    <div class="h-3 overflow-hidden rounded-full bg-water-soft">
+      <div class="h-full rounded-full bg-water transition-[width] duration-500" style:width="{waterPct * 100}%"></div>
+    </div>
+    {#if caffeineMg || alcoholCount}
+      <p class="-mt-1 text-xs text-muted tabular">
+        {[caffeineMg ? `☕ ${t('drink.caffeineShort', { mg: caffeineMg })}` : '', alcoholCount ? `🍷 ${t('drink.alcoholToday', { n: alcoholCount })}` : ''].filter(Boolean).join(' · ')}
+      </p>
+    {/if}
+    <div class="grid grid-cols-4 gap-2">
+      {#each presets as preset (preset.id)}
+        <button
+          class="press flex flex-col items-center gap-0.5 rounded-2xl bg-surface-2 py-2.5"
+          onclick={async () => {
+            tap();
+            const before = waterMl;
+            const id = await logDrink(preset);
+            if (before < data.settings.waterGoalMl && before + hydrationMl(preset) >= data.settings.waterGoalMl) cheer();
+            toast(t('toast.drink', { ml: preset.ml }) + ` ${preset.emoji}`, undoFor('drinks', id));
+          }}
+        >
+          <span class="text-2xl leading-none">{preset.emoji}</span>
+          <span class="max-w-full truncate px-1 text-xs font-medium">{preset.name}</span>
+          <span class="text-2xs text-muted tabular">{preset.ml} ml</span>
+        </button>
+      {/each}
+    </div>
+  </section>
+{/snippet}
+
+{#snippet medsCard()}
+  <section class="card flex flex-col gap-3 p-4">
+    <div class="flex items-center justify-between">
+      <h2 class="flex items-center gap-2 font-semibold"><Pill size={18} class="text-med" /> {t('today.meds')}</h2>
+      <button class="press" onclick={() => onOpenTab('meds')}><RuleBadge {rule} /></button>
+    </div>
+    {#if meds.length}
+      <div class="grid grid-cols-2 gap-2">
+        {#each meds as med (med.id)}
+          {@const count = todayIntakes.filter((i) => i.medId === med.id).length}
+          <button
+            class="press relative flex min-h-14 flex-col items-start justify-center rounded-2xl border-l-4 bg-surface-2 px-3 py-2 text-left"
+            style:border-left-color={med.color}
+            onclick={async () => {
+              tap('medium');
+              const before = limits.get(med.id);
+              const id = await logIntake(med);
+              const over = before && before.ifTakenToday > before.limit;
+              toast(
+                over ? t('toast.overLimit', { name: med.name, n: before.ifTakenToday, limit: before.limit }) : t('toast.intake', { name: med.name }),
+                undoFor('intakes', id)
+              );
+            }}
+          >
+            <span class="font-semibold">{med.name}</span>
+            <span class="text-xs text-muted">{med.dose}</span>
+            {#if limits.get(med.id)}
+              {@const r = limits.get(med.id)!}
+              <span class="mt-0.5 text-2xs font-semibold tabular {r.status === 'over' ? 'text-over' : r.status === 'caution' ? 'text-caution' : 'text-muted'}">
+                {t('tenTwenty.limitCount', { n: r.count, limit: r.limit, window: r.window })}
+              </span>
+            {/if}
+            {#if count}
+              <span class="absolute top-2 right-2 grid size-6 place-items-center rounded-full bg-med text-xs font-semibold text-white tabular">{count}</span>
+            {/if}
+          </button>
+        {/each}
+      </div>
+      {#if !rule.days[rule.days.length - 1].med}
+        <p class="text-xs text-muted">{t('tenTwenty.ifToday', { n: rule.ifTakenToday, limit: rule.limit })}</p>
+      {/if}
+    {:else}
+      <p class="text-sm text-muted">{t('today.noMeds')}</p>
+    {/if}
+  </section>
+{/snippet}
+
 <div class="flex flex-col gap-3 pb-6">
   <header class="flex items-end justify-between pt-2">
     <div>
@@ -135,22 +228,6 @@
     </section>
   {/if}
 
-  {#if lastNight}
-    <button class="card press flex items-center gap-3 p-3 text-left" onclick={() => edit({ kind: 'sleep', item: lastNight })}>
-      <span class="grid size-10 place-items-center rounded-full bg-surface-2 text-xl">😴</span>
-      <span class="flex flex-1 flex-col">
-        <span class="text-xs text-muted">{t('sleep.lastNight')}</span>
-        <span class="font-semibold tabular">{formatDuration(lastNight.asleepMs)}</span>
-      </span>
-      <span class="text-right text-xs text-muted tabular">
-        {t('sleep.summary', { from: hm(lastNight.start), to: hm(lastNight.end) })}
-        {#if lastNight.breaks.length}
-          <br />{t('sleep.breaks', { n: lastNight.breaks.length, d: formatDuration(lastNight.breaks.reduce((s, b) => s + b.end - b.start, 0)) })}
-        {/if}
-      </span>
-    </button>
-  {/if}
-
   {#each risks as risk (risk.day)}
     <RiskCard {risk} />
   {/each}
@@ -174,94 +251,29 @@
     </section>
   {/if}
 
-  <section class="card flex flex-col gap-3 p-4">
-    <div class="flex items-center justify-between">
-      <h2 class="flex items-center gap-2 font-semibold">
-        <Droplets size={18} class="text-water" />
-        {t('today.water')}
-        {#if hydration.current > 1}
-          <span class="rounded-full bg-water-soft px-2 py-0.5 text-xs font-semibold text-water tabular" title={t('streak.best', { n: hydration.best })}>
-            🔥 {hydration.current}
-          </span>
-        {/if}
-      </h2>
-      <p class="text-sm tabular">
-        <span class="font-semibold">{formatLiters(waterMl)}</span>
-        <span class="text-muted">{waterPct >= 1 ? `· ${t('today.goalReached')} 🎉` : t('today.goal', { goal: formatLiters(data.settings.waterGoalMl) })}</span>
-      </p>
-    </div>
-    <div class="h-3 overflow-hidden rounded-full bg-water-soft">
-      <div class="h-full rounded-full bg-water transition-[width] duration-500" style:width="{waterPct * 100}%"></div>
-    </div>
-    {#if caffeineMg || alcoholCount}
-      <p class="-mt-1 text-xs text-muted tabular">
-        {[caffeineMg ? `☕ ${t('drink.caffeineShort', { mg: caffeineMg })}` : '', alcoholCount ? `🍷 ${t('drink.alcoholToday', { n: alcoholCount })}` : ''].filter(Boolean).join(' · ')}
-      </p>
-    {/if}
-    <div class="grid grid-cols-4 gap-2">
-      {#each presets as preset (preset.id)}
-        <button
-          class="press flex flex-col items-center gap-0.5 rounded-2xl bg-surface-2 py-2.5"
-          onclick={async () => {
-            tap();
-            const before = waterMl;
-            const id = await logDrink(preset);
-            if (before < data.settings.waterGoalMl && before + hydrationMl(preset) >= data.settings.waterGoalMl) cheer();
-            toast(t('toast.drink', { ml: preset.ml }) + ` ${preset.emoji}`, undoFor('drinks', id));
-          }}
-        >
-          <span class="text-2xl leading-none">{preset.emoji}</span>
-          <span class="max-w-full truncate px-1 text-xs font-medium">{preset.name}</span>
-          <span class="text-2xs text-muted tabular">{preset.ml} ml</span>
-        </button>
-      {/each}
-    </div>
-  </section>
+  {#if ongoing}
+    {@render medsCard()}
+    {@render hydrationCard()}
+  {:else}
+    {@render hydrationCard()}
+    {@render medsCard()}
+  {/if}
 
-  <section class="card flex flex-col gap-3 p-4">
-    <div class="flex items-center justify-between">
-      <h2 class="flex items-center gap-2 font-semibold"><Pill size={18} class="text-med" /> {t('today.meds')}</h2>
-      <button class="press" onclick={() => onOpenTab('meds')}><RuleBadge {rule} /></button>
-    </div>
-    {#if meds.length}
-      <div class="grid grid-cols-2 gap-2">
-        {#each meds as med (med.id)}
-          {@const count = todayIntakes.filter((i) => i.medId === med.id).length}
-          <button
-            class="press relative flex min-h-14 flex-col items-start justify-center rounded-2xl border-l-4 bg-surface-2 px-3 py-2 text-left"
-            style:border-left-color={med.color}
-            onclick={async () => {
-              tap('medium');
-              const before = limits.get(med.id);
-              const id = await logIntake(med);
-              const over = before && before.ifTakenToday > before.limit;
-              toast(
-                over ? t('toast.overLimit', { name: med.name, n: before.ifTakenToday, limit: before.limit }) : t('toast.intake', { name: med.name }),
-                undoFor('intakes', id)
-              );
-            }}
-          >
-            <span class="font-semibold">{med.name}</span>
-            <span class="text-xs text-muted">{med.dose}</span>
-            {#if limits.get(med.id)}
-              {@const r = limits.get(med.id)!}
-              <span class="mt-0.5 text-2xs font-semibold tabular {r.status === 'over' ? 'text-over' : r.status === 'caution' ? 'text-caution' : 'text-muted'}">
-                {t('tenTwenty.limitCount', { n: r.count, limit: r.limit, window: r.window })}
-              </span>
-            {/if}
-            {#if count}
-              <span class="absolute top-2 right-2 grid size-6 place-items-center rounded-full bg-med text-xs font-semibold text-white tabular">{count}</span>
-            {/if}
-          </button>
-        {/each}
-      </div>
-      {#if !rule.days[rule.days.length - 1].med}
-        <p class="text-xs text-muted">{t('tenTwenty.ifToday', { n: rule.ifTakenToday, limit: rule.limit })}</p>
-      {/if}
-    {:else}
-      <p class="text-sm text-muted">{t('today.noMeds')}</p>
-    {/if}
-  </section>
+  {#if lastNight}
+    <button class="card press flex items-center gap-3 p-3 text-left" onclick={() => edit({ kind: 'sleep', item: lastNight })}>
+      <span class="grid size-10 place-items-center rounded-full bg-surface-2 text-xl">😴</span>
+      <span class="flex flex-1 flex-col">
+        <span class="text-xs text-muted">{t('sleep.lastNight')}</span>
+        <span class="font-semibold tabular">{formatDuration(lastNight.asleepMs)}</span>
+      </span>
+      <span class="text-right text-xs text-muted tabular">
+        {t('sleep.summary', { from: hm(lastNight.start), to: hm(lastNight.end) })}
+        {#if lastNight.breaks.length}
+          <br />{t('sleep.breaks', { n: lastNight.breaks.length, d: formatDuration(lastNight.breaks.reduce((s, b) => s + b.end - b.start, 0)) })}
+        {/if}
+      </span>
+    </button>
+  {/if}
 
   <section class="card p-2">
     <h2 class="px-2 pt-2 pb-1 font-semibold">{t('today.log')}</h2>
