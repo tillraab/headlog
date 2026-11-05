@@ -20,6 +20,7 @@
   const forecast = $derived(
     prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, clock.now)
   );
+  const LIGHT = { green: 'var(--color-ok)', yellow: 'var(--color-caution)', red: 'var(--color-over)' };
   let forecastOpen = $state(false);
   let forecastCard = $state<HTMLDivElement>();
 
@@ -191,26 +192,24 @@
 {/snippet}
 
 <div class="flex flex-col gap-3 pb-6">
-  <header class="flex items-end justify-between pt-2">
-    <div>
+  <header class="flex items-center justify-between gap-3 pt-2">
+    <div class="min-w-0">
       <p class="text-xs font-medium tracking-wide text-muted uppercase">{fmt(clock.now, 'EEEE')}</p>
       <h1 class="text-2xl font-semibold">{fmt(clock.now, 'd. MMMM')}</h1>
+      {#if !ongoing && streak}
+        <p class="text-xs font-medium text-ok">{streak === 1 ? t('today.clearStreakOne') : t('today.clearStreak', { n: streak })}</p>
+      {/if}
     </div>
-    {#if forecast.light !== 'green'}
-      <button
-        class="press flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-        style:color={forecast.light === 'red' ? 'var(--color-over)' : 'var(--color-caution)'}
-        style:background-color="color-mix(in oklab, {forecast.light === 'red' ? 'var(--color-over)' : 'var(--color-caution)'} 14%, transparent)"
-        onclick={showForecast}
-      >
-        {forecast.light === 'red' ? '🔴' : '🟡'}
-        {t(`prog.badge.${forecast.light}`)}
-      </button>
-    {:else if !ongoing && streak}
-      <p class="rounded-full bg-ok/12 px-3 py-1 text-xs font-medium text-ok">
-        {streak === 1 ? t('today.clearStreakOne') : t('today.clearStreak', { n: streak })}
-      </p>
-    {/if}
+    <button
+      class="press flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold"
+      style:color={LIGHT[forecast.light]}
+      style:background-color="color-mix(in oklab, {LIGHT[forecast.light]} 14%, transparent)"
+      onclick={showForecast}
+      aria-label={`${t('prog.title')}: ${t(`prog.${forecast.light}`)}`}
+    >
+      <span class="size-2.5 rounded-full" style:background-color={LIGHT[forecast.light]}></span>
+      {t('prog.title')}
+    </button>
   </header>
 
   {#if ongoing}

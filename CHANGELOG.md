@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Today always shows "Forecast" next to the date with a green, yellow or red dot; tapping it opens the forecast and scrolls to it. The headache-free count moves below the date.
+
 ## [0.18.0] - 2026-11-05
 
 ### Changed
