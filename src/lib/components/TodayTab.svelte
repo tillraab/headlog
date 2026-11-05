@@ -8,6 +8,8 @@
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
   import { celebrate, openSheet, tap, toast } from '$lib/ui.svelte';
+  import { prognosis } from '$lib/prognosis';
+  import { PRESSURE_DROP_HPA } from '$lib/weather';
   import PrognosisCard from './PrognosisCard.svelte';
   import WelcomeCard from './WelcomeCard.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
@@ -16,6 +18,17 @@
   let { onOpenTab }: { onOpenTab: (tab: 'meds') => void } = $props();
 
   const ongoing = $derived(ongoingEpisode());
+  const forecast = $derived(
+    prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl, dropHpa: PRESSURE_DROP_HPA }, clock.now)
+  );
+  let forecastOpen = $state(false);
+  let forecastCard = $state<HTMLDivElement>();
+
+  /** Opens the forecast and scrolls to it, from the marker at the top. */
+  function showForecast() {
+    forecastOpen = true;
+    requestAnimationFrame(() => forecastCard?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
   const dayStart = $derived(startOfDay(clock.now).getTime());
   const rule = $derived(tenTwenty(new Set(intakeDays(data.intakes).keys()), clock.now, data.settings.limit));
   const streak = $derived(periodStats(data, clock.now, 1).clearStreak);
@@ -184,7 +197,17 @@
       <p class="text-xs font-medium tracking-wide text-muted uppercase">{fmt(clock.now, 'EEEE')}</p>
       <h1 class="text-2xl font-semibold">{fmt(clock.now, 'd. MMMM')}</h1>
     </div>
-    {#if !ongoing && streak}
+    {#if forecast.light !== 'green'}
+      <button
+        class="press flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+        style:color={forecast.light === 'red' ? 'var(--color-over)' : 'var(--color-caution)'}
+        style:background-color="color-mix(in oklab, {forecast.light === 'red' ? 'var(--color-over)' : 'var(--color-caution)'} 14%, transparent)"
+        onclick={showForecast}
+      >
+        {forecast.light === 'red' ? '🔴' : '🟡'}
+        {t(`prog.badge.${forecast.light}`)}
+      </button>
+    {:else if !ongoing && streak}
       <p class="rounded-full bg-ok/12 px-3 py-1 text-xs font-medium text-ok">
         {streak === 1 ? t('today.clearStreakOne') : t('today.clearStreak', { n: streak })}
       </p>
@@ -259,7 +282,9 @@
     {@render medsCard()}
   {/if}
 
-  <PrognosisCard />
+  <div bind:this={forecastCard} class="scroll-mt-4">
+    <PrognosisCard bind:open={forecastOpen} />
+  </div>
 
   <section class="card p-2">
     <h2 class="px-2 pt-2 pb-1 font-semibold">{t('today.log')}</h2>

@@ -24,7 +24,7 @@ const NOTES = {
  * Replaces all data with 90 plausible days that show every part of the app: headaches linked to
  * pressure drops, short nights, little to drink and wine, medication with ratings and a personal
  * limit, caffeine, sleep with wake breaks, a hydration streak, an open "did it help?" question,
- * and a pressure drop forecast for tomorrow with a short night today, so the risk warnings show.
+ * and a pressure drop forecast for tomorrow with a short night today, so the forecast turns red.
  */
 export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lang: 'en' | 'de' = 'en') {
   await wipe(database);

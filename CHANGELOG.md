@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- When the forecast is not green, a marker at the top of Today says so; tapping it opens the forecast.
+- No more estimated chances in percent: the forecast counts unfavourable factors and shows your numbers. The evening notification follows the same traffic light and names the unfavourable factors.
+
 ## [0.12.0] - 2026-11-05
 
 ### Added
