@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, caffeineByDay, compareDays, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, waterByDay } from './analysis';
+import { alcoholDays, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, waterByDay } from './analysis';
 import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
 import { lastDays } from './days';
 
@@ -271,5 +271,29 @@ describe('timeline and compareDays', () => {
 
   it('leaves out factors with fewer than three days on a side', () => {
     expect(compareDays({ ...data, episodes: data.episodes.slice(0, 2) }, keys, now)).toEqual([]);
+  });
+});
+
+describe('dayFactors', () => {
+  const night = (day: string, hours: number): Night => ({ day, start: 0, end: 0, asleepMs: hours * 3600000, breaks: [], source: 'screen' });
+  const weather = (day: string, drop: number): WeatherDay => ({ day, pressure: 1005, pressureDrop: drop, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 });
+
+  it('names every unfavourable factor of the day', () => {
+    const data = {
+      drinks: [drink('2026-03-01T10:00', 2000), drink('2026-03-09T10:00', 600), { ...drink('2026-03-09T20:00', 150), alcohol: true }],
+      sleep: new Map([['2026-03-10', night('2026-03-10', 4.5)]]),
+      weather: new Map([['2026-03-10', weather('2026-03-10', 8)]])
+    };
+    expect(dayFactors(data, '2026-03-10', 2000)).toEqual({ pressure: 8, hydration: 600, sleep: 4.5, alcohol: true });
+  });
+
+  it('names nothing on a good day', () => {
+    const data = { drinks: [drink('2026-03-09T10:00', 2500)], sleep: new Map([['2026-03-10', night('2026-03-10', 7.5)]]), weather: new Map([['2026-03-10', weather('2026-03-10', 2)]]) };
+    expect(dayFactors(data, '2026-03-10', 2000)).toEqual({});
+  });
+
+  it('does not call the day before the first drink a dry day', () => {
+    const data = { drinks: [drink('2026-03-10T10:00', 2000)], sleep: new Map(), weather: new Map() };
+    expect(dayFactors(data, '2026-03-10', 2000)).toEqual({});
   });
 });

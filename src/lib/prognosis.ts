@@ -2,17 +2,12 @@ import { addDays, getHours, getMinutes } from 'date-fns';
 import { alcoholDays, caffeineByDay, firstDrinkDay, waterByDay } from './analysis';
 import type { Drink, Night, WeatherDay } from './db';
 import { dayKey, lastDays } from './days';
+import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
 
 export type Light = 'green' | 'yellow' | 'red';
 export type FactorKey = 'weather' | 'hydration' | 'sleep' | 'alcohol' | 'caffeine';
 
-/** Below this share of the hydration goal, or of today's pace, hydration counts as unfavourable. */
-export const LOW_HYDRATION = 0.75;
-/** A night under this many hours counts as short. */
-export const SHORT_SLEEP_HOURS = 6;
-/** Caffeine under this share of the usual amount counts as a drop. */
-export const CAFFEINE_DROP = 0.5;
 export type Status = 'ok' | 'bad' | 'unknown';
 
 /** The hydration goal is spread evenly over the waking day, 7:00 to 22:00. */
@@ -85,7 +80,7 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   const usual = caffeine.size ? history.reduce((a, b) => a + b, 0) / history.length : null;
   const caffeineToday = caffeine.get(today) ?? 0;
   const caffeineStatus: Status =
-    usual === null || usual < 100 || getHours(now) < CAFFEINE_FROM_HOUR ? 'unknown' : caffeineToday < usual * CAFFEINE_DROP ? 'bad' : 'ok';
+    usual === null || usual < MIN_USUAL_CAFFEINE || getHours(now) < CAFFEINE_FROM_HOUR ? 'unknown' : caffeineToday < usual * CAFFEINE_DROP ? 'bad' : 'ok';
 
   const statuses = [weatherStatus, hydrationStatus, sleepStatus, alcoholStatus, caffeineStatus];
   const bad = statuses.filter((s) => s === 'bad').length;

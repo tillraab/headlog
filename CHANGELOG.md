@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Doctor report, after the overview page: possible triggers (pressure drop, hydration, sleep, alcohol and caffeine on headache days against other days, and how many headaches each factor came with, plus the noted symptoms and triggers), then a table with a row for every headache – date, time and duration, intensity, medication with time and whether it helped, possible triggers of that day and the note – and for every intake without a headache.
+
 ## [0.16.0] - 2026-11-05
 
 ### Added
