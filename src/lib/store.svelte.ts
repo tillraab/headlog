@@ -24,6 +24,8 @@ export interface Settings {
   weather: { enabled: boolean; place: Place | null };
   /** Estimate sleep from screen activity. */
   sleep: { enabled: boolean };
+  /** Evening notification when a headache is more likely tomorrow. */
+  riskAlert: { enabled: boolean; hour: number };
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -36,7 +38,8 @@ const DEFAULT_SETTINGS: Settings = {
   headacheCheckHours: 3,
   drinkCheckins: { enabled: false, times: ['10:00', '13:00', '16:00', '19:00'] },
   weather: { enabled: false, place: null },
-  sleep: { enabled: false }
+  sleep: { enabled: false },
+  riskAlert: { enabled: true, hour: 20 }
 };
 
 /** All data in memory. A diary stays small, so every write reloads everything. */

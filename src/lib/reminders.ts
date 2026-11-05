@@ -4,6 +4,7 @@ import { addDays, format, isSameDay, setHours, startOfDay } from 'date-fns';
 import { hydrationMl } from './db';
 import { formatDuration, formatLiters } from './days';
 import { fmt, t } from './i18n.svelte';
+import type { Risk } from './risk';
 
 export interface ReminderSettings {
   enabled: boolean;
@@ -27,6 +28,28 @@ function serial(task: () => Promise<void>): Promise<void> {
   const next = queue.then(task, task);
   queue = next.catch(() => {});
   return next;
+}
+
+const RISK_ID = 400;
+
+/** The evening warning for tomorrow, when the risk is raised and the hour has not passed yet. */
+export function planRiskAlert(now: number, settings: { enabled: boolean; hour: number }, risk: Risk): PlannedReminder[] {
+  if (!settings.enabled || (risk.level !== 'raised' && risk.level !== 'high')) return [];
+  const at = setHours(startOfDay(now), settings.hour).getTime();
+  if (at <= now) return [];
+  const body = risk.estimate !== null ? t('risk.estimate', { p: `${Math.round(risk.estimate * 100)} %`, usual: `${Math.round(risk.usual * 100)} %` }) : '';
+  return [{ id: RISK_ID, at, title: t('risk.notifyTitle'), body: `${body} ${t(`risk.tip.${risk.factors[0].key}`)}`.trim() }];
+}
+
+export function applyRiskAlert(plan: PlannedReminder[]) {
+  return serial(async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    await LocalNotifications.cancel({ notifications: [{ id: RISK_ID }] });
+    if (!plan.length || !(await requestReminderPermission())) return;
+    await LocalNotifications.schedule({
+      notifications: plan.map((r) => ({ id: r.id, title: r.title, body: r.body, schedule: { at: new Date(r.at), allowWhileIdle: true } }))
+    });
+  });
 }
 
 const FIRST_ID = 100;

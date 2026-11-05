@@ -440,6 +440,20 @@
       </select>
     </label>
     <label class="flex items-center justify-between gap-4 text-body">
+      {t('risk.setting')}
+      <select
+        class="w-32 shrink-0"
+        value={data.settings.riskAlert.enabled ? data.settings.riskAlert.hour : 0}
+        onchange={(e) => {
+          const hour = Number(e.currentTarget.value);
+          void saveSettings({ riskAlert: hour ? { enabled: true, hour } : { ...data.settings.riskAlert, enabled: false } });
+        }}
+      >
+        <option value={0}>{t('rem.off')}</option>
+        {#each [18, 19, 20, 21, 22] as h (h)}<option value={h}>{String(h).padStart(2, '0')}:00</option>{/each}
+      </select>
+    </label>
+    <label class="flex items-center justify-between gap-4 text-body">
       {t('rem.headacheSetting')}
       <select class="w-32 shrink-0" value={data.settings.headacheCheckHours} onchange={(e) => saveSettings({ headacheCheckHours: Number(e.currentTarget.value) })}>
         <option value={0}>{t('rem.off')}</option>

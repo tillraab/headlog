@@ -23,6 +23,7 @@ Run `bun run check` and `bun run test` before every commit.
 - `src/lib/db.ts`: Dexie schema, entity types, default medication and drink lists, `seed`.
 - `src/lib/store.svelte.ts`: all data in one `$state` object. Every write goes to Dexie and then calls `load()`, which reloads everything. `Settings` lives here with its defaults.
 - `src/lib/analysis.ts`: pure functions for headache days, medication days, the 10/20 rule, personal limits, rolling counts, monthly counts, period stats. Well tested; put new statistics here, not in components.
+- `src/lib/risk.ts`: personal headache risk for today and tomorrow. For each factor (pressure drop, little to drink the day before, short night, alcohol, caffeine drop) it compares headache starts on days with and without it over the last year; factors with enough days get a ratio, the active ones are multiplied (capped at 5×). Shown on Today and as an evening notification.
 - `src/lib/report.ts`: one-page doctor PDF (jsPDF + jspdf-autotable): header with logo, key figures, calendar, two charts, medication, triggers. It must stay on one A4 page for up to 12 months; `report.test.ts` checks the page count.
 - `src/lib/doctor.svelte.ts`: builds the report from the current data with the app icon as logo, or the CSV for the same period, and shares it. Used by Settings and Insights.
 - `src/lib/reminders.ts`: local notifications. Hydration reminders when behind the goal, drink check-ins at fixed times with drink buttons, "did it help?" after an intake, "still a headache?" every N hours.
@@ -58,7 +59,7 @@ Run `bun run check` and `bun run test` before every commit.
 
 ### Notifications
 
-- Fixed id ranges: water 100–113, "still a headache?" 200–211, drink check-ins 300–355, "did it help?" 100000 + intake id. Keep new kinds out of these ranges.
+- Fixed id ranges: water 100–113, "still a headache?" 200–211, drink check-ins 300–355, tomorrow's risk 400, "did it help?" 100000 + intake id. Keep new kinds out of these ranges.
 - Every scheduling call goes through `serial()` in `reminders.ts`. Without it, an older plan can finish after a newer one and leave stale notifications.
 - Rescheduling is declarative: `+page.svelte` recomputes the plans whenever data or settings change and on return to the app. Add new reminder kinds the same way (pure `plan…` function with tests, `apply…` that cancels its id range and schedules).
 - The manifest declares `USE_EXACT_ALARM`, which Android grants on install for apps outside Google Play. Without it, the plugin opens the "Alarms & reminders" settings screen on its own, or falls back to alarms up to 45 minutes late.

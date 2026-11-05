@@ -9,7 +9,9 @@
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
   import { celebrate, tap, toast } from '$lib/ui.svelte';
   import { dayKey } from '$lib/days';
-  import { PRESSURE_DROP_HPA, tomorrowKey, weatherEmoji } from '$lib/weather';
+  import { assessRisk } from '$lib/risk';
+  import { PRESSURE_DROP_HPA } from '$lib/weather';
+  import RiskCard from './RiskCard.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
 
@@ -17,14 +19,11 @@
 
   const ongoing = $derived(ongoingEpisode());
   const lastNight = $derived(data.settings.sleep.enabled ? data.sleep.get(dayKey(clock.now)) : undefined);
-  const pressureWarning = $derived.by(() => {
-    if (!data.settings.weather.enabled) return null;
-    const today = data.weather.get(dayKey(clock.now));
-    const tomorrow = data.weather.get(tomorrowKey(clock.now));
-    if (today && today.pressureDrop >= PRESSURE_DROP_HPA) return { today: true, weather: today };
-    if (tomorrow && tomorrow.pressureDrop >= PRESSURE_DROP_HPA) return { today: false, weather: tomorrow };
-    return null;
-  });
+  const risks = $derived(
+    (['today', 'tomorrow'] as const)
+      .map((day) => assessRisk(data, { dropHpa: PRESSURE_DROP_HPA, goalMl: data.settings.waterGoalMl }, clock.now, day))
+      .filter((r) => r.level !== 'none')
+  );
   const dayStart = $derived(startOfDay(clock.now).getTime());
   const rule = $derived(tenTwenty(new Set(intakeDays(data.intakes).keys()), clock.now, data.settings.limit));
   const streak = $derived(periodStats(data, clock.now, 1).clearStreak);
@@ -152,15 +151,9 @@
     </button>
   {/if}
 
-  {#if pressureWarning}
-    <section class="card flex items-start gap-3 bg-water-soft p-4 text-sm">
-      <span class="text-2xl">{weatherEmoji(pressureWarning.weather.code)}</span>
-      <p>
-        {t(pressureWarning.today ? 'weather.dropToday' : 'weather.dropTomorrow', { n: Math.round(pressureWarning.weather.pressureDrop) })}
-        <span class="text-muted">{t('weather.dropTip')}</span>
-      </p>
-    </section>
-  {/if}
+  {#each risks as risk (risk.day)}
+    <RiskCard {risk} />
+  {/each}
 
   {#if unrated}
     <section class="card flex flex-col gap-3 bg-med-soft p-4">

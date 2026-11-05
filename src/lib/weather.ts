@@ -1,4 +1,4 @@
-import { addDays, format } from 'date-fns';
+import { addDays } from 'date-fns';
 import type { HeadLogDb, WeatherDay } from './db';
 import { dayKey, dayRange, keyToDate } from './days';
 
@@ -128,8 +128,4 @@ export function weatherEmoji(code: number): string {
   if (code <= 67 || (code >= 80 && code <= 82)) return '🌧️';
   if (code <= 77 || code === 85 || code === 86) return '🌨️';
   return '⛈️';
-}
-
-export function tomorrowKey(now: number): string {
-  return format(addDays(now, 1), 'yyyy-MM-dd');
 }
