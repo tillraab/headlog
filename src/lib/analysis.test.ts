@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, caffeineByDay, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty, waterByDay } from './analysis';
-import type { Drink, Episode, Intake, MedCategory, Medication } from './db';
+import { alcoholDays, caffeineByDay, compareDays, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty, timeline, waterByDay } from './analysis';
+import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
 import { lastDays } from './days';
 
 const at = (s: string) => new Date(s).getTime();
@@ -161,9 +161,6 @@ describe('periodStats', () => {
     expect(stats.clearStreak).toBe(2);
   });
 
-  it('compares water before headache days with water before clear days', () => {
-    expect([stats.waterBeforeHeadache, stats.waterBeforeClear]).toEqual([1100, 2200]);
-  });
 
   it('ranks tags by frequency', () => {
     expect(stats.tags).toEqual([
@@ -234,5 +231,40 @@ describe('hydrationBefore', () => {
 
   it('has no usual amount with less than a week of drinks', () => {
     expect(hydrationBefore(daily.slice(0, 3), start).usual).toBeNull();
+  });
+});
+
+describe('timeline and compareDays', () => {
+  const now = at('2026-03-20T12:00');
+  const keys = Array.from({ length: 10 }, (_, i) => `2026-03-${String(i + 10).padStart(2, '0')}`);
+  const night = (day: string, hours: number): Night => ({ day, start: 0, end: 0, asleepMs: hours * 3600000, breaks: [], source: 'screen' });
+  const weather = (day: string, drop: number): WeatherDay => ({ day, pressure: 1010, pressureDrop: drop, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 });
+  // Headaches start on the 12th, 15th and 18th; the day before each, little was drunk and the night was short.
+  const headacheStarts = ['2026-03-12', '2026-03-15', '2026-03-18'];
+  const data = {
+    episodes: headacheStarts.map((d) => episode(`${d}T09:00`, `${d}T11:00`, 6)),
+    drinks: keys.flatMap((k) => [drink(`${k}T10:00`, headacheStarts.includes(dayKeyAfter(k)) ? 1000 : 2000)]),
+    sleep: new Map(keys.map((k) => [k, night(k, headacheStarts.includes(k) ? 5 : 8)])),
+    weather: new Map(keys.map((k) => [k, weather(k, headacheStarts.includes(k) ? 8 : 1)]))
+  };
+
+  function dayKeyAfter(k: string): string {
+    const d = new Date(`${k}T12:00`);
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+
+  it('gives one value per day with headache intensity and hydration', () => {
+    const series = timeline(data, keys, now);
+    expect([series.headache[2], series.headache[3], series.hydration[1]]).toEqual([6, 0, 1000]);
+  });
+
+  it('compares headache days with clear days per factor', () => {
+    const rows = Object.fromEntries(compareDays(data, keys, now, 6).map((r) => [r.key, [r.headache, r.clear]]));
+    expect(rows).toEqual({ hydration: [1000, 2000], sleep: [5, 8], pressure: [1, 0] });
+  });
+
+  it('leaves out factors with fewer than three days on a side', () => {
+    expect(compareDays({ ...data, episodes: data.episodes.slice(0, 2) }, keys, now, 6)).toEqual([]);
   });
 });

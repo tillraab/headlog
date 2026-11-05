@@ -1,5 +1,5 @@
 import { addDays, endOfMonth, getDay, getHours, startOfMonth } from 'date-fns';
-import { ACUTE_CATEGORIES, hydrationMl, type Drink, type Episode, type Intake, type MedCategory, type Medication } from './db';
+import { ACUTE_CATEGORIES, hydrationMl, type Drink, type Episode, type Intake, type MedCategory, type Medication, type Night, type WeatherDay } from './db';
 import { dayKey, dayRange, keyToDate, lastDays } from './days';
 
 /** Peak intensity per day touched by a headache. Ongoing episodes run until `now`. */
@@ -194,9 +194,6 @@ export interface PeriodStats {
   /** Episodes started per 3-hour block of the day. */
   timeOfDay: number[];
   avgWaterMl: number | null;
-  /** Average water on the day before a headache started, and on days with no headache the next day. */
-  waterBeforeHeadache: number | null;
-  waterBeforeClear: number | null;
   meds: { name: string; intakes: number; days: number; avgRelief: number | null }[];
   tags: { tag: string; count: number }[];
   /** Days since the last headache day, or null without any. */
@@ -228,15 +225,6 @@ export function periodStats(
   }
 
   const waterDays = keys.filter((k) => water.has(k));
-  const startDays = new Set(episodes.map((e) => dayKey(e.start)));
-  const before: number[] = [];
-  const clear: number[] = [];
-  for (const k of waterDays) {
-    const next = dayKey(addDays(keyToDate(k), 1));
-    if (startDays.has(next)) before.push(water.get(k)!);
-    else if (!hDays.has(next) && !hDays.has(k)) clear.push(water.get(k)!);
-  }
-
   const medMap = new Map<string, { intakes: number; days: Set<string>; relief: number[] }>();
   for (const i of intakes) {
     const m = medMap.get(i.name) ?? { intakes: 0, days: new Set<string>(), relief: [] };
@@ -263,8 +251,6 @@ export function periodStats(
     weekday,
     timeOfDay,
     avgWaterMl: waterDays.length ? avg(waterDays.map((k) => water.get(k)!)) : null,
-    waterBeforeHeadache: before.length ? avg(before) : null,
-    waterBeforeClear: clear.length ? avg(clear) : null,
     meds: [...medMap]
       .map(([name, m]) => ({
         name,
@@ -308,4 +294,77 @@ function addMonthsSafe(time: number, months: number): Date {
 
 function avg(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+/** One value per day of `keys` for the timeline charts. Null where nothing is known. */
+export function timeline(
+  data: { episodes: Episode[]; drinks: Drink[]; sleep: Map<string, Night>; weather: Map<string, WeatherDay> },
+  keys: string[],
+  now: number
+) {
+  const pain = headacheDays(data.episodes, now);
+  const water = waterByDay(data.drinks);
+  const anyDrinks = data.drinks.length > 0;
+  return {
+    headache: keys.map((k) => pain.get(k) ?? 0),
+    hydration: keys.map((k) => (water.has(k) ? water.get(k)! : anyDrinks ? 0 : null)),
+    sleepHours: keys.map((k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / 3600000 : null)),
+    pressure: keys.map((k) => data.weather.get(k)?.pressure ?? null),
+    pressureDrop: keys.map((k) => data.weather.get(k)?.pressureDrop ?? null)
+  };
+}
+
+export type ComparisonKey = 'hydration' | 'sleep' | 'caffeine' | 'pressure' | 'alcohol';
+
+export interface Comparison {
+  key: ComparisonKey;
+  /** Average before or on days a headache started. Shares are 0 to 1. */
+  headache: number;
+  /** Average before or on days without any headache. */
+  clear: number;
+  nHeadache: number;
+  nClear: number;
+}
+
+/** Each factor needs at least this many days on both sides to be shown. */
+export const MIN_COMPARISON_DAYS = 3;
+
+/**
+ * Compares the days a headache started with days without headache: hydration, caffeine and
+ * alcohol the day before, sleep the night before, and how often the pressure fell by `dropHpa`
+ * or more on the day itself. Today is left out because it is not over.
+ */
+export function compareDays(
+  data: { episodes: Episode[]; drinks: Drink[]; sleep: Map<string, Night>; weather: Map<string, WeatherDay> },
+  keys: string[],
+  now: number,
+  dropHpa: number
+): Comparison[] {
+  const pain = headacheDays(data.episodes, now);
+  const starts = new Set(data.episodes.map((e) => dayKey(e.start)));
+  const today = dayKey(now);
+  const startDays = keys.filter((k) => k !== today && starts.has(k));
+  const clearDays = keys.filter((k) => k !== today && !pain.has(k));
+  const before = (k: string) => dayKey(addDays(keyToDate(k), -1));
+
+  const water = waterByDay(data.drinks);
+  const caffeine = caffeineByDay(data.drinks);
+  const alcohol = alcoholDays(data.drinks);
+  const tracksCaffeine = caffeine.size > 0;
+  const tracksAlcohol = alcohol.size > 0;
+
+  const factors: [ComparisonKey, (k: string) => number | null][] = [
+    ['hydration', (k) => water.get(before(k)) ?? null],
+    ['sleep', (k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / 3600000 : null)],
+    ['caffeine', (k) => (tracksCaffeine && water.has(before(k)) ? (caffeine.get(before(k)) ?? 0) : null)],
+    ['pressure', (k) => (data.weather.has(k) ? (data.weather.get(k)!.pressureDrop >= dropHpa ? 1 : 0) : null)],
+    ['alcohol', (k) => (tracksAlcohol && water.has(before(k)) ? (alcohol.has(before(k)) ? 1 : 0) : null)]
+  ];
+
+  return factors.flatMap(([key, value]) => {
+    const h = startDays.map(value).filter((v): v is number => v !== null);
+    const c = clearDays.map(value).filter((v): v is number => v !== null);
+    if (h.length < MIN_COMPARISON_DAYS || c.length < MIN_COMPARISON_DAYS) return [];
+    return [{ key, headache: avg(h), clear: avg(c), nHeadache: h.length, nClear: c.length }];
+  });
 }

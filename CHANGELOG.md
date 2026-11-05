@@ -2,7 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- Insights timeline: headaches, hydration, sleep and air pressure as charts on one time axis, with headache days marked as red bands through all of them.
+- Insights comparison: hydration, caffeine and alcohol the day before, sleep the night before and pressure drops on the day, for days a headache started against days without headache.
+- Demo data includes sleep and weather.
+
 ### Changed
+
+- Insights shows average sleep among the key figures; the separate hydration comparison is part of the new comparison.
+- Deleting all data also deletes the stored weather.
 
 - The Meds tab comes second, before Calendar.
 
