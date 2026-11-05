@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fromPreset } from '$lib/db';
   import { editor } from '$lib/editor.svelte';
   import { t, tagLabel, TAGS } from '$lib/i18n.svelte';
   import { data, remove, saveDrink, saveEpisode, saveIntake } from '$lib/store.svelte';
@@ -132,7 +133,7 @@
             {#each data.drinkPresets as p (p.id)}
               <button
                 class="press flex flex-col items-center rounded-xl py-2 text-xs {drink.presetId === p.id ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
-                onclick={() => Object.assign(drink, { presetId: p.id, name: p.name, emoji: p.emoji, ml: p.ml })}
+                onclick={() => Object.assign(drink, fromPreset(p))}
               >
                 <span class="text-xl">{p.emoji}</span>{p.name}
               </button>

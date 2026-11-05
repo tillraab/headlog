@@ -38,7 +38,15 @@ export interface Intake {
   relief: number | null;
 }
 
-export interface DrinkPreset {
+/** What a drink contains besides fluid. Copied from the preset onto every logged drink. */
+export interface DrinkContents {
+  /** Caffeine in mg per serving. */
+  caffeineMg?: number;
+  /** Alcoholic drinks do not count toward the hydration goal. */
+  alcohol?: boolean;
+}
+
+export interface DrinkPreset extends DrinkContents {
   id: number;
   name: string;
   emoji: string;
@@ -46,7 +54,7 @@ export interface DrinkPreset {
   order: number;
 }
 
-export interface Drink {
+export interface Drink extends DrinkContents {
   id: number;
   time: number;
   presetId: number | null;
@@ -95,6 +103,19 @@ export const DEFAULT_MEDICATIONS: Omit<Medication, 'id'>[] = [
   { name: 'Sumatriptan', dose: '50 mg', category: 'triptan', color: MED_COLORS[2], order: 2 }
 ];
 
+/** Typical caffeine per default serving: 200 ml filter coffee, 300 ml black tea. */
+export const CAFFEINE = { coffee: 80, tea: 40 };
+
+/** Fluid that counts toward the hydration goal. */
+export function hydrationMl(drink: { ml: number; alcohol?: boolean }): number {
+  return drink.alcohol ? 0 : drink.ml;
+}
+
+/** The parts of a preset copied onto a logged drink. */
+export function fromPreset(preset: DrinkPreset) {
+  return { presetId: preset.id, name: preset.name, emoji: preset.emoji, ml: preset.ml, caffeineMg: preset.caffeineMg, alcohol: preset.alcohol };
+}
+
 export const DRINK_NAMES = { en: ['Glass', 'Bottle', 'Coffee', 'Tea'], de: ['Glas', 'Flasche', 'Kaffee', 'Tee'] };
 
 export function defaultDrinkPresets(lang: 'en' | 'de'): Omit<DrinkPreset, 'id'>[] {
@@ -102,8 +123,8 @@ export function defaultDrinkPresets(lang: 'en' | 'de'): Omit<DrinkPreset, 'id'>[
   return [
     { name: glass, emoji: '🥛', ml: 250, order: 0 },
     { name: bottle, emoji: '🍶', ml: 700, order: 1 },
-    { name: coffee, emoji: '☕', ml: 200, order: 2 },
-    { name: tea, emoji: '🍵', ml: 300, order: 3 }
+    { name: coffee, emoji: '☕', ml: 200, order: 2, caffeineMg: CAFFEINE.coffee },
+    { name: tea, emoji: '🍵', ml: 300, order: 3, caffeineMg: CAFFEINE.tea }
   ];
 }
 

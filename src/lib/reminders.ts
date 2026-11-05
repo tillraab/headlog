@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { addDays, format, isSameDay, setHours, startOfDay } from 'date-fns';
+import { hydrationMl } from './db';
 import { formatDuration, formatLiters } from './days';
 import { fmt, t } from './i18n.svelte';
 
@@ -218,6 +219,7 @@ export interface LoggedDrink {
   name: string;
   emoji: string;
   ml: number;
+  alcohol?: boolean;
 }
 
 const CHECKIN_LIST = 3;
@@ -238,7 +240,7 @@ export function planDrinkCheckins(now: number, settings: DrinkCheckinSettings, g
       const before = drinks.filter((x) => x.time <= at);
       const last = before.length ? before.reduce((a, b) => (b.time > a.time ? b : a)) : null;
       if (last && at - last.time < CHECKIN_QUIET_MINUTES * 60000) return;
-      const ml = before.filter((x) => isSameDay(x.time, at)).reduce((sum, x) => sum + x.ml, 0);
+      const ml = before.filter((x) => isSameDay(x.time, at)).reduce((sum, x) => sum + hydrationMl(x), 0);
       const amount = t('rem.checkinBody', { ml: formatLiters(ml), goal: formatLiters(goalMl) });
       const sameDay = last !== null && isSameDay(last.time, at);
       const title = sameDay ? t('rem.checkinTitleSince', { time: format(last.time, 'HH:mm') }) : t('rem.checkinTitle');

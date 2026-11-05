@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { hydrationStreak, monthlyCounts, periodStats } from '$lib/analysis';
+  import { alcoholDays, caffeineByDay, hydrationStreak, monthlyCounts, periodStats } from '$lib/analysis';
+  import { lastDays } from '$lib/days';
   import { formatDuration, formatLiters } from '$lib/days';
   import { fmt, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -13,6 +14,16 @@
 
   const stats = $derived(periodStats(data, clock.now, span));
   const hydration = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
+  const periodKeys = $derived(lastDays(clock.now, span));
+  const caffeine = $derived.by(() => {
+    const byDay = caffeineByDay(data.drinks);
+    const days = periodKeys.filter((k) => byDay.has(k));
+    return days.length ? days.reduce((s, k) => s + byDay.get(k)!, 0) / days.length : null;
+  });
+  const alcohol = $derived.by(() => {
+    const days = alcoholDays(data.drinks);
+    return periodKeys.filter((k) => days.has(k)).length;
+  });
   const months = $derived(monthlyCounts(data, clock.now, span === 365 ? 12 : 6));
   const hasData = $derived(stats.episodes > 0 || stats.intakes > 0 || stats.avgWaterMl !== null);
   const waterDiff = $derived(
@@ -62,6 +73,19 @@
         </div>
       {/each}
     </section>
+
+    {#if caffeine !== null || alcohol}
+      <section class="grid grid-cols-2 gap-2">
+        <div class="card p-3">
+          <p class="text-lg font-semibold tabular">{caffeine === null ? '–' : `${Math.round(caffeine)} mg`}</p>
+          <p class="text-xs leading-tight text-muted">{t('drink.caffeineAvg')}</p>
+        </div>
+        <div class="card p-3">
+          <p class="text-lg font-semibold tabular">{alcohol}</p>
+          <p class="text-xs leading-tight text-muted">{t('drink.alcoholDays')}</p>
+        </div>
+      </section>
+    {/if}
 
     <section class="card flex items-center gap-3 p-4">
       <span class="text-3xl">🔥</span>

@@ -29,3 +29,14 @@ describe('saveSettings', () => {
     expect(data.settings.drinkCheckins).toEqual({ enabled: true, times: ['10:00', '13:00', '16:00', '19:00'] });
   });
 });
+
+describe('caffeine defaults', () => {
+  it('gives coffee and drinks logged with it their caffeine once', async () => {
+    const coffee = (await db.drinkPresets.toArray()).find((p) => p.name === 'Kaffee')!;
+    await db.drinkPresets.update(coffee.id, { caffeineMg: undefined });
+    await db.drinks.add({ time: 1, presetId: coffee.id, name: 'Kaffee', emoji: '☕', ml: 200 });
+    await db.settings.delete('caffeineDefaults');
+    await load();
+    expect((await db.drinks.toArray())[0].caffeineMg).toBe(80);
+  });
+});

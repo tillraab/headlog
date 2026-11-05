@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { hydrationMl } from '$lib/db';
   import { Droplets, Pill, Zap } from '@lucide/svelte';
   import { format, isToday, startOfDay } from 'date-fns';
   import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty } from '$lib/analysis';
@@ -21,7 +22,9 @@
   const presets = $derived(data.drinkPresets);
   const todayIntakes = $derived(data.intakes.filter((i) => i.time >= dayStart));
   const todayDrinks = $derived(data.drinks.filter((d) => d.time >= dayStart));
-  const waterMl = $derived(todayDrinks.reduce((sum, d) => sum + d.ml, 0));
+  const waterMl = $derived(todayDrinks.reduce((sum, d) => sum + hydrationMl(d), 0));
+  const caffeineMg = $derived(todayDrinks.reduce((sum, d) => sum + (d.caffeineMg ?? 0), 0));
+  const alcoholCount = $derived(todayDrinks.filter((d) => d.alcohol).length);
   const waterPct = $derived(Math.min(1, waterMl / data.settings.waterGoalMl));
   const hydration = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
   const unrated = $derived(
@@ -160,6 +163,11 @@
     <div class="h-3 overflow-hidden rounded-full bg-water-soft">
       <div class="h-full rounded-full bg-water transition-[width] duration-500" style:width="{waterPct * 100}%"></div>
     </div>
+    {#if caffeineMg || alcoholCount}
+      <p class="-mt-1 text-xs text-muted tabular">
+        {[caffeineMg ? `☕ ${t('drink.caffeineShort', { mg: caffeineMg })}` : '', alcoholCount ? `🍷 ${t('drink.alcoholToday', { n: alcoholCount })}` : ''].filter(Boolean).join(' · ')}
+      </p>
+    {/if}
     <div class="grid grid-cols-4 gap-2">
       {#each presets as preset (preset.id)}
         <button
@@ -168,7 +176,7 @@
             tap();
             const before = waterMl;
             const id = await logDrink(preset);
-            if (before < data.settings.waterGoalMl && before + preset.ml >= data.settings.waterGoalMl) cheer();
+            if (before < data.settings.waterGoalMl && before + hydrationMl(preset) >= data.settings.waterGoalMl) cheer();
             toast(t('toast.drink', { ml: preset.ml }) + ` ${preset.emoji}`, undoFor('drinks', id));
           }}
         >

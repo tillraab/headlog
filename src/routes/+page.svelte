@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { hydrationMl } from '$lib/db';
   import { App } from '@capacitor/app';
   import { Capacitor } from '@capacitor/core';
   import { CalendarDays, ChartColumn, House, Pill, Settings } from '@lucide/svelte';
@@ -44,7 +45,7 @@
     if (!data.ready) return;
     const now = Date.now();
     const start = new Date(now).setHours(0, 0, 0, 0);
-    const todayMl = data.drinks.filter((d) => d.time >= start).reduce((s, d) => s + d.ml, 0);
+    const todayMl = data.drinks.filter((d) => d.time >= start).reduce((s, d) => s + hydrationMl(d), 0);
     void applyReminders(planReminders(now, data.settings.reminders, data.settings.waterGoalMl, todayMl)).catch(() => {});
     void applyHeadacheChecks(planHeadacheChecks(ongoingEpisode(), now, data.settings.headacheCheckHours)).catch(() => {});
     const recent = data.drinks.filter((d) => d.time >= start - 7 * 86400000);

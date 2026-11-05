@@ -1,4 +1,4 @@
-import { db, DRINK_NAMES, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication } from './db';
+import { CAFFEINE, db, DRINK_NAMES, fromPreset, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication } from './db';
 import { i18n } from './i18n.svelte';
 import { cancelReliefCheck, scheduleReliefCheck, type DrinkCheckinSettings } from './reminders';
 import type { Theme } from './ui.svelte';
@@ -44,8 +44,26 @@ export const data = $state({
 /** Current time, ticking every 20 seconds so durations stay live. */
 export const clock = $state({ now: Date.now() });
 
+/** Gives the default coffee and tea of older installs their caffeine, including drinks already logged. */
+async function addCaffeineDefaults() {
+  if (await db.settings.get('caffeineDefaults')) return;
+  const values: Record<string, number> = { Coffee: CAFFEINE.coffee, Kaffee: CAFFEINE.coffee, Tea: CAFFEINE.tea, Tee: CAFFEINE.tea };
+  await db.transaction('rw', db.drinkPresets, db.drinks, db.settings, async () => {
+    for (const preset of await db.drinkPresets.toArray()) {
+      const mg = values[preset.name];
+      if (!mg || preset.caffeineMg !== undefined) continue;
+      await db.drinkPresets.update(preset.id, { caffeineMg: mg });
+      await db.drinks.filter((d) => d.presetId === preset.id).modify((d) => {
+        if (d.caffeineMg === undefined) d.caffeineMg = mg;
+      });
+    }
+    await db.settings.put({ key: 'caffeineDefaults', value: true });
+  });
+}
+
 export async function load() {
   await seed(db, i18n.lang);
+  await addCaffeineDefaults();
   const [episodes, intakes, drinks, medications, drinkPresets, settingRows] = await Promise.all([
     db.episodes.orderBy('start').toArray(),
     db.intakes.orderBy('time').toArray(),
@@ -117,13 +135,7 @@ export async function logIntake(med: Medication, time = Date.now()): Promise<num
 }
 
 export async function logDrink(preset: DrinkPreset, time = Date.now()): Promise<number> {
-  const id = await db.drinks.add({
-    time,
-    presetId: preset.id,
-    name: preset.name,
-    emoji: preset.emoji,
-    ml: preset.ml
-  });
+  const id = await db.drinks.add({ time, ...fromPreset(preset) });
   await load();
   return id;
 }

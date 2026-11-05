@@ -4,6 +4,8 @@
 
 ### Added
 
+- Caffeine and alcohol: each drink in My drinks can have a caffeine amount and be marked as alcoholic. Today shows the caffeine of the day, Insights the average caffeine and the days with alcohol. Alcoholic drinks do not count toward the hydration goal. Coffee (80 mg) and tea (40 mg) get their caffeine automatically, including drinks already logged.
+
 - Hydration goal streak: 🔥 days in a row on Today, current and best streak in Insights, and a small celebration with confetti when you reach the goal, with milestones at 3, 7, 14, 21, 30, 50 and 100 days.
 
 ### Changed
