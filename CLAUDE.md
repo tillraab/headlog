@@ -23,7 +23,8 @@ Run `bun run check` and `bun run test` before every commit.
 - `src/lib/db.ts`: Dexie schema, entity types, default medication and drink lists, `seed`.
 - `src/lib/store.svelte.ts`: all data in one `$state` object. Every write goes to Dexie and then calls `load()`, which reloads everything. `Settings` lives here with its defaults.
 - `src/lib/analysis.ts`: pure functions for headache days, medication days, the 10/20 rule, personal limits, rolling counts, monthly counts, period stats. Well tested; put new statistics here, not in components.
-- `src/lib/report.ts`: doctor PDF (jsPDF + jspdf-autotable).
+- `src/lib/report.ts`: one-page doctor PDF (jsPDF + jspdf-autotable): header with logo, key figures, calendar, two charts, medication, triggers. It must stay on one A4 page for up to 12 months; `report.test.ts` checks the page count.
+- `src/lib/doctor.svelte.ts`: builds the report from the current data with the app icon as logo, or the CSV for the same period, and shares it. Used by Settings and Insights.
 - `src/lib/reminders.ts`: local notifications. Hydration reminders when behind the goal, drink check-ins at fixed times with drink buttons, "did it help?" after an intake, "still a headache?" every N hours.
 - `src/lib/backup.ts`: JSON backup and restore, CSV export, `saveFile` (Android share sheet or browser download).
 - `src/lib/gist.ts`, `sync.svelte.ts`: optional backup to a secret GitHub Gist.

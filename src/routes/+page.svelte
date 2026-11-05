@@ -46,8 +46,8 @@
     const todayMl = data.drinks.filter((d) => d.time >= start).reduce((s, d) => s + d.ml, 0);
     void applyReminders(planReminders(now, data.settings.reminders, data.settings.waterGoalMl, todayMl)).catch(() => {});
     void applyHeadacheChecks(planHeadacheChecks(ongoingEpisode(), now, data.settings.headacheCheckHours)).catch(() => {});
-    const lastDrink = data.drinks.length ? data.drinks[data.drinks.length - 1].time : null;
-    const checkins = planDrinkCheckins(now, data.settings.drinkCheckins, data.settings.waterGoalMl, todayMl, lastDrink);
+    const recent = data.drinks.filter((d) => d.time >= start - 7 * 86400000);
+    const checkins = planDrinkCheckins(now, data.settings.drinkCheckins, data.settings.waterGoalMl, recent);
     void applyDrinkCheckins(checkins, $state.snapshot(data.drinkPresets)).catch(() => {});
   }
 

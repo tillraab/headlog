@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-05
+
+### Added
+
+- Insights has a button for the doctor report, covering the period selected there.
+
+### Changed
+
+- The doctor report fits on one page and looks new: app logo, key figures including hydration, the headache calendar, charts of headache and medication days per month and of the 10/20 rule over time, medication with how often it helped and personal limits, and the most common triggers. The list of every headache moved out; the CSV export still has every entry.
+- Drink check-ins list what you logged since the previous check-in (expand the notification to see time and amount of the last three), or say that nothing was logged.
+
 ## [0.6.1] - 2026-11-05
 
 ### Changed

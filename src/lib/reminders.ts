@@ -15,6 +15,8 @@ export interface PlannedReminder {
   at: number;
   title: string;
   body: string;
+  /** Text shown when the notification is expanded. */
+  largeBody?: string;
 }
 
 let queue: Promise<unknown> = Promise.resolve();
@@ -207,36 +209,66 @@ export const MAX_CHECKIN_TIMES = 8;
 /** A check-in is skipped when a drink was logged this many minutes before it. */
 export const CHECKIN_QUIET_MINUTES = 60;
 
-/** "What did you drink?" at the chosen times for the next 7 days. */
-export function planDrinkCheckins(
-  now: number,
-  settings: DrinkCheckinSettings,
-  goalMl: number,
-  todayMl: number,
-  lastDrink: number | null
-): PlannedReminder[] {
+/** A logged drink, as far as check-ins need it. */
+export interface LoggedDrink {
+  time: number;
+  name: string;
+  emoji: string;
+  ml: number;
+}
+
+const CHECKIN_LIST = 3;
+
+/**
+ * "What did you drink?" at the chosen times for the next 7 days. Each check-in lists the drinks logged
+ * since the check-in before it on the same day; the first one of a day names the last drink.
+ */
+export function planDrinkCheckins(now: number, settings: DrinkCheckinSettings, goalMl: number, drinks: LoggedDrink[]): PlannedReminder[] {
   if (!settings.enabled) return [];
   const times = [...settings.times].sort().slice(0, MAX_CHECKIN_TIMES);
   const plan: PlannedReminder[] = [];
   for (let d = 0; d < DAYS; d++) {
     const day = addDays(startOfDay(now), d);
     times.forEach((time, i) => {
-      const [h, m] = time.split(':').map(Number);
-      const at = day.getTime() + (h * 60 + m) * 60000;
+      const at = atTime(day, time);
       if (at <= now) return;
-      if (lastDrink !== null && lastDrink <= at && at - lastDrink < CHECKIN_QUIET_MINUTES * 60000) return;
-      const ml = d === 0 ? todayMl : 0;
+      const before = drinks.filter((x) => x.time <= at);
+      const last = before.length ? before.reduce((a, b) => (b.time > a.time ? b : a)) : null;
+      if (last && at - last.time < CHECKIN_QUIET_MINUTES * 60000) return;
+      const ml = before.filter((x) => isSameDay(x.time, at)).reduce((sum, x) => sum + x.ml, 0);
       const amount = t('rem.checkinBody', { ml: formatLiters(ml), goal: formatLiters(goalMl) });
-      const sameDay = lastDrink !== null && isSameDay(lastDrink, at);
+      const sameDay = last !== null && isSameDay(last.time, at);
+      const title = sameDay ? t('rem.checkinTitleSince', { time: format(last.time, 'HH:mm') }) : t('rem.checkinTitle');
+      const id = CHECKIN_FIRST_ID + d * MAX_CHECKIN_TIMES + i;
+
+      if (i === 0) {
+        const body = last && !sameDay ? `${t('rem.checkinLast', { time: lastDrinkLabel(last.time, at) })} ${amount}` : amount;
+        plan.push({ id, at, title, body });
+        return;
+      }
+      const previous = format(atTime(day, times[i - 1]), 'HH:mm');
+      const since = before.filter((x) => x.time >= atTime(day, times[i - 1])).sort((a, b) => a.time - b.time);
+      if (!since.length) {
+        plan.push({ id, at, title, body: `${t('rem.checkinNothing', { time: previous })} · ${amount}` });
+        return;
+      }
+      const lines = since.slice(-CHECKIN_LIST).map((x) => `${format(x.time, 'HH:mm')}  ${x.emoji} ${x.name}  ${x.ml} ml`);
+      if (since.length > CHECKIN_LIST) lines.unshift(t('rem.checkinMore', { n: since.length - CHECKIN_LIST }));
       plan.push({
-        id: CHECKIN_FIRST_ID + d * MAX_CHECKIN_TIMES + i,
+        id,
         at,
-        title: sameDay ? t('rem.checkinTitleSince', { time: format(lastDrink, 'HH:mm') }) : t('rem.checkinTitle'),
-        body: lastDrink === null || sameDay ? amount : `${t('rem.checkinLast', { time: lastDrinkLabel(lastDrink, at) })} ${amount}`
+        title,
+        body: `${t('rem.checkinSince', { time: previous, drinks: since.map((x) => x.name).join(', ') })} · ${amount}`,
+        largeBody: `${lines.join('\n')}\n${amount}`
       });
     });
   }
   return plan;
+}
+
+function atTime(day: Date, time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return day.getTime() + (h * 60 + m) * 60000;
 }
 
 /** "yesterday 21:30" or "Mon 5 Nov 21:30", seen from the day of the check-in. */
@@ -259,6 +291,7 @@ export function applyDrinkCheckins(plan: PlannedReminder[], presets: { id: numbe
         id: r.id,
         title: r.title,
         body: r.body,
+        largeBody: r.largeBody,
         actionTypeId: DRINK_TYPE,
         autoCancel: true,
         schedule: { at: new Date(r.at), allowWhileIdle: true }

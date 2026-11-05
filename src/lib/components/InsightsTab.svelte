@@ -3,9 +3,12 @@
   import { formatDuration, formatLiters } from '$lib/days';
   import { fmt, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
+  import { FileText } from '@lucide/svelte';
+  import { exportForDoctor } from '$lib/doctor.svelte';
   import BarChart from './BarChart.svelte';
 
   const PERIODS = [30, 90, 365];
+  const REPORT_MONTHS: Record<number, number> = { 30: 1, 90: 3, 365: 12 };
   let span = $state(90);
 
   const stats = $derived(periodStats(data, clock.now, span));
@@ -31,6 +34,14 @@
       {/each}
     </div>
   </header>
+
+  <button
+    class="press flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-fg"
+    onclick={() => exportForDoctor(REPORT_MONTHS[span])}
+  >
+    <FileText size={18} />
+    {t('pdf.insightsButton', { n: REPORT_MONTHS[span] })}
+  </button>
 
   {#if !hasData}
     <p class="card p-6 text-center text-sm text-muted">{t('ins.noData')}</p>

@@ -1,13 +1,12 @@
 <script lang="ts">
   import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2, X } from '@lucide/svelte';
-  import { addMonths, startOfMonth } from 'date-fns';
-  import { createBackup, createCsv, isBackup, restoreBackup, saveFile, wipe } from '$lib/backup';
+  import { createBackup, isBackup, restoreBackup, saveFile, wipe } from '$lib/backup';
+  import { exportForDoctor } from '$lib/doctor.svelte';
   import { MED_COLORS, type DrinkPreset, type MedCategory, type Medication } from '$lib/db';
   import { loadDemo } from '$lib/demo';
   import { fmt, i18n, setLang, t, type Lang } from '$lib/i18n.svelte';
   import { data, deleteDrinkPreset, deleteMedication, load, saveDrinkPreset, saveMedication, saveSettings, swapOrder, translateDrinkNames } from '$lib/store.svelte';
   import { MAX_CHECKIN_TIMES, requestReminderPermission } from '$lib/reminders';
-  import { doctorReport } from '$lib/report';
   import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
   import { applyTheme, openSheet, toast, type Theme } from '$lib/ui.svelte';
   import Sheet from './Sheet.svelte';
@@ -87,18 +86,6 @@
   let token = $state('');
   let reportMonths = $state(3);
   let reportFormat = $state<'pdf' | 'csv'>('pdf');
-
-  async function exportForDoctor() {
-    const now = Date.now();
-    const day = new Date(now).toISOString().slice(0, 10);
-    if (reportFormat === 'csv') {
-      const from = startOfMonth(addMonths(now, -(reportMonths - 1))).getTime();
-      await saveFile(`headlog-${day}.csv`, await createCsv(undefined, from), 'text/csv');
-      return;
-    }
-    const pdf = doctorReport({ ...$state.snapshot(data), limit: data.settings.limit, name: data.settings.reportName, version: __APP_VERSION__ }, now, reportMonths);
-    await saveFile(`headlog-report-${day}.pdf`, pdf, 'application/pdf');
-  }
 
   function reliefLabel(minutes: number): string {
     return t('rem.after', { d: duration(minutes) });
@@ -511,7 +498,7 @@
         {/each}
       </div>
     </div>
-    <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={exportForDoctor}>{t('set.doctorExport')}</button>
+    <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={() => exportForDoctor(reportMonths, reportFormat)}>{t('set.doctorExport')}</button>
   </div>
 
   {@render group(t('set.backup'), t('set.backupHint'))}

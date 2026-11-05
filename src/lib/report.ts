@@ -1,9 +1,9 @@
-import { addMonths, endOfMonth, format, startOfDay, startOfMonth } from 'date-fns';
+import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
-import { headacheDays, intakeDays, MONTHLY_LIMITS, periodStats, tenTwenty } from './analysis';
+import { headacheDays, intakeDays, MONTHLY_LIMITS, periodStats, rollingMedDays, ruleStatus, tenTwenty } from './analysis';
 import type { Drink, Episode, Intake, MedCategory, Medication } from './db';
-import { dayKey, dayRange, formatDuration, keyToDate } from './days';
+import { dayKey, dayRange, formatDuration, formatLiters, keyToDate } from './days';
 import { fmt, t, tagLabel } from './i18n.svelte';
 
 type Rgb = [number, number, number];
@@ -11,9 +11,20 @@ type Rgb = [number, number, number];
 const INK: Rgb = [29, 26, 43];
 const MUTED: Rgb = [108, 104, 128];
 const LINE: Rgb = [227, 224, 238];
+const SOFT: Rgb = [247, 246, 251];
 const PRIMARY: Rgb = [91, 75, 214];
+const NIGHT: Rgb = [28, 23, 56];
+const ON_NIGHT: Rgb = [199, 192, 255];
+const WHITE: Rgb = [255, 255, 255];
+const PAIN: Rgb = [226, 70, 107];
 const MED: Rgb = [230, 149, 18];
-const EMPTY: Rgb = [244, 243, 248];
+const WATER: Rgb = [31, 143, 224];
+const OK: Rgb = [22, 162, 107];
+const CAUTION: Rgb = [217, 138, 4];
+const OVER: Rgb = [220, 58, 58];
+const EMPTY: Rgb = [240, 239, 246];
+
+const STATUS_COLOR = { ok: OK, caution: CAUTION, over: OVER };
 
 /** Intensity 1 to 10 as a light-to-dark red. */
 function painColor(intensity: number): Rgb {
@@ -29,238 +40,296 @@ export interface ReportInput {
   drinks: Drink[];
   medications: Medication[];
   limit: number;
+  waterGoalMl: number;
   name: string;
   version: string;
+  /** App icon as a PNG data URL, drawn in the header when given. */
+  logo?: string;
 }
 
-/** Doctor report covering the `months` calendar months up to and including the one with `now`. */
+/** One-page doctor report covering the `months` calendar months up to and including the one with `now`. */
 export function doctorReport(input: ReportInput, now: number, months: number): Uint8Array {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
-  const M = 14;
+  const H = doc.internal.pageSize.getHeight();
+  const M = 12;
+  const inner = W - 2 * M;
   const from = startOfMonth(addMonths(now, -(months - 1)));
   const fromMs = from.getTime();
   const span = dayRange(from, now).length;
+  const footerY = H - 12;
 
-  const episodes = input.episodes.filter((e) => (e.end ?? now) >= fromMs && e.start <= now);
   const intakes = input.intakes.filter((i) => i.time >= fromMs && i.time <= now);
-  const stats = periodStats({ episodes: input.episodes, intakes: input.intakes, drinks: input.drinks }, now, span);
+  const stats = periodStats(input, now, span);
   const hDays = headacheDays(input.episodes, now);
-  const mDays = intakeDays(input.intakes);
-  const rule = tenTwenty(new Set(mDays.keys()), now, input.limit);
+  const medDaySet = new Set(intakeDays(input.intakes).keys());
+  const rule = tenTwenty(medDaySet, now, input.limit);
 
-  const text = (s: string | string[], x: number, y: number, size = 10, color: Rgb = INK, bold = false) => {
+  const text = (s: string | string[], x: number, y: number, size: number, color: Rgb = INK, bold = false, align: 'left' | 'right' | 'center' = 'left') => {
     doc.setFont('helvetica', bold ? 'bold' : 'normal');
     doc.setFontSize(size);
     doc.setTextColor(...color);
-    doc.text(s, x, y);
+    doc.text(s, x, y, { align });
+  };
+  const heading = (s: string, x: number, y: number) => text(s.toUpperCase(), x, y, 7.5, MUTED, true);
+  const panel = (x: number, y: number, w: number, h: number) => {
+    doc.setDrawColor(...LINE);
+    doc.setFillColor(...WHITE);
+    doc.roundedRect(x, y, w, h, 2.5, 2.5, 'FD');
   };
 
-  // Header
-  doc.setFillColor(...PRIMARY);
-  doc.rect(0, 0, W, 4, 'F');
-  text(t('pdf.title'), M, 18, 20, INK, true);
-  text(
-    [input.name, `${fmt(from, 'd. MMMM yyyy')} – ${fmt(now, 'd. MMMM yyyy')}`].filter(Boolean).join('  ·  '),
-    M,
-    25,
-    10,
-    MUTED
-  );
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(...MUTED);
-  doc.text(t('pdf.created', { date: fmt(now, 'd. MMM yyyy') }), W - M, 18, { align: 'right' });
+  // Header band
+  doc.setFillColor(...NIGHT);
+  doc.rect(0, 0, W, 30, 'F');
+  if (input.logo) doc.addImage(input.logo, 'PNG', M, 6, 18, 18);
+  const titleX = input.logo ? M + 23 : M;
+  text(t('pdf.title'), titleX, 14, 18, WHITE, true);
+  text(`${fmt(from, 'd. MMMM yyyy')} – ${fmt(now, 'd. MMMM yyyy')}`, titleX, 21, 9.5, ON_NIGHT);
+  if (input.name) text(input.name, W - M, 14, 11, WHITE, true, 'right');
+  text(t('pdf.created', { date: fmt(now, 'd. MMM yyyy') }), W - M, 21, 8, ON_NIGHT, false, 'right');
 
   // Key figures
-  const perMonth = (n: number) => (n / span) * 30;
-  const tiles: [string, string, string?][] = [
-    [String(stats.headacheDays), t('ins.headacheDays'), t('pdf.perMonth', { n: perMonth(stats.headacheDays).toFixed(1) })],
-    [String(stats.episodes), t('ins.episodes')],
-    [stats.avgIntensity === null ? '–' : stats.avgIntensity.toFixed(1), t('ins.avgIntensity'), '1–10'],
-    [stats.avgDurationMs === null ? '–' : formatDuration(stats.avgDurationMs), t('ins.avgDuration')],
-    [String(stats.medDays), t('ins.medDays'), t('pdf.perMonth', { n: perMonth(stats.medDays).toFixed(1) })],
-    [`${rule.count}/${rule.limit}`, t('pdf.ruleNow'), t(`tenTwenty.${rule.status}`)]
-  ];
-  const tileW = (W - 2 * M - 5 * 3) / 6;
-  tiles.forEach(([value, label, sub], i) => {
-    const x = M + i * (tileW + 3);
-    doc.setDrawColor(...LINE);
-    doc.setFillColor(250, 249, 253);
-    doc.roundedRect(x, 31, tileW, 22, 2, 2, 'FD');
-    text(value, x + 3, 40, 14, i === 0 ? painColor(8) : i === 4 ? MED : INK, true);
-    doc.setFontSize(7);
-    text(doc.splitTextToSize(label, tileW - 6) as string[], x + 3, 45, 7, MUTED);
-    if (sub) text(sub, x + 3, 51, 7, MUTED);
-  });
-
-  // Headache calendar: one row per month, one cell per day
-  let y = 63;
-  text(t('pdf.calendar'), M, y, 12, INK, true);
-  y += 4;
-  const labelW = 16;
-  const cell = (W - 2 * M - labelW) / 31;
-  doc.setFontSize(6);
-  doc.setTextColor(...MUTED);
-  for (let d = 1; d <= 31; d++) doc.text(String(d), M + labelW + (d - 0.5) * cell, y + 2, { align: 'center' });
-  y += 4;
-  for (let i = 0; i < months; i++) {
-    const m = addMonths(from, i);
-    text(fmt(m, 'MMM yy'), M, y + cell * 0.7, 7, MUTED);
-    for (const key of dayRange(m, endOfMonth(m))) {
-      const d = keyToDate(key).getDate();
-      const x = M + labelW + (d - 1) * cell;
-      const intensity = hDays.get(key);
-      const future = key > dayKey(now);
-      doc.setFillColor(...(intensity ? painColor(intensity) : future ? ([252, 252, 254] as Rgb) : EMPTY));
-      doc.rect(x + 0.3, y + 0.3, cell - 0.6, cell - 0.6, 'F');
-      if (mDays.has(key)) {
-        doc.setFillColor(...MED);
-        doc.circle(x + cell / 2, y + cell - 1.4, 0.8, 'F');
-      }
-      if (intensity && intensity >= 4) {
-        doc.setFontSize(5);
-        doc.setTextColor(255, 255, 255);
-        doc.text(String(intensity), x + cell / 2, y + cell * 0.5, { align: 'center' });
-      }
+  let y = 36;
+  const perMonth = (n: number) => ((n / span) * 30).toFixed(1);
+  const tiles: { value: string; label: string; sub?: string; color: Rgb }[] = [
+    { value: String(stats.headacheDays), label: t('ins.headacheDays'), sub: t('pdf.perMonth', { n: perMonth(stats.headacheDays) }), color: PAIN },
+    { value: stats.avgIntensity === null ? '–' : stats.avgIntensity.toFixed(1), label: t('ins.avgIntensity'), sub: '1–10', color: INK },
+    { value: stats.avgDurationMs === null ? '–' : formatDuration(stats.avgDurationMs), label: t('ins.avgDuration'), color: INK },
+    { value: String(stats.medDays), label: t('ins.medDays'), sub: t('pdf.perMonth', { n: perMonth(stats.medDays) }), color: MED },
+    { value: `${rule.count}/${rule.limit}`, label: t('pdf.ruleNow'), sub: t(`tenTwenty.${rule.status}`), color: STATUS_COLOR[rule.status] },
+    {
+      value: stats.avgWaterMl === null ? '–' : formatLiters(stats.avgWaterMl),
+      label: t('ins.avgWater'),
+      sub: t('today.goal', { goal: formatLiters(input.waterGoalMl) }),
+      color: WATER
     }
-    y += cell;
-  }
-  y += 4;
-  const legend: [Rgb, string][] = [
-    [painColor(2), t('pdf.legendMild')],
-    [painColor(6), t('pdf.legendModerate')],
-    [painColor(10), t('pdf.legendSevere')]
   ];
-  let lx = M;
-  for (const [color, label] of legend) {
-    doc.setFillColor(...color);
-    doc.rect(lx, y - 2.5, 3, 3, 'F');
-    text(label, lx + 4.5, y, 7, MUTED);
-    lx += doc.getTextWidth(label) + 10;
-  }
-  doc.setFillColor(...MED);
-  doc.circle(lx + 1.5, y - 1, 0.9, 'F');
-  text(t('pdf.legendMed'), lx + 4.5, y, 7, MUTED);
-  y += 8;
-
-  // Per month
-  const monthRows = Array.from({ length: months }, (_, i) => {
-    const m = addMonths(from, i);
-    const prefix = format(m, 'yyyy-MM');
-    const monthIntakes = input.intakes.filter((x) => dayKey(x.time).startsWith(prefix));
-    const daysOf = (cat: MedCategory) => new Set(monthIntakes.filter((x) => x.category === cat).map((x) => dayKey(x.time))).size;
-    const monthEpisodes = input.episodes.filter((e) => dayKey(e.start).startsWith(prefix));
-    return [
-      fmt(m, 'LLLL yyyy'),
-      String([...hDays.keys()].filter((k) => k.startsWith(prefix)).length),
-      String(monthEpisodes.length),
-      monthEpisodes.length ? (monthEpisodes.reduce((s, e) => s + e.intensity, 0) / monthEpisodes.length).toFixed(1) : '–',
-      String([...mDays.keys()].filter((k) => k.startsWith(prefix)).length),
-      String(daysOf('analgesic')),
-      String(daysOf('triptan'))
-    ];
+  const gap = 3;
+  const tileW = (inner - gap * (tiles.length - 1)) / tiles.length;
+  tiles.forEach((tile, i) => {
+    const x = M + i * (tileW + gap);
+    panel(x, y, tileW, 21);
+    doc.setFillColor(...tile.color);
+    doc.rect(x + 0.6, y + 3, 1.2, 15, 'F');
+    text(tile.value, x + 4, y + 8.5, 13, tile.color, true);
+    text(tile.label, x + 4, y + 13.5, 6.8, MUTED);
+    if (tile.sub) text(tile.sub, x + 4, y + 17.5, 6.5, MUTED);
   });
-  autoTable(doc, {
-    startY: y,
-    head: [[t('pdf.month'), t('ins.headacheDays'), t('ins.episodes'), t('ins.avgIntensity'), t('ins.medDays'), t('pdf.analgesicDays'), t('pdf.triptanDays')]],
-    body: monthRows,
-    theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 1.6, lineColor: LINE, textColor: INK },
-    headStyles: { fillColor: PRIMARY, textColor: 255, fontStyle: 'bold' },
-    columnStyles: { 0: { cellWidth: 34 } },
-    margin: { left: M, right: M }
-  });
+  y += 26;
 
-  // Medication
-  const meds = new Map<string, { category: MedCategory; med?: Medication; n: number; days: Set<string>; relief: number[] }>();
-  for (const i of intakes) {
-    const key = `${i.name} ${i.dose}`.trim();
-    const m = meds.get(key) ?? { category: i.category, med: input.medications.find((x) => x.id === i.medId), n: 0, days: new Set<string>(), relief: [] };
-    m.n++;
-    m.days.add(dayKey(i.time));
-    if (i.relief !== null) m.relief.push(i.relief);
-    meds.set(key, m);
-  }
-  const reliefText = (r: number[]) => {
-    if (!r.length) return '–';
-    const labels = [t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')];
-    return labels.map((l, v) => `${l} ${r.filter((x) => x === v).length}`).join(' / ');
-  };
-  let afterMeds = 0;
-  autoTable(doc, {
-    didDrawPage: (d) => {
-      afterMeds = d.cursor?.y ?? afterMeds;
-    },
-    head: [[t('pdf.medication'), t('set.category'), t('pdf.intakes'), t('pdf.days'), t('set.limitDays'), t('pdf.relief')]],
-    body: meds.size
-      ? [...meds].sort((a, b) => b[1].n - a[1].n).map(([name, m]) => [name, t(`cat.${m.category}`), String(m.n), String(m.days.size), m.med?.limitDays ? t('set.limitOption', { n: m.med.limitDays, m: m.med.limitWindow ?? 30 }) : '–', reliefText(m.relief)])
-      : [[{ content: t('pdf.none'), colSpan: 6 }]],
-    theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 1.6, lineColor: LINE, textColor: INK },
-    headStyles: { fillColor: MED, textColor: 255, fontStyle: 'bold' },
-    margin: { left: M, right: M }
-  });
-  const limitsNote = (Object.keys(MONTHLY_LIMITS) as MedCategory[])
-    .map((c) => `${t(`cat.${c}`)} ${MONTHLY_LIMITS[c]}`)
-    .join(', ');
-  text(doc.splitTextToSize(t('pdf.ruleNote', { limits: limitsNote }), W - 2 * M) as string[], M, afterMeds + 5, 7, MUTED);
+  y = calendar(y) + 4;
 
-  if (stats.tags.length) {
-    autoTable(doc, {
-      startY: afterMeds + 12,
-      head: [[t('ins.tags'), t('ins.episodes')]],
-      body: stats.tags.map((x) => [tagLabel(x.tag), String(x.count)]),
-      theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 1.6, lineColor: LINE, textColor: INK },
-      headStyles: { fillColor: [120, 116, 140], textColor: 255, fontStyle: 'bold' },
-      tableWidth: 90,
-      margin: { left: M, right: M }
-    });
-  }
+  const chartH = 50;
+  const colW = (inner - 4) / 2;
+  monthlyChart(M, y, colW, chartH);
+  ruleChart(M + colW + 4, y, colW, chartH);
+  y += chartH + 4;
 
-  // All episodes
-  doc.addPage();
-  text(t('pdf.episodes'), M, 18, 12, INK, true);
-  const intakesFor = (e: Episode) => {
-    const until = e.end ?? now;
-    const dayStart = startOfDay(e.start).getTime();
-    return intakes
-      .filter((i) => i.time >= Math.min(dayStart, e.start - 3 * 3600000) && i.time <= until)
-      .map((i) => `${format(i.time, 'HH:mm')} ${i.name}`)
-      .join('\n');
-  };
-  autoTable(doc, {
-    startY: 22,
-    head: [[t('pdf.date'), t('edit.start'), t('edit.end'), t('pdf.duration'), t('pdf.intensity'), t('pdf.medication'), t('edit.tags'), t('edit.note')]],
-    body: episodes
-      .slice()
-      .sort((a, b) => a.start - b.start)
-      .map((e) => [
-        fmt(e.start, 'EEE d. MMM'),
-        format(e.start, 'HH:mm'),
-        e.end ? (dayKey(e.end) === dayKey(e.start) ? format(e.end, 'HH:mm') : fmt(e.end, 'd. MMM HH:mm')) : '…',
-        formatDuration((e.end ?? now) - e.start),
-        String(e.intensity),
-        intakesFor(e),
-        e.tags.map(tagLabel).join(', '),
-        e.note
-      ]),
-    theme: 'striped',
-    styles: { fontSize: 7.5, cellPadding: 1.4, textColor: INK, valign: 'top' },
-    headStyles: { fillColor: painColor(8), textColor: 255, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [250, 249, 253] },
-    columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 13 }, 2: { cellWidth: 15 }, 3: { cellWidth: 15 }, 4: { cellWidth: 11, halign: 'center' }, 5: { cellWidth: 34 } },
-    margin: { left: M, right: M }
-  });
+  const medW = inner * 0.64;
+  medicationPanel(y, medW, footerY - 3 - y);
+  triggerPanel(M + medW + 4, y, inner - medW - 4, footerY - 3 - y);
 
-  const pages = doc.getNumberOfPages();
-  for (let p = 1; p <= pages; p++) {
-    doc.setPage(p);
-    const h = doc.internal.pageSize.getHeight();
-    text(`HeadLog ${input.version}`, M, h - 8, 7, MUTED);
-    doc.text(`${p} / ${pages}`, W - M, h - 8, { align: 'right' });
-  }
+  doc.setDrawColor(...LINE);
+  doc.line(M, footerY, W - M, footerY);
+  text(`HeadLog ${input.version} · ${t('tenTwenty.disclaimer')}`, M, footerY + 4.5, 6.5, MUTED);
 
   return new Uint8Array(doc.output('arraybuffer'));
+
+  /** One row per month, one cell per day, shaded by headache intensity, with a dot on medication days. Returns the bottom. */
+  function calendar(top: number): number {
+    const labelW = 15;
+    const cell = Math.min(5.6, (inner - 8 - labelW) / 31);
+    const height = 15 + months * cell;
+    panel(M, top, inner, height);
+    heading(t('pdf.calendar'), M + 4, top + 6);
+
+    let lx = M + inner - 4;
+    const legend: [Rgb, string, boolean][] = [
+      [MED, t('pdf.legendMed'), true],
+      [painColor(10), t('pdf.legendSevere'), false],
+      [painColor(6), t('pdf.legendModerate'), false],
+      [painColor(2), t('pdf.legendMild'), false]
+    ];
+    for (const [color, label, dot] of legend) {
+      doc.setFontSize(6.5);
+      lx -= doc.getTextWidth(label);
+      text(label, lx, top + 6, 6.5, MUTED);
+      doc.setFillColor(...color);
+      if (dot) doc.circle(lx - 2, top + 5.1, 0.9, 'F');
+      else doc.roundedRect(lx - 3.4, top + 3.7, 2.6, 2.6, 0.5, 0.5, 'F');
+      lx -= 8;
+    }
+
+    const gx = M + 4 + labelW;
+    for (let d = 1; d <= 31; d++) text(String(d), gx + (d - 0.5) * cell, top + 10.5, 5.5, MUTED, false, 'center');
+    let cy = top + 12;
+    const today = dayKey(now);
+    for (let i = 0; i < months; i++) {
+      const m = addMonths(from, i);
+      text(fmt(m, 'MMM yy'), M + 4, cy + cell * 0.72, 7, MUTED);
+      for (const key of dayRange(m, endOfMonth(m))) {
+        const x = gx + (keyToDate(key).getDate() - 1) * cell;
+        const intensity = hDays.get(key);
+        doc.setFillColor(...(intensity ? painColor(intensity) : key > today ? ([250, 250, 253] as Rgb) : EMPTY));
+        doc.roundedRect(x + 0.35, cy + 0.35, cell - 0.7, cell - 0.7, 0.6, 0.6, 'F');
+        if (intensity && intensity >= 4) text(String(intensity), x + cell / 2, cy + cell * 0.62, 5, WHITE, true, 'center');
+        if (medDaySet.has(key)) {
+          doc.setFillColor(...MED);
+          doc.circle(x + cell - 1.1, cy + 1.1, 0.75, 'F');
+        }
+      }
+      cy += cell;
+    }
+    return top + height;
+  }
+
+  /** Headache days and medication days per calendar month, as paired bars. */
+  function monthlyChart(x: number, top: number, w: number, h: number) {
+    panel(x, top, w, h);
+    heading(t('ins.monthly'), x + 4, top + 6);
+    let lx = x + w - 4;
+    for (const [color, label] of [
+      [MED, t('cal.medDays')],
+      [PAIN, t('cal.headacheDays')]
+    ] as [Rgb, string][]) {
+      doc.setFontSize(6.3);
+      lx -= doc.getTextWidth(label);
+      text(label, lx, top + 6, 6.3, MUTED);
+      doc.setFillColor(...color);
+      doc.roundedRect(lx - 3.2, top + 3.9, 2.4, 2.4, 0.4, 0.4, 'F');
+      lx -= 7;
+    }
+    const data = Array.from({ length: months }, (_, i) => {
+      const m = addMonths(from, i);
+      const prefix = format(m, 'yyyy-MM');
+      return {
+        label: fmt(m, 'MMM'),
+        headache: [...hDays.keys()].filter((k) => k.startsWith(prefix)).length,
+        med: [...medDaySet].filter((k) => k.startsWith(prefix)).length
+      };
+    });
+    const box = { top: top + 12, bottom: top + h - 8, left: x + 9, right: x + w - 4 };
+    const max = Math.max(5, ...data.map((d) => Math.max(d.headache, d.med)));
+    axis(box, max);
+    const slot = (box.right - box.left) / data.length;
+    const bw = Math.min(5, slot * 0.32);
+    data.forEach((d, i) => {
+      const cx = box.left + slot * (i + 0.5);
+      bar(cx - bw - 0.3, d.headache, PAIN);
+      bar(cx + 0.3, d.med, MED);
+      text(d.label, cx, box.bottom + 4, 6.3, MUTED, false, 'center');
+    });
+
+    function bar(bx: number, value: number, color: Rgb) {
+      if (!value) return;
+      const bh = ((box.bottom - box.top) * value) / max;
+      doc.setFillColor(...color);
+      doc.roundedRect(bx, box.bottom - bh, bw, bh, 0.6, 0.6, 'F');
+      if (bw >= 2.5) text(String(value), bx + bw / 2, box.bottom - bh - 1, 5.5, MUTED, false, 'center');
+    }
+  }
+
+  /** Medication days in the 30 days up to each day, against the 10/20 limit. */
+  function ruleChart(x: number, top: number, w: number, h: number) {
+    panel(x, top, w, h);
+    heading(t('pdf.ruleChart', { limit: input.limit }), x + 4, top + 6);
+    const rolling = rollingMedDays(medDaySet, now, span);
+    const box = { top: top + 12, bottom: top + h - 8, left: x + 9, right: x + w - 4 };
+    const max = Math.max(input.limit + 4, ...rolling.map((r) => r.count));
+    axis(box, max);
+    const step = (box.right - box.left) / rolling.length;
+    rolling.forEach((r, i) => {
+      if (!r.count) return;
+      const bh = ((box.bottom - box.top) * r.count) / max;
+      doc.setFillColor(...STATUS_COLOR[ruleStatus(r.count, input.limit)]);
+      doc.rect(box.left + i * step, box.bottom - bh, Math.max(0.15, step * 0.85), bh, 'F');
+    });
+    const ly = box.bottom - ((box.bottom - box.top) * input.limit) / max;
+    doc.setDrawColor(...OVER);
+    doc.setLineWidth(0.3);
+    doc.setLineDashPattern([1.2, 0.8], 0);
+    doc.line(box.left, ly, box.right, ly);
+    doc.setLineDashPattern([], 0);
+    doc.setLineWidth(0.2);
+    text(String(input.limit), box.right, ly - 1, 6, OVER, true, 'right');
+    text(fmt(from, 'd. MMM'), box.left, box.bottom + 4, 6.3, MUTED);
+    text(fmt(now, 'd. MMM'), box.right, box.bottom + 4, 6.3, MUTED, false, 'right');
+  }
+
+  /** Light grid lines with their values on the left. */
+  function axis(box: { top: number; bottom: number; left: number; right: number }, max: number) {
+    const stepValue = max > 20 ? 10 : 5;
+    doc.setDrawColor(...LINE);
+    doc.setLineWidth(0.15);
+    for (let v = 0; v <= max; v += stepValue) {
+      const gy = box.bottom - ((box.bottom - box.top) * v) / max;
+      doc.line(box.left, gy, box.right, gy);
+      text(String(v), box.left - 1.5, gy + 1, 5.5, MUTED, false, 'right');
+    }
+    doc.setLineWidth(0.2);
+  }
+
+  /** Medication used in the period with days, intakes, how often it helped and the personal limit. */
+  function medicationPanel(top: number, w: number, h: number) {
+    const meds = new Map<string, { category: MedCategory; med?: Medication; n: number; days: Set<string>; relief: number[] }>();
+    for (const i of intakes) {
+      const key = `${i.name} ${i.dose}`.trim();
+      const m = meds.get(key) ?? { category: i.category, med: input.medications.find((x) => x.id === i.medId), n: 0, days: new Set<string>(), relief: [] };
+      m.n++;
+      m.days.add(dayKey(i.time));
+      if (i.relief !== null) m.relief.push(i.relief);
+      meds.set(key, m);
+    }
+    const rows = [...meds].sort((a, b) => b[1].n - a[1].n);
+    const shown = rows.slice(0, 7);
+    const helped = (r: number[]) => (r.length ? `${Math.round((r.filter((x) => x === 2).length / r.length) * 100)} %` : '–');
+
+    panel(M, top, w, h);
+    heading(t('pdf.medication'), M + 4, top + 6);
+    autoTable(doc, {
+      startY: top + 8,
+      margin: { left: M + 3, right: W - M - w + 3 },
+      tableWidth: w - 6,
+      head: [[t('pdf.medication'), t('set.category'), t('pdf.days'), t('pdf.intakes'), t('pdf.helped'), t('set.limitDays')]],
+      body: shown.length
+        ? shown.map(([name, m]) => [
+            name,
+            t(`cat.${m.category}`),
+            String(m.days.size),
+            String(m.n),
+            helped(m.relief),
+            m.med?.limitDays ? `${m.med.limitDays}/${m.med.limitWindow ?? 30}` : '–'
+          ])
+        : [[{ content: t('pdf.none'), colSpan: 6 }]],
+      theme: 'plain',
+      styles: { fontSize: 7.5, cellPadding: { top: 1.4, bottom: 1.4, left: 1.5, right: 1.5 }, textColor: INK },
+      headStyles: { fontSize: 6.5, textColor: MUTED, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: SOFT },
+      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } }
+    });
+    const limits = (Object.keys(MONTHLY_LIMITS) as MedCategory[]).map((c) => `${t(`cat.${c}`)} ${MONTHLY_LIMITS[c]}`).join(', ');
+    const note = [rows.length > shown.length ? t('pdf.moreMeds', { n: rows.length - shown.length }) : '', t('pdf.ruleNote', { limits })]
+      .filter(Boolean)
+      .join(' ');
+    doc.setFontSize(6.3);
+    text(doc.splitTextToSize(note, w - 8) as string[], M + 4, top + h - 8, 6.3, MUTED);
+  }
+
+  /** The most common symptoms and triggers as small bars. */
+  function triggerPanel(x: number, top: number, w: number, h: number) {
+    panel(x, top, w, h);
+    heading(t('ins.tags'), x + 4, top + 6);
+    const tags = stats.tags.slice(0, 7);
+    const max = Math.max(1, ...tags.map((tag) => tag.count));
+    if (!tags.length) text(t('pdf.noTags'), x + 4, top + 13, 7.5, MUTED);
+    tags.forEach((tag, i) => {
+      const ty = top + 12 + i * 7.2;
+      text(tagLabel(tag.tag), x + 4, ty + 2, 7.5, INK);
+      text(String(tag.count), x + w - 4, ty + 2, 7.5, MUTED, false, 'right');
+      doc.setFillColor(...EMPTY);
+      doc.roundedRect(x + 4, ty + 3.4, w - 8, 1.6, 0.8, 0.8, 'F');
+      doc.setFillColor(...PRIMARY);
+      doc.roundedRect(x + 4, ty + 3.4, Math.max(1.6, ((w - 8) * tag.count) / max), 1.6, 0.8, 0.8, 'F');
+    });
+  }
 }
