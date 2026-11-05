@@ -10,6 +10,7 @@
   import { celebrate, openSheet, tap, toast } from '$lib/ui.svelte';
   import { prognosis } from '$lib/prognosis';
   import PrognosisCard from './PrognosisCard.svelte';
+  import TrafficLight, { LIGHT_COLOR } from './TrafficLight.svelte';
   import WelcomeCard from './WelcomeCard.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
@@ -20,7 +21,6 @@
   const forecast = $derived(
     prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, clock.now)
   );
-  const LIGHT = { green: 'var(--color-ok)', yellow: 'var(--color-caution)', red: 'var(--color-over)' };
   let forecastOpen = $state(false);
   let forecastCard = $state<HTMLDivElement>();
 
@@ -201,13 +201,13 @@
       {/if}
     </div>
     <button
-      class="press flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold"
-      style:color={LIGHT[forecast.light]}
-      style:background-color="color-mix(in oklab, {LIGHT[forecast.light]} 14%, transparent)"
+      class="press flex shrink-0 items-center gap-2.5 rounded-2xl py-1 pr-3 pl-1 text-sm font-semibold"
+      style:color={LIGHT_COLOR[forecast.light]}
+      style:background-color="color-mix(in oklab, {LIGHT_COLOR[forecast.light]} 12%, transparent)"
       onclick={showForecast}
       aria-label={`${t('prog.title')}: ${t(`prog.${forecast.light}`)}`}
     >
-      <span class="size-2.5 rounded-full" style:background-color={LIGHT[forecast.light]}></span>
+      <TrafficLight light={forecast.light} size={14} />
       {t('prog.title')}
     </button>
   </header>

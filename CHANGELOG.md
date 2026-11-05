@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The forecast next to the date is a small traffic light instead of a dot, a bit larger than the one in the forecast card, which uses the same light.
+
 ## [0.18.1] - 2026-11-05
 
 ### Changed
