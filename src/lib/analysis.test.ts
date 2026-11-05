@@ -105,6 +105,13 @@ describe('medicationLimits', () => {
     const result = medicationLimits(intakes, meds, at('2026-03-31T12:00'));
     expect(result.map((r) => [r.med.name, r.rule.count, r.rule.limit])).toEqual([['Sumatriptan', 2, 5]]);
   });
+
+  it('counts within the window set for the medication', () => {
+    const weekly = [{ ...meds[1], limitDays: 2, limitWindow: 7 }];
+    const intakes = [{ ...intake('2026-03-20T08:00', 'triptan'), medId: 2 }, { ...intake('2026-03-28T08:00', 'triptan'), medId: 2 }];
+    const [{ rule }] = medicationLimits(intakes, weekly, at('2026-03-31T12:00'));
+    expect([rule.count, rule.window]).toEqual([1, 7]);
+  });
 });
 
 describe('rollingMedDays', () => {

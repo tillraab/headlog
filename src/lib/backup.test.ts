@@ -50,6 +50,15 @@ describe('createCsv', () => {
   });
 });
 
+describe('createCsv with a start', () => {
+  it('leaves out entries before the start', async () => {
+    await db.intakes.add({ time: new Date('2026-01-10T10:00').getTime(), medId: 1, name: 'Old', dose: '', category: 'analgesic', relief: null });
+    await db.intakes.add({ time: new Date('2026-03-10T10:00').getTime(), medId: 1, name: 'New', dose: '', category: 'analgesic', relief: null });
+    const csv = await createCsv(db, new Date('2026-03-01').getTime());
+    expect([csv.includes('New'), csv.includes('Old')]).toEqual([true, false]);
+  });
+});
+
 describe('loadDemo', () => {
   it('creates no entries in the future', async () => {
     const now = new Date('2026-03-31T09:00').getTime();

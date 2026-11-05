@@ -28,24 +28,50 @@ beforeEach(async () => {
   await seed(db);
 });
 
+async function addEntry() {
+  await db.episodes.add({ start: 1, end: 2, intensity: 5, tags: [], note: '' });
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe('push', () => {
   it('creates a secret gist when the account has none', async () => {
+    await addEntry();
     const gh = fakeGitHub();
     await push(link);
     expect(gh.calls).toEqual(['GET /gists?per_page=100', 'POST /gists']);
   });
 
   it('updates the existing gist of the account', async () => {
+    await addEntry();
     const gh = fakeGitHub('{}');
     await push(link);
     expect(gh.calls).toEqual(['GET /gists?per_page=100', 'PATCH /gists/g1']);
   });
 
+  it('does not upload an empty diary automatically', async () => {
+    const gh = fakeGitHub('{}');
+    await push({ ...link, gistId: 'g1' });
+    expect(gh.calls).toEqual([]);
+  });
+
+  it('does not upload automatically while paused', async () => {
+    await db.drinks.add({ time: 1, presetId: 1, name: 'Glass', emoji: '🥛', ml: 250 });
+    const gh = fakeGitHub('{}');
+    await push({ ...link, gistId: 'g1', paused: true });
+    expect(gh.calls).toEqual([]);
+  });
+
+  it('uploads an empty diary when asked to explicitly', async () => {
+    const gh = fakeGitHub('{}');
+    await push({ ...link, gistId: 'g1' }, true);
+    expect(gh.calls).toEqual(['PATCH /gists/g1']);
+  });
+
   it('skips the upload when nothing changed', async () => {
+    await addEntry();
     const gh = fakeGitHub();
     const first = await push(link);
     await push(first);
@@ -53,6 +79,7 @@ describe('push', () => {
   });
 
   it('remembers the gist and the content it uploaded', async () => {
+    await addEntry();
     fakeGitHub();
     const result = await push(link);
     expect([result.gistId, result.lastHash]).toEqual(['g1', contentHash(await createBackup())]);

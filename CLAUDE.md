@@ -42,11 +42,13 @@ Run `bun run check` and `bun run test` before every commit.
 - Intakes and drinks copy name, dose and category from their list entry, so history survives edits and deletes of the list. Keep it that way.
 - Backups are `{ app: 'headlog', version: 1, tables }`. Restoring must keep working for old backup files. New settings get defaults through the merge in `load()`.
 - The Gist token is stored in `localStorage`, never in IndexedDB, so it never ends up inside a backup. Connecting to an account that already has a backup must offer a restore before anything is uploaded.
+- Automatic Gist uploads must never replace a real backup with nothing: they skip an empty diary, and "Delete all data" and "Load demo data" pause them (`pauseSync`) until a manual "Back up now" or a restore. Keep both guards when touching sync.
+- Renamed or retyped settings need a migration in `load()` (see the old boolean `reliefCheck` turning into `reliefCheckMinutes`).
 
 ### Medical logic
 
 - 10/20 rule: acute medication on at most 10 of any 30 consecutive days, today included. Preventive medication does not count (`ACUTE_CATEGORIES`). The limit is a setting.
-- Personal limit per medication: at most `limitDays` days with that medication in any 30 days. Counted per `medId`.
+- Personal limit per medication: at most `limitDays` days with that medication in any `limitWindow` days (default 30). Counted per `medId`.
 - Monthly overuse thresholds follow ICHD-3: simple analgesics 15 days, triptans, combinations and opioids 10 days (`MONTHLY_LIMITS`).
 - `ruleStatus`: caution from 80% of the limit, over above the limit.
 - The app is a diary, not medical advice; keep the disclaimer wording.

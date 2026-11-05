@@ -11,6 +11,8 @@ export interface GistLink {
   lastSync: number | null;
   /** Content of the last upload, to skip uploads without changes. */
   lastHash: string | null;
+  /** Automatic uploads stop after deleting all data or loading demo data, until the next manual backup or restore. */
+  paused?: boolean;
 }
 
 export function readLink(): GistLink | null {
@@ -62,11 +64,16 @@ export function contentHash(backup: Backup): string {
   return `${text.length}:${h}`;
 }
 
+/** A diary without a single entry. Never uploaded automatically, so it cannot replace a real backup. */
+export function isEmpty(backup: Backup): boolean {
+  return !backup.tables.episodes.length && !backup.tables.intakes.length && !backup.tables.drinks.length;
+}
+
 /** Uploads the current data to the gist, creating a secret gist on first use. Returns the updated link. */
 export async function push(link: GistLink, force = false): Promise<GistLink> {
   const backup = await createBackup();
   const hash = contentHash(backup);
-  if (!force && link.gistId && hash === link.lastHash) return link;
+  if (!force && (link.paused || isEmpty(backup) || (link.gistId && hash === link.lastHash))) return link;
   const files = { [FILE]: { content: JSON.stringify(backup) } };
   const gistId = link.gistId ?? (await findGist(link.token));
   const gist = gistId

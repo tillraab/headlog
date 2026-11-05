@@ -173,10 +173,10 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   });
 
   // Medication
-  const meds = new Map<string, { category: MedCategory; limit?: number; n: number; days: Set<string>; relief: number[] }>();
+  const meds = new Map<string, { category: MedCategory; med?: Medication; n: number; days: Set<string>; relief: number[] }>();
   for (const i of intakes) {
     const key = `${i.name} ${i.dose}`.trim();
-    const m = meds.get(key) ?? { category: i.category, limit: input.medications.find((x) => x.id === i.medId)?.limitDays, n: 0, days: new Set<string>(), relief: [] };
+    const m = meds.get(key) ?? { category: i.category, med: input.medications.find((x) => x.id === i.medId), n: 0, days: new Set<string>(), relief: [] };
     m.n++;
     m.days.add(dayKey(i.time));
     if (i.relief !== null) m.relief.push(i.relief);
@@ -194,7 +194,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     },
     head: [[t('pdf.medication'), t('set.category'), t('pdf.intakes'), t('pdf.days'), t('set.limitDays'), t('pdf.relief')]],
     body: meds.size
-      ? [...meds].sort((a, b) => b[1].n - a[1].n).map(([name, m]) => [name, t(`cat.${m.category}`), String(m.n), String(m.days.size), m.limit ? t('set.limitOption', { n: m.limit }) : '–', reliefText(m.relief)])
+      ? [...meds].sort((a, b) => b[1].n - a[1].n).map(([name, m]) => [name, t(`cat.${m.category}`), String(m.n), String(m.days.size), m.med?.limitDays ? t('set.limitOption', { n: m.med.limitDays, m: m.med.limitWindow ?? 30 }) : '–', reliefText(m.relief)])
       : [[{ content: t('pdf.none'), colSpan: 6 }]],
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 1.6, lineColor: LINE, textColor: INK },

@@ -94,7 +94,7 @@
             <div class="flex items-center gap-2">
               <span class="size-3 rounded-full" style:background-color={med.color}></span>
               <span class="flex-1 font-medium">{med.name}</span>
-              <span class="font-semibold tabular" style:color={toneOf(r.status)}>{t('tenTwenty.limitCount', { n: r.count, limit: r.limit })}</span>
+              <span class="font-semibold tabular" style:color={toneOf(r.status)}>{t('tenTwenty.limitCount', { n: r.count, limit: r.limit, window: r.window })}</span>
             </div>
             <div class="flex gap-0.5">
               {#each { length: r.limit } as _, i (i)}

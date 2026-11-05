@@ -24,7 +24,7 @@
   const waterMl = $derived(todayDrinks.reduce((sum, d) => sum + d.ml, 0));
   const waterPct = $derived(Math.min(1, waterMl / data.settings.waterGoalMl));
   const unrated = $derived(
-    data.intakes.findLast((i) => i.relief === null && clock.now - i.time > 60 * 60000 && clock.now - i.time < 12 * 3600000)
+    data.intakes.findLast((i) => i.relief === null && clock.now - i.time > (data.settings.reliefCheckMinutes || 60) * 60000 && clock.now - i.time < 12 * 3600000)
   );
   const todayEpisodes = $derived(data.episodes.filter((e) => (e.end ?? clock.now) >= dayStart));
 
@@ -161,7 +161,7 @@
             {#if limits.get(med.id)}
               {@const r = limits.get(med.id)!}
               <span class="mt-0.5 text-2xs font-semibold tabular {r.status === 'over' ? 'text-over' : r.status === 'caution' ? 'text-caution' : 'text-muted'}">
-                {t('tenTwenty.limitCount', { n: r.count, limit: r.limit })}
+                {t('tenTwenty.limitCount', { n: r.count, limit: r.limit, window: r.window })}
               </span>
             {/if}
             {#if count}

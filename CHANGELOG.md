@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-05
+
+### Added
+
+- Personal medication limits take any number of days in any window, for example at most 5 days in 30 or 2 days in 7.
+- The question whether a medication helped can come after 30 minutes up to 4 hours, or be switched off.
+- The doctor export offers PDF or CSV for the chosen period.
+
+### Changed
+
+- Settings: doctor export and backup file each have their own section with buttons side by side. Demo data and deleting all data are folded away under Advanced.
+
+### Fixed
+
+- Deleting all data or loading demo data no longer overwrites the Gist backup when leaving the app. Automatic backup pauses until you back up or restore manually, and an empty diary is never uploaded automatically.
+
 ## [0.4.0] - 2026-11-05
 
 ### Added

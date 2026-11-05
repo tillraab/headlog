@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { addDays, setHours, startOfDay } from 'date-fns';
+import { addDays, format, setHours, startOfDay } from 'date-fns';
 import { formatDuration, formatLiters } from './days';
 import { t } from './i18n.svelte';
 
@@ -99,11 +99,11 @@ async function registerActions() {
 }
 
 const RELIEF_OFFSET = 100000;
-export const RELIEF_DELAY = 60 * 60000;
 
-/** Asks about an intake one hour later, with No / A bit / Yes buttons. */
-export async function scheduleReliefCheck(intake: { id: number; time: number; name: string }) {
-  if (!Capacitor.isNativePlatform() || intake.time + RELIEF_DELAY <= Date.now()) return;
+/** Asks about an intake `delayMinutes` later, with No / A bit / Yes buttons. */
+export async function scheduleReliefCheck(intake: { id: number; time: number; name: string }, delayMinutes: number) {
+  const at = intake.time + delayMinutes * 60000;
+  if (!Capacitor.isNativePlatform() || at <= Date.now()) return;
   if (!(await requestReminderPermission())) return;
   await registerActions();
   await LocalNotifications.schedule({
@@ -111,11 +111,11 @@ export async function scheduleReliefCheck(intake: { id: number; time: number; na
       {
         id: RELIEF_OFFSET + intake.id,
         title: t('rem.reliefTitle', { name: intake.name }),
-        body: t('rem.reliefBody'),
+        body: t('rem.reliefBody', { time: format(intake.time, 'HH:mm') }),
         actionTypeId: RELIEF_TYPE,
         autoCancel: true,
         extra: { intakeId: intake.id },
-        schedule: { at: new Date(intake.time + RELIEF_DELAY), allowWhileIdle: true }
+        schedule: { at: new Date(at), allowWhileIdle: true }
       }
     ]
   });

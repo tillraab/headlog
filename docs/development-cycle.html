@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HeadLog – vom Code aufs Handy</title>
+<style>
+  :root {
+    --bg: #f7f6fb; --surface: #fff; --fg: #1d1a2b; --muted: #6c6880; --line: #e3e0ee;
+    --primary: #5b4bd6; --pain: #e2466b; --med: #e69512; --water: #1f8fe0; --ok: #16a26b; --night: #1c1738;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); }
+  main { max-width: 1120px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 34px; margin: 0 0 4px; letter-spacing: -.5px; }
+  h2 { font-size: 22px; margin: 56px 0 6px; }
+  h3 { margin: 0 0 6px; font-size: 16px; }
+  .lead { color: var(--muted); margin: 0 0 28px; font-size: 17px; }
+  .muted { color: var(--muted); }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: #efedf6; padding: 1px 6px; border-radius: 6px; }
+  pre { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--night); color: #e7e2ff; padding: 14px 16px; border-radius: 12px; overflow-x: auto; margin: 10px 0 0; }
+  .card { background: var(--surface); border-radius: 18px; box-shadow: 0 0 0 1px var(--line), 0 2px 6px rgb(0 0 0 / .04); padding: 18px 20px; }
+
+  /* Pipeline */
+  .zones { display: grid; grid-template-columns: 1fr 1.35fr 1fr; gap: 14px; }
+  .zone { border-radius: 22px; padding: 16px; position: relative; }
+  .zone > .label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
+  .z-pc { background: #eeeafe; } .z-pc > .label { color: var(--primary); }
+  .z-gh { background: #e9f3ff; } .z-gh > .label { color: #1867b3; }
+  .z-phone { background: #e7f7ef; } .z-phone > .label { color: #0f7a50; }
+  .step { background: var(--surface); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; box-shadow: 0 1px 2px rgb(0 0 0 / .05); position: relative; }
+  .step:last-child { margin-bottom: 0; }
+  .step .n { position: absolute; left: -9px; top: -9px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; }
+  .z-pc .n { background: var(--primary); } .z-gh .n { background: #1f7ad6; } .z-phone .n { background: var(--ok); }
+  .step > b { display: block; margin-bottom: 2px; }
+  .step small { color: var(--muted); display: block; font-size: 13px; line-height: 1.45; }
+  .arrow { text-align: center; color: var(--muted); font-size: 18px; line-height: 1; margin: -4px 0 6px; }
+  .flowline { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .p-key { background: #fff4d6; color: #8a5a00; }
+  .p-ci { background: #dff3e9; color: #0f7a50; }
+  .p-tag { background: #ffe3ea; color: #b4224a; }
+
+  /* Lanes */
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .key { display: grid; grid-template-columns: 120px 1fr; gap: 18px; align-items: center; }
+  .callout { border-left: 4px solid var(--med); background: #fff8ea; padding: 12px 16px; border-radius: 0 12px 12px 0; margin-top: 14px; }
+  .callout.red { border-color: var(--pain); background: #fff0f3; }
+  .callout.green { border-color: var(--ok); background: #eefaf4; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  td, th { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  ol.timeline { list-style: none; padding: 0; margin: 0; counter-reset: s; }
+  ol.timeline li { counter-increment: s; position: relative; padding: 0 0 18px 42px; }
+  ol.timeline li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 13px; }
+  ol.timeline li::after { content: ""; position: absolute; left: 13.5px; top: 30px; bottom: 2px; width: 1px; background: var(--line); }
+  ol.timeline li:last-child::after { display: none; }
+  .tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 2px; }
+  .t-you { background: #eeeafe; color: var(--primary); } .t-auto { background: #e9f3ff; color: #1867b3; } .t-phone { background: #e7f7ef; color: #0f7a50; }
+  @media (max-width: 860px) { .zones, .two, .three { grid-template-columns: 1fr; } .key { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>HeadLog – vom Code aufs Handy</h1>
+  <p class="lead">Der komplette Kreislauf: Wie eine Änderung entsteht, wie GitHub daraus eine signierte App baut und wie sie ohne Play Store auf dem Handy landet – mit Updates, die die Daten behalten.</p>
+
+  <!-- PIPELINE -->
+  <div class="zones">
+    <section class="zone z-pc">
+      <div class="label">💻 Dein Rechner</div>
+      <div class="step"><span class="n">1</span><b>Idee / Wunsch</b><small>Du beschreibst ein Feature – an Claude (Agent) oder du programmierst selbst.</small></div>
+      <div class="arrow">↓</div>
+      <div class="step"><span class="n">2</span><b>Code ändern</b><small>In <code>~/projects/headlog</code>. Der Agent liest <code>CLAUDE.md</code> für Aufbau &amp; Regeln.</small></div>
+      <div class="arrow">↓</div>
+      <div class="step"><span class="n">3</span><b>Lokal prüfen</b><small><code>bun run check</code> + <code>bun run test</code>, optional im Browser oder Android-Emulator ausprobieren.</small></div>
+      <div class="arrow">↓</div>
+      <div class="step"><span class="n">4</span><b>Commit &amp; Push</b><small><code>git push</code> nach <code>main</code>. Für eine neue Version zusätzlich ein Tag, z.&nbsp;B. <code>v0.5.0</code>.</small></div>
+    </section>
+
+    <section class="zone z-gh">
+      <div class="label">☁️ GitHub · tillraab/headlog</div>
+      <div class="step"><span class="n">5</span><b>CI-Prüfung bei jedem Push</b><small>Workflow <code>CI</code>: installiert, prüft Typen, führt alle Tests aus, baut die Web-App. Grün = alles in Ordnung.</small></div>
+      <div class="arrow">↓ <span class="pill p-tag">nur bei Tag v*</span></div>
+      <div class="step"><span class="n">6</span><b>Release-Workflow startet</b><small><code>Android Release</code> auf einem frischen Linux-Server von GitHub: Tests → Web-App bauen → Capacitor packt sie in ein Android-Projekt → Gradle baut die APK.</small></div>
+      <div class="arrow">↓</div>
+      <div class="step"><span class="n">7</span><b>APK signieren 🔑</b><small>Der Signaturschlüssel kommt aus den <b>Repository-Secrets</b>. Ohne gleichen Schlüssel würde Android das Update ablehnen.</small></div>
+      <div class="arrow">↓</div>
+      <div class="step"><span class="n">8</span><b>GitHub Release veröffentlichen</b><small><code>headlog-0.5.0.apk</code> wird an das Release gehängt, die Release Notes kommen aus <code>CHANGELOG.md</code>.</small></div>
+    </section>
+
+    <section class="zone z-phone">
+      <div class="label">📱 Handy</div>
+      <div class="step"><span class="n">9</span><b>Obtainium prüft</b><small>Schaut alle paar Stunden bei GitHub nach dem neuesten Release von <code>tillraab/headlog</code>.</small></div>
+      <div class="arrow">↓</div>
+      <div class="step"><span class="n">10</span><b>Update installieren</b><small>Benachrichtigung „Update verfügbar“ → antippen, oder automatisch im Hintergrund (Android 12+).</small></div>
+      <div class="arrow">↓</div>
+      <div class="step"><span class="n">11</span><b>Android prüft die Signatur</b><small>Gleicher Schlüssel wie die installierte Version? → Update erlaubt, <b>Daten bleiben</b>.</small></div>
+      <div class="arrow">↓</div>
+      <div class="step"><span class="n">12</span><b>Du nutzt die neue Version</b><small>Feedback / neue Ideen → zurück zu Schritt 1. 🔁</small></div>
+    </section>
+  </div>
+  <div class="flowline">
+    <span class="pill p-ci">✓ CI</span> prüft jeden Push ·
+    <span class="pill p-tag">v0.5.0</span> ein Tag macht daraus ein Release ·
+    <span class="pill p-key">🔑</span> nur GitHub signiert, nicht dein Rechner
+  </div>
+
+  <!-- TIMELINE -->
+  <h2>Ein Release Schritt für Schritt</h2>
+  <p class="muted">So sieht ein typisches Update aus, z.&nbsp;B. „Erinnerung bei laufendem Kopfschmerz“.</p>
+  <div class="two">
+    <div class="card">
+      <ol class="timeline">
+        <li><b>Wunsch formulieren</b> <span class="tag t-you">du</span><br><span class="muted">„Während Kopfschmerzen alle 3 h nachfragen, ob sie noch da sind.“</span></li>
+        <li><b>Umsetzen &amp; testen</b> <span class="tag t-you">Agent</span><br><span class="muted">Code, Unit-Tests, Test im Emulator mit vorgestellter Uhr.</span></li>
+        <li><b>CHANGELOG + Version</b> <span class="tag t-you">Agent</span><br><span class="muted">Neuer Abschnitt <code>## [0.4.0]</code>, <code>package.json</code> auf 0.4.0.</span></li>
+        <li><b>Commit, Tag, Push</b> <span class="tag t-you">Agent</span><br><span class="muted">Ab hier läuft alles automatisch.</span></li>
+        <li><b>Bauen &amp; signieren</b> <span class="tag t-auto">GitHub · ~3 min</span><br><span class="muted">Release mit APK erscheint unter „Releases“.</span></li>
+        <li><b>Update auf dem Handy</b> <span class="tag t-phone">Obtainium</span><br><span class="muted">Innerhalb weniger Stunden automatisch – oder sofort per Pull-to-Refresh.</span></li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>Die Befehle dazu</h3>
+      <pre># prüfen
+bun run check
+bun run test
+
+# Version festlegen: CHANGELOG.md + package.json anpassen
+git add -A
+git commit -m "Ask every few hours whether a headache is still there"
+
+# veröffentlichen
+git tag v0.4.0
+git push origin main v0.4.0</pre>
+      <p class="muted" style="margin:12px 0 0">Ohne Tag wird nur geprüft, nichts veröffentlicht. So kann man in Ruhe mehrere Änderungen sammeln und erst dann ein Release machen.</p>
+      <div class="callout green"><b>Versionsnummer</b><br>Muss mit jedem Release wachsen: <code>0.4.0 → 0.4.1</code> (Fix) · <code>0.5.0</code> (Feature) · <code>1.0.0</code> (großer Schritt). Android installiert keine „ältere“ Version über eine neuere.</div>
+    </div>
+  </div>
+
+  <!-- KEY -->
+  <h2>🔑 Der Signaturschlüssel</h2>
+  <p class="muted">Der einzige Teil, den du selbst sicher aufbewahren musst.</p>
+  <div class="card key">
+    <svg viewBox="0 0 120 120" width="110" aria-hidden="true">
+      <circle cx="60" cy="60" r="56" fill="#fff4d6"/>
+      <circle cx="44" cy="60" r="20" fill="none" stroke="#e69512" stroke-width="9"/>
+      <path d="M62 60 H100 M88 60 V74 M98 60 V70" stroke="#e69512" stroke-width="9" stroke-linecap="round" fill="none"/>
+    </svg>
+    <div>
+      <h3>Wozu?</h3>
+      <p style="margin:0">Jede APK wird digital unterschrieben. Android merkt sich bei der ersten Installation, <b>wessen Unterschrift</b> die App trägt, und installiert danach nur Updates mit <b>derselben Unterschrift</b>. So kann niemand eine gefälschte HeadLog-Version „drüberinstallieren“.</p>
+    </div>
+  </div>
+  <div class="three" style="margin-top:14px">
+    <div class="card">
+      <h3>📁 Kopie 1: dein Rechner</h3>
+      <p class="muted" style="margin:0 0 8px"><code>~/projects/headlog-signing/</code></p>
+      <table>
+        <tr><td><code>headlog-release.keystore</code></td><td>der Schlüssel</td></tr>
+        <tr><td><code>signing.env</code></td><td>Passwort &amp; Alias</td></tr>
+      </table>
+      <p class="muted" style="margin:8px 0 0">Nicht im Repo. Nur dein Benutzer darf lesen.</p>
+    </div>
+    <div class="card">
+      <h3>☁️ Kopie 2: GitHub Secrets</h3>
+      <p class="muted" style="margin:0 0 8px">Repo → Settings → Secrets → Actions</p>
+      <table>
+        <tr><td><code>ANDROID_KEYSTORE_BASE64</code></td></tr>
+        <tr><td><code>ANDROID_KEYSTORE_PASSWORD</code></td></tr>
+        <tr><td><code>ANDROID_KEY_ALIAS</code> / <code>…_PASSWORD</code></td></tr>
+      </table>
+      <p class="muted" style="margin:8px 0 0">Nur der Release-Workflow kann sie benutzen. Auslesen geht nicht – nur überschreiben.</p>
+    </div>
+    <div class="card">
+      <h3>✅ Deine Aufgabe</h3>
+      <p style="margin:0">Den Ordner <b>zusätzlich</b> sicher ablegen, z.&nbsp;B.</p>
+      <ul style="margin:6px 0 0; padding-left:20px">
+        <li>als Anhang im Passwortmanager</li>
+        <li>auf einem verschlüsselten USB-Stick</li>
+      </ul>
+      <p class="muted" style="margin:8px 0 0">Weil GitHub die Secrets nicht wieder herausgibt, ist das die einzige Kopie, die du wiederherstellen kannst.</p>
+    </div>
+  </div>
+  <div class="two">
+    <div class="callout red"><b>Verloren?</b> Solange die GitHub-Secrets bestehen, laufen Releases weiter. Fehlen beide, kann HeadLog nicht mehr aktualisiert werden: Backup machen → App deinstallieren (löscht die Daten) → neu installieren → Backup wiederherstellen.</div>
+    <div class="callout red"><b>Geleakt?</b> Wer Schlüssel + Passwort hat, könnte ein „Update“ bauen, das dein Handy akzeptiert. Deshalb nie ins Repo, nie per Mail oder Chat.</div>
+  </div>
+
+  <!-- DATA -->
+  <h2>📦 Wo deine Daten leben</h2>
+  <p class="muted">Code und Daten sind komplett getrennt. GitHub kennt deine Kopfschmerzen nicht – außer du schaltest das Gist-Backup ein.</p>
+  <div class="three">
+    <div class="card">
+      <h3>📱 Auf dem Handy</h3>
+      <p style="margin:0">Alle Einträge in einer Datenbank im privaten App-Speicher (IndexedDB). Wird bei jedem Tippen sofort gespeichert. Updates behalten sie.</p>
+      <div class="callout" style="margin-top:10px">Deinstallieren oder „Speicher löschen“ = Daten weg.</div>
+    </div>
+    <div class="card">
+      <h3>💾 JSON-Backup</h3>
+      <p style="margin:0">Einstellungen → Daten → „Backup exportieren“. Eine Datei, die du z.&nbsp;B. in Drive oder per Mail sicherst. „Backup wiederherstellen“ liest sie wieder ein.</p>
+    </div>
+    <div class="card">
+      <h3>☁️ Gist-Backup (optional)</h3>
+      <p style="margin:0">Mit einem GitHub-Token: automatische Sicherung in einem <b>geheimen Gist</b>, sobald du die App verlässt. Auf einem neuen Handy: Token eintragen → wiederherstellen.</p>
+      <p class="muted" style="margin:8px 0 0">Geheim = nicht auffindbar, aber nicht verschlüsselt.</p>
+    </div>
+  </div>
+
+  <!-- GLOSSARY -->
+  <h2>Begriffe</h2>
+  <div class="card">
+    <table>
+      <tr><th>Begriff</th><th>Was es ist</th></tr>
+      <tr><td><b>Repository (Repo)</b></td><td>Der Code mit kompletter Versionsgeschichte, auf GitHub unter <code>tillraab/headlog</code>, lokal in <code>~/projects/headlog</code>.</td></tr>
+      <tr><td><b>Commit / Push</b></td><td>Eine gespeicherte Änderung / das Hochladen dieser Änderung zu GitHub.</td></tr>
+      <tr><td><b>Tag</b></td><td>Ein Etikett auf einem Commit, z.&nbsp;B. <code>v0.4.0</code>. Startet den Release-Workflow.</td></tr>
+      <tr><td><b>GitHub Actions / Workflow</b></td><td>Automatische Abläufe auf GitHub-Servern: <code>CI</code> (prüfen) und <code>Android Release</code> (bauen, signieren, veröffentlichen).</td></tr>
+      <tr><td><b>SvelteKit</b></td><td>Das Web-Framework, in dem die Oberfläche geschrieben ist.</td></tr>
+      <tr><td><b>Capacitor</b></td><td>Verpackt die Web-App in eine echte Android-App und gibt ihr Zugriff auf Benachrichtigungen, Vibration, Teilen-Dialog.</td></tr>
+      <tr><td><b>APK</b></td><td>Die Installationsdatei einer Android-App.</td></tr>
+      <tr><td><b>Release</b></td><td>Eine veröffentlichte Version auf GitHub, mit APK und Release Notes.</td></tr>
+      <tr><td><b>Obtainium</b></td><td>App auf dem Handy, die GitHub-Releases beobachtet und Updates installiert – ein Play-Store-Ersatz für eigene Apps.</td></tr>
+      <tr><td><b>CLAUDE.md</b></td><td>Anleitung im Repo für Entwickler und KI-Agenten: Aufbau, Regeln, Stolperfallen, Release-Ablauf.</td></tr>
+    </table>
+  </div>
+</main>
+</body>
+</html>

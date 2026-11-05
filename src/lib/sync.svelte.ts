@@ -48,7 +48,15 @@ export function disconnect() {
 export async function syncNow(force = false) {
   const link = sync.link;
   if (!link) return;
-  await run(async () => save(await push(link, force)));
+  await run(async () => {
+    const result = await push(link, force);
+    save(force ? { ...result, paused: false } : result);
+  });
+}
+
+/** Stops automatic uploads, so deleted or demo data does not overwrite the backup. */
+export function pauseSync() {
+  if (sync.link) save({ ...sync.link, paused: true });
 }
 
 /** Uploads changes quietly, for app start and when the app goes to the background. */
@@ -61,6 +69,6 @@ export async function restoreFromGist() {
   if (!link) return;
   await run(async () => {
     await restoreBackup(await pull(link));
-    save({ ...link, lastHash: null });
+    save({ ...link, lastHash: null, paused: false });
   });
 }

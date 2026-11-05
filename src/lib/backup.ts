@@ -45,10 +45,10 @@ function csvCell(value: unknown): string {
   return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-/** One row per headache and per intake, sorted by time. Readable by Excel and doctors. */
-export async function createCsv(database: HeadLogDb = db): Promise<string> {
-  const episodes = await database.episodes.toArray();
-  const intakes = await database.intakes.toArray();
+/** One row per headache and per intake from `from` on, sorted by time. Readable by Excel and doctors. */
+export async function createCsv(database: HeadLogDb = db, from = 0): Promise<string> {
+  const episodes = (await database.episodes.toArray()).filter((e) => (e.end ?? Date.now()) >= from);
+  const intakes = (await database.intakes.toArray()).filter((i) => i.time >= from);
   const fmt = (t: number | null) => (t === null ? '' : format(t, 'yyyy-MM-dd HH:mm'));
   const rows: [number, string[]][] = [
     ...episodes.map((e): [number, string[]] => [

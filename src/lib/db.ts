@@ -21,8 +21,9 @@ export interface Medication {
   category: MedCategory;
   color: string;
   order: number;
-  /** Personal limit: at most this many days with this medication in any 30 days. */
+  /** Personal limit: at most `limitDays` days with this medication in any `limitWindow` days (default 30). */
   limitDays?: number;
+  limitWindow?: number;
 }
 
 /** One intake. Name, dose and category are copied so history survives edits to the list. */

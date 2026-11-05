@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { ArrowDown, ArrowUp, Plus, Trash2 } from '@lucide/svelte';
+  import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2 } from '@lucide/svelte';
+  import { addMonths, startOfMonth } from 'date-fns';
   import { createBackup, createCsv, isBackup, restoreBackup, saveFile, wipe } from '$lib/backup';
   import { MED_COLORS, type DrinkPreset, type MedCategory, type Medication } from '$lib/db';
   import { loadDemo } from '$lib/demo';
@@ -7,7 +8,7 @@
   import { data, deleteDrinkPreset, deleteMedication, load, saveDrinkPreset, saveMedication, saveSettings, swapOrder } from '$lib/store.svelte';
   import { requestReminderPermission } from '$lib/reminders';
   import { doctorReport } from '$lib/report';
-  import { connect, disconnect, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
+  import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
   import { applyTheme, toast, type Theme } from '$lib/ui.svelte';
   import Sheet from './Sheet.svelte';
 
@@ -51,9 +52,6 @@
     await saveFile(`headlog-backup-${backup.exportedAt.slice(0, 10)}.json`, JSON.stringify(backup, null, 1), 'application/json');
   }
 
-  async function exportCsv() {
-    await saveFile(`headlog-${new Date().toISOString().slice(0, 10)}.csv`, await createCsv(), 'text/csv');
-  }
 
   async function importFile(file: File) {
     let parsed: unknown;
@@ -74,23 +72,46 @@
 
   async function demo() {
     if (!confirm(t('set.demoConfirm'))) return;
+    pauseSync();
     await loadDemo(Date.now(), undefined, i18n.lang);
     await load();
   }
 
   async function reset() {
     if (!confirm(t('set.wipeConfirm'))) return;
+    pauseSync();
     await wipe();
     await load();
   }
 
   let token = $state('');
   let reportMonths = $state(3);
+  let reportFormat = $state<'pdf' | 'csv'>('pdf');
 
-  async function exportPdf() {
+  async function exportForDoctor() {
     const now = Date.now();
+    const day = new Date(now).toISOString().slice(0, 10);
+    if (reportFormat === 'csv') {
+      const from = startOfMonth(addMonths(now, -(reportMonths - 1))).getTime();
+      await saveFile(`headlog-${day}.csv`, await createCsv(undefined, from), 'text/csv');
+      return;
+    }
     const pdf = doctorReport({ ...$state.snapshot(data), limit: data.settings.limit, name: data.settings.reportName, version: __APP_VERSION__ }, now, reportMonths);
-    await saveFile(`headlog-report-${new Date(now).toISOString().slice(0, 10)}.pdf`, pdf, 'application/pdf');
+    await saveFile(`headlog-report-${day}.pdf`, pdf, 'application/pdf');
+  }
+
+  function reliefLabel(minutes: number): string {
+    return t('rem.after', { d: duration(minutes) });
+  }
+
+  function duration(minutes: number): string {
+    return minutes < 60 ? t('rem.minutes', { n: minutes }) : t('rem.hours', { n: (minutes / 60).toLocaleString(i18n.lang) });
+  }
+
+  function updateLimit(med: Medication, days: string, window: string) {
+    const n = Math.round(Number(days));
+    const m = Math.min(365, Math.max(1, Math.round(Number(window)) || 30));
+    return updateMed(med, n > 0 ? { limitDays: Math.min(n, m), limitWindow: m } : { limitDays: undefined, limitWindow: undefined });
   }
 
   async function toggleReminders(enabled: boolean) {
@@ -120,6 +141,15 @@
       } else if (!existing) {
         toast(t('sync.done'));
       }
+    });
+  }
+
+  function backupNow() {
+    const empty = !data.episodes.length && !data.intakes.length && !data.drinks.length;
+    if (empty && !confirm(t('sync.emptyConfirm'))) return;
+    return guarded(async () => {
+      await syncNow(true);
+      toast(t('sync.done'));
     });
   }
 
@@ -168,7 +198,7 @@
             <span class="flex flex-col">
               <span class="text-body font-medium">{med.name} <span class="text-muted">{med.dose}</span></span>
               <span class="text-xs text-muted">
-                {t(`cat.${med.category}`)}{med.limitDays ? ` · ${t('set.limitOption', { n: med.limitDays })}` : ''}
+                {t(`cat.${med.category}`)}{med.limitDays ? ` · ${t('set.limitOption', { n: med.limitDays, m: med.limitWindow ?? 30 })}` : ''}
               </span>
             </span>
           </button>
@@ -184,23 +214,39 @@
               {t('set.dose')}
               <input class="bg-surface" value={med.dose} placeholder="400 mg" onchange={(e) => updateMed(med, { dose: e.currentTarget.value.trim() })} />
             </label>
-            <label class="flex flex-col gap-1 text-xs text-muted">
+            <label class="col-span-2 flex flex-col gap-1 text-xs text-muted">
               {t('set.category')}
               <select class="bg-surface" value={med.category} onchange={(e) => updateMed(med, { category: e.currentTarget.value as MedCategory })}>
                 {#each CATEGORIES as c (c)}<option value={c}>{t(`cat.${c}`)}</option>{/each}
               </select>
             </label>
-            <label class="flex flex-col gap-1 text-xs text-muted">
+
+            <div class="col-span-2 flex flex-col gap-1 text-xs text-muted">
               {t('set.limitDays')}
-              <select
-                class="bg-surface"
-                value={med.limitDays ?? 0}
-                onchange={(e) => updateMed(med, { limitDays: Number(e.currentTarget.value) || undefined })}
-              >
-                <option value={0}>{t('set.limitNone')}</option>
-                {#each [2, 3, 4, 5, 6, 8, 10, 12, 15] as n (n)}<option value={n}>{t('set.limitOption', { n })}</option>{/each}
-              </select>
-            </label>
+              <div class="flex items-center gap-2 text-sm text-fg">
+                {t('set.limitMax')}
+                <input
+                  class="w-16 bg-surface text-center"
+                  type="number"
+                  inputmode="numeric"
+                  min="1"
+                  placeholder="–"
+                  value={med.limitDays ?? ''}
+                  onchange={(e) => updateLimit(med, e.currentTarget.value, String(med.limitWindow ?? 30))}
+                />
+                {t('set.limitIn')}
+                <input
+                  class="w-16 bg-surface text-center"
+                  type="number"
+                  inputmode="numeric"
+                  min="1"
+                  value={med.limitWindow ?? 30}
+                  onchange={(e) => updateLimit(med, String(med.limitDays ?? ''), e.currentTarget.value)}
+                />
+                {t('set.limitDaysUnit')}
+              </div>
+              <span>{t('set.limitHint')}</span>
+            </div>
             <div class="col-span-2 flex items-center gap-2">
               {#each MED_COLORS as color (color)}
                 <button
@@ -303,22 +349,20 @@
     </div>
   </div>
 
-  {@render group(t('rem.title'), t('rem.hint'))}
+  {@render group(t('rem.title'))}
   <div class="card flex flex-col gap-4 p-4">
     <label class="flex items-center justify-between gap-4 text-body">
       {t('rem.reliefSetting')}
-      <input
-        type="checkbox"
-        class="size-6 shrink-0 accent-primary"
-        checked={data.settings.reliefCheck}
-        onchange={(e) => saveSettings({ reliefCheck: e.currentTarget.checked })}
-      />
+      <select class="w-32 shrink-0" value={data.settings.reliefCheckMinutes} onchange={(e) => saveSettings({ reliefCheckMinutes: Number(e.currentTarget.value) })}>
+        <option value={0}>{t('rem.off')}</option>
+        {#each [30, 60, 90, 120, 180, 240] as n (n)}<option value={n}>{reliefLabel(n)}</option>{/each}
+      </select>
     </label>
     <label class="flex items-center justify-between gap-4 text-body">
       {t('rem.headacheSetting')}
       <select class="w-32 shrink-0" value={data.settings.headacheCheckHours} onchange={(e) => saveSettings({ headacheCheckHours: Number(e.currentTarget.value) })}>
         <option value={0}>{t('rem.off')}</option>
-        {#each [1, 2, 3, 4, 6] as n (n)}<option value={n}>{t('rem.headacheEvery', { n })}</option>{/each}
+        {#each [1, 2, 3, 4, 6] as n (n)}<option value={n}>{t('rem.headacheEvery', { d: duration(n * 60) })}</option>{/each}
       </select>
     </label>
     <label class="flex items-center justify-between gap-4 text-body">
@@ -330,6 +374,7 @@
         onchange={(e) => toggleReminders(e.currentTarget.checked)}
       />
     </label>
+    <p class="-mt-2 text-xs text-muted">{t('rem.hint')}</p>
     {#if data.settings.reminders.enabled}
       {#each [['noon', [10, 11, 12, 13, 14, 15]], ['evening', [16, 17, 18, 19, 20, 21]]] as const as [field, hours] (field)}
         <label class="flex items-center justify-between gap-4 text-body">
@@ -349,6 +394,7 @@
   {@render group(t('sync.title'), t('sync.hint'))}
   <div class="card flex flex-col gap-3 p-4 text-body">
     {#if sync.link}
+      {#if sync.link.paused}<p class="rounded-xl bg-med-soft p-3 text-sm">{t('sync.paused')}</p>{/if}
       <p class="text-sm text-muted">
         {sync.link.lastSync ? t('sync.last', { time: fmt(sync.link.lastSync, 'd. MMM HH:mm') }) : t('sync.never')}
       </p>
@@ -356,10 +402,7 @@
         <button
           class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
           disabled={sync.busy}
-          onclick={() => guarded(async () => {
-            await syncNow(true);
-            toast(t('sync.done'));
-          })}>{t('sync.now')}</button
+          onclick={backupNow}>{t('sync.now')}</button
         >
         <button class="press rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium disabled:opacity-50" disabled={sync.busy} onclick={restoreGist}>
           {t('sync.restore')}
@@ -382,26 +425,43 @@
     {#if sync.error}<p class="text-xs text-over">{sync.error}</p>{/if}
   </div>
 
-  {@render group(t('set.data'))}
-  <div class="card mb-2 flex flex-col gap-3 p-4">
+  {@render group(t('set.doctor'))}
+  <div class="card flex flex-col gap-3 p-4">
     <label class="flex flex-col gap-1 text-xs text-muted">
       {t('pdf.name')}
       <input value={data.settings.reportName} placeholder={t('pdf.namePlaceholder')} onchange={(e) => saveSettings({ reportName: e.currentTarget.value.trim() })} />
     </label>
-    <div class="flex gap-2">
-      <select class="w-32" bind:value={reportMonths}>
+    <div class="grid grid-cols-2 gap-2">
+      <select bind:value={reportMonths}>
         {#each [1, 3, 6, 12] as n (n)}<option value={n}>{t('pdf.months', { n })}</option>{/each}
       </select>
-      <button class="press flex-1 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-fg" onclick={exportPdf}>{t('pdf.button')}</button>
+      <div class="flex rounded-xl bg-surface-2 p-1 text-sm">
+        {#each [['pdf', 'PDF'], ['csv', 'CSV']] as const as [value, name] (value)}
+          <button class="press flex-1 rounded-lg py-1.5 {reportFormat === value ? 'bg-surface font-semibold shadow-sm' : 'text-muted'}" onclick={() => (reportFormat = value)}>
+            {name}
+          </button>
+        {/each}
+      </div>
     </div>
+    <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={exportForDoctor}>{t('set.doctorExport')}</button>
   </div>
-  <div class="card flex flex-col p-1 text-left text-body">
-    <button class="press rounded-xl px-3 py-3 text-left" onclick={exportJson}>{t('set.export')}</button>
-    <button class="press rounded-xl px-3 py-3 text-left" onclick={() => fileInput?.click()}>{t('set.import')}</button>
-    <button class="press rounded-xl px-3 py-3 text-left" onclick={exportCsv}>{t('set.exportCsv')}</button>
-    <button class="press rounded-xl px-3 py-3 text-left" onclick={demo}>{t('set.demo')}</button>
-    <button class="press rounded-xl px-3 py-3 text-left text-over" onclick={reset}>{t('set.wipe')}</button>
+
+  {@render group(t('set.backup'), t('set.backupHint'))}
+  <div class="card grid grid-cols-2 gap-2 p-4">
+    <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={exportJson}>{t('set.export')}</button>
+    <button class="press rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium" onclick={() => fileInput?.click()}>{t('set.import')}</button>
   </div>
+
+  <details class="group mt-6">
+    <summary class="flex cursor-pointer list-none items-center gap-1 text-xs font-semibold tracking-wide text-muted uppercase">
+      {t('set.advanced')}
+      <ChevronDown size={14} class="transition-transform group-open:rotate-180" />
+    </summary>
+    <div class="card mt-2 flex flex-col p-1 text-body">
+      <button class="press rounded-xl px-3 py-3 text-left" onclick={demo}>{t('set.demo')}</button>
+      <button class="press rounded-xl px-3 py-3 text-left text-over" onclick={reset}>{t('set.wipe')}</button>
+    </div>
+  </details>
   <input
     bind:this={fileInput}
     type="file"

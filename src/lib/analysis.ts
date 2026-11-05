@@ -86,7 +86,7 @@ export function medicationLimits(intakes: Intake[], medications: Medication[], t
     .filter((m) => m.limitDays)
     .map((med) => {
       const days = new Set(intakes.filter((i) => i.medId === med.id).map((i) => dayKey(i.time)));
-      return { med, rule: tenTwenty(days, today, med.limitDays) };
+      return { med, rule: tenTwenty(days, today, med.limitDays, med.limitWindow ?? 30) };
     });
 }
 

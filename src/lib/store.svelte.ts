@@ -11,8 +11,8 @@ export interface Settings {
   reportName: string;
   /** Water reminders: half the goal by `noon`, the full goal by `evening` (hours of the day). */
   reminders: { enabled: boolean; noon: number; evening: number };
-  /** Ask by notification whether an intake helped. */
-  reliefCheck: boolean;
+  /** Minutes after an intake to ask whether it helped, 0 for off. */
+  reliefCheckMinutes: number;
   /** Hours between "still a headache?" notifications, 0 for off. */
   headacheCheckHours: number;
 }
@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   reportName: '',
   reminders: { enabled: false, noon: 12, evening: 18 },
-  reliefCheck: true,
+  reliefCheckMinutes: 60,
   headacheCheckHours: 3
 };
 
@@ -57,7 +57,8 @@ export async function load() {
   data.drinks = drinks;
   data.medications = medications;
   data.drinkPresets = drinkPresets;
-  data.settings = { ...DEFAULT_SETTINGS, ...(stored.settings as Partial<Settings> | undefined) };
+  const { reliefCheck, ...saved } = (stored.settings ?? {}) as Partial<Settings> & { reliefCheck?: boolean };
+  data.settings = { ...DEFAULT_SETTINGS, ...(reliefCheck === false ? { reliefCheckMinutes: 0 } : {}), ...saved };
   data.ready = true;
 }
 
@@ -106,7 +107,8 @@ export async function logIntake(med: Medication, time = Date.now()): Promise<num
     category: med.category,
     relief: null
   });
-  if (data.settings.reliefCheck) void scheduleReliefCheck({ id, time, name: med.name }).catch(() => {});
+  const delay = data.settings.reliefCheckMinutes;
+  if (delay > 0) void scheduleReliefCheck({ id, time, name: med.name }, delay).catch(() => {});
   await load();
   return id;
 }
