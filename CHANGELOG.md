@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- After switching the period in Insights, a day selected before stayed in the detail box and the cursor sat in the wrong place. The selection now follows the date: it stays if the day is in the new period and clears otherwise.
+
 ## [0.15.0] - 2026-11-05
 
 ### Changed

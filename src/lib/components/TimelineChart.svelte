@@ -30,7 +30,12 @@
 
   const H = 48;
   const n = $derived(keys.length);
-  let selected = $state<number | null>(null);
+  /** The selected day, kept by date so it survives a change of period or stays out of it. */
+  let selectedKey = $state<string | null>(null);
+  const selected = $derived.by(() => {
+    const index = selectedKey === null ? -1 : keys.indexOf(selectedKey);
+    return index < 0 ? null : index;
+  });
 
   /** Weekly ticks up to 45 days, the 1st and 15th up to 120 days, otherwise the 1st of each month. */
   const ticks = $derived.by(() => {
@@ -55,7 +60,7 @@
   function pick(event: PointerEvent) {
     const box = (event.currentTarget as Element).getBoundingClientRect();
     const x = Math.min(Math.max(event.clientX - box.left, 0), box.width - 1);
-    selected = Math.floor((x / box.width) * n);
+    selectedKey = keys[Math.floor((x / box.width) * n)];
   }
 </script>
 
