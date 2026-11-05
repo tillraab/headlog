@@ -13,7 +13,7 @@
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
 
-  let { onOpenTab }: { onOpenTab: (tab: number) => void } = $props();
+  let { onOpenTab }: { onOpenTab: (tab: 'meds') => void } = $props();
 
   const ongoing = $derived(ongoingEpisode());
   const lastNight = $derived(data.settings.sleep.enabled ? data.sleep.get(dayKey(clock.now)) : undefined);
@@ -228,7 +228,7 @@
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-center justify-between">
       <h2 class="flex items-center gap-2 font-semibold"><Pill size={18} class="text-med" /> {t('today.meds')}</h2>
-      <button class="press" onclick={() => onOpenTab(2)}><RuleBadge {rule} /></button>
+      <button class="press" onclick={() => onOpenTab('meds')}><RuleBadge {rule} /></button>
     </div>
     {#if meds.length}
       <div class="grid grid-cols-2 gap-2">
