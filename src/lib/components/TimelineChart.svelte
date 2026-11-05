@@ -60,7 +60,7 @@
 </script>
 
 <div class="flex flex-col gap-3">
-  <div class="min-h-16 rounded-xl bg-surface-2 px-3 py-2 text-xs">
+  <div class="h-28 overflow-hidden rounded-xl bg-surface-2 px-3 py-2 text-xs">
     {#if selected === null}
       <p class="text-muted">{t('tl.tapHint')}</p>
     {:else}
@@ -75,8 +75,8 @@
           </span>
         {/each}
       </div>
-      {#each details?.(selected) ?? [] as line, i (i)}
-        <p class="mt-0.5 text-muted">{line}</p>
+      {#each (details?.(selected) ?? []).slice(0, 2) as line, i (i)}
+        <p class="mt-0.5 truncate text-muted">{line}</p>
       {/each}
     {/if}
   </div>
