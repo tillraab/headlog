@@ -2,9 +2,16 @@ import { addDays, getHours, getMinutes } from 'date-fns';
 import { alcoholDays, caffeineByDay, waterByDay } from './analysis';
 import type { Drink, Night, WeatherDay } from './db';
 import { dayKey, lastDays } from './days';
-import { CAFFEINE_DROP, LOW_HYDRATION, SHORT_SLEEP_HOURS } from './risk';
 
 export type Light = 'green' | 'yellow' | 'red';
+export type FactorKey = 'weather' | 'hydration' | 'sleep' | 'alcohol' | 'caffeine';
+
+/** Below this share of the hydration goal, or of today's pace, hydration counts as unfavourable. */
+export const LOW_HYDRATION = 0.75;
+/** A night under this many hours counts as short. */
+export const SHORT_SLEEP_HOURS = 6;
+/** Caffeine under this share of the usual amount counts as a drop. */
+export const CAFFEINE_DROP = 0.5;
 export type Status = 'ok' | 'bad' | 'unknown';
 
 /** The hydration goal is spread evenly over the waking day, 7:00 to 22:00. */
@@ -90,4 +97,16 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
     alcohol: { status: alcoholStatus, yesterday: alcohol.has(yesterday), today: alcohol.has(today) },
     caffeine: { status: caffeineStatus, today: caffeineToday, usual }
   };
+}
+
+/** The unfavourable factors, in a fixed order. */
+export function badFactors(p: Prognosis): FactorKey[] {
+  const all: [FactorKey, Status][] = [
+    ['weather', p.weather.status],
+    ['hydration', p.hydration.status],
+    ['sleep', p.sleep.status],
+    ['alcohol', p.alcohol.status],
+    ['caffeine', p.caffeine.status]
+  ];
+  return all.filter(([, s]) => s === 'bad').map(([k]) => k);
 }

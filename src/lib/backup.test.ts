@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createBackup, createCsv, isBackup, restoreBackup, wipe } from './backup';
 import { HeadLogDb, seed } from './db';
 import { loadDemo } from './demo';
-import { assessRisk } from './risk';
+import { prognosis } from './prognosis';
 import { hydrationStreak } from './analysis';
 
 let db: HeadLogDb;
@@ -80,17 +80,20 @@ describe('older backups', () => {
 });
 
 describe('demo data', () => {
-  it('shows a risk warning for today and tomorrow', async () => {
+  it('shows a red forecast', async () => {
     const now = new Date('2026-03-31T18:00').getTime();
     await loadDemo(now, db);
-    const data = {
-      episodes: await db.episodes.toArray(),
-      drinks: await db.drinks.toArray(),
-      sleep: new Map((await db.sleep.toArray()).map((n) => [n.day, n])),
-      weather: new Map((await db.weather.toArray()).map((w) => [w.day, w]))
-    };
-    const levels = (['today', 'tomorrow'] as const).map((day) => assessRisk(data, { dropHpa: 6, goalMl: 2000 }, now, day).level);
-    expect(levels.every((l) => l === 'raised' || l === 'high')).toBe(true);
+    const forecast = prognosis(
+      {
+        drinks: await db.drinks.toArray(),
+        sleep: new Map((await db.sleep.toArray()).map((n) => [n.day, n])),
+        weather: new Map((await db.weather.toArray()).map((w) => [w.day, w])),
+        goalMl: 2000,
+        dropHpa: 6
+      },
+      now
+    );
+    expect(forecast.light).toBe('red');
   });
 
   it('has a hydration streak of four days', async () => {

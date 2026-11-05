@@ -5,7 +5,7 @@ beforeAll(() => {
   i18n.lang = 'en';
 });
 import { planDrinkCheckins, planHeadacheChecks, planReminders, planRiskAlert } from './reminders';
-import type { Risk } from './risk';
+import type { Prognosis } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
 const on = { enabled: true, noon: 12, evening: 18 };
@@ -112,19 +112,27 @@ describe('planDrinkCheckins', () => {
 });
 
 describe('planRiskAlert', () => {
-  const stats = { key: 'pressure' as const, withRate: 0.5, withoutRate: 0.1, nWith: 10, nWithout: 40, ratio: 5 };
-  const risk: Risk = { day: 'tomorrow', usual: 0.1, estimate: 0.5, ratio: 5, level: 'high', factors: [{ key: 'pressure', value: 9, stats }] };
+  const forecast = (light: 'green' | 'yellow' | 'red') => () =>
+    ({
+      light,
+      bad: light === 'red' ? 3 : light === 'yellow' ? 2 : 0,
+      weather: { status: light === 'green' ? 'ok' : 'bad', drop: 9 },
+      hydration: { status: light === 'green' ? 'ok' : 'bad', today: 500, yesterday: 2000, expected: 1500, goal: 2000 },
+      sleep: { status: light === 'red' ? 'bad' : 'ok', average: 7 },
+      alcohol: { status: 'unknown', yesterday: false, today: false },
+      caffeine: { status: 'unknown', today: 0, usual: null }
+    }) as Prognosis;
 
-  it('warns at the chosen hour when tomorrow is risky', () => {
-    const [alert] = planRiskAlert(at('2026-03-02T15:00'), { enabled: true, hour: 20 }, risk);
-    expect([new Date(alert.at).getHours(), alert.body.startsWith('About 50 % – usually 10 %')]).toEqual([20, true]);
+  it('warns at the chosen hour when the forecast is not green, naming the factors', () => {
+    const [alert] = planRiskAlert(at('2026-03-02T15:00'), { enabled: true, hour: 20 }, forecast('red'));
+    expect([new Date(alert.at).getHours(), alert.body]).toEqual([20, 'Unfavourable: Weather, Hydration, Sleep. Details in HeadLog.']);
   });
 
-  it('stays silent for a possible trigger without data', () => {
-    expect(planRiskAlert(at('2026-03-02T15:00'), { enabled: true, hour: 20 }, { ...risk, level: 'possible' })).toEqual([]);
+  it('stays silent when the forecast is green', () => {
+    expect(planRiskAlert(at('2026-03-02T15:00'), { enabled: true, hour: 20 }, forecast('green'))).toEqual([]);
   });
 
   it('stays silent after the hour has passed', () => {
-    expect(planRiskAlert(at('2026-03-02T21:00'), { enabled: true, hour: 20 }, risk)).toEqual([]);
+    expect(planRiskAlert(at('2026-03-02T21:00'), { enabled: true, hour: 20 }, forecast('red'))).toEqual([]);
   });
 });

@@ -4,7 +4,7 @@ import { addDays, format, isSameDay, setHours, startOfDay } from 'date-fns';
 import { hydrationMl } from './db';
 import { formatDuration, formatLiters } from './days';
 import { fmt, t } from './i18n.svelte';
-import type { Risk } from './risk';
+import { badFactors, type Prognosis } from './prognosis';
 
 export interface ReminderSettings {
   enabled: boolean;
@@ -32,13 +32,18 @@ function serial(task: () => Promise<void>): Promise<void> {
 
 const RISK_ID = 400;
 
-/** The evening warning for tomorrow, when the risk is raised and the hour has not passed yet. */
-export function planRiskAlert(now: number, settings: { enabled: boolean; hour: number }, risk: Risk): PlannedReminder[] {
-  if (!settings.enabled || (risk.level !== 'raised' && risk.level !== 'high')) return [];
+/**
+ * The evening warning: the forecast as it stands at the chosen hour, if nothing more is logged
+ * until then. Sent when it is yellow or red and the hour has not passed yet.
+ */
+export function planRiskAlert(now: number, settings: { enabled: boolean; hour: number }, atHour: (time: number) => Prognosis): PlannedReminder[] {
+  if (!settings.enabled) return [];
   const at = setHours(startOfDay(now), settings.hour).getTime();
   if (at <= now) return [];
-  const body = risk.estimate !== null ? t('risk.estimate', { p: `${Math.round(risk.estimate * 100)} %`, usual: `${Math.round(risk.usual * 100)} %` }) : '';
-  return [{ id: RISK_ID, at, title: t('risk.notifyTitle'), body: `${body} ${t(`risk.tip.${risk.factors[0].key}`)}`.trim() }];
+  const p = atHour(at);
+  if (p.light === 'green') return [];
+  const factors = badFactors(p).map((k) => t(`prog.${k}`)).join(', ');
+  return [{ id: RISK_ID, at, title: t(`prog.notify.${p.light}`), body: t('prog.notifyBody', { factors }) }];
 }
 
 export function applyRiskAlert(plan: PlannedReminder[]) {

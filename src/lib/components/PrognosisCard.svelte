@@ -4,19 +4,15 @@
   import { formatDuration, formatLiters } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { t } from '$lib/i18n.svelte';
-  import { prognosis, type Status } from '$lib/prognosis';
-  import { assessRisk, type FactorKey } from '$lib/risk';
+  import { badFactors, prognosis, type Status } from '$lib/prognosis';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
 
-  let open = $state(false);
+  let { open = $bindable(false) }: { open?: boolean } = $props();
 
   const p = $derived(
     prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl, dropHpa: PRESSURE_DROP_HPA }, clock.now)
-  );
-  const risks = $derived(
-    open ? (['today', 'tomorrow'] as const).map((day) => assessRisk(data, { dropHpa: PRESSURE_DROP_HPA, goalMl: data.settings.waterGoalMl }, clock.now, day)) : []
   );
 
   const LIGHT = { green: 'var(--color-ok)', yellow: 'var(--color-caution)', red: 'var(--color-over)' };
@@ -25,15 +21,8 @@
 
   /** The tip for the first unfavourable factor, in the order weather, hydration, sleep, alcohol, caffeine. */
   const tip = $derived.by(() => {
-    const order: [Status, FactorKey][] = [
-      [p.weather.status, 'pressure'],
-      [p.hydration.status, 'hydration'],
-      [p.sleep.status, 'sleep'],
-      [p.alcohol.status, 'alcohol'],
-      [p.caffeine.status, 'caffeine']
-    ];
-    const first = order.find(([s]) => s === 'bad');
-    return first ? t(`risk.tip.${first[1]}`) : t('prog.tipGood');
+    const first = badFactors(p)[0];
+    return first ? t(`prog.tip.${first}`) : t('prog.tipGood');
   });
 
   const tiles = $derived([
@@ -167,22 +156,6 @@
             <p class="font-medium">{t('prog.caffeine')}</p>
             <p class="text-xs text-muted tabular">{t('prog.caffeineValue', { mg: Math.round(p.caffeine.today), usual: Math.round(p.caffeine.usual) })}</p>
           </div>
-        </div>
-      {/if}
-
-      {#if risks.some((r) => r.estimate !== null)}
-        <div class="rounded-xl bg-surface-2 p-3">
-          <p class="text-xs font-semibold">{t('prog.personal')}</p>
-          {#each risks as risk (risk.day)}
-            {#if risk.estimate !== null}
-              <p class="text-xs text-muted tabular">
-                {t(risk.day === 'today' ? 'prog.today' : 'prog.tomorrow')}: {t('risk.estimate', {
-                  p: `${Math.round(risk.estimate * 100)} %`,
-                  usual: `${Math.round(risk.usual * 100)} %`
-                })}
-              </p>
-            {/if}
-          {/each}
         </div>
       {/if}
 

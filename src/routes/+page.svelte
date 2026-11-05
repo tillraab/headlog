@@ -18,7 +18,7 @@
   import { i18n, t } from '$lib/i18n.svelte';
   import { data, endEpisode, load, logDrinkFromPreset, ongoingEpisode, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
   import { applyDrinkCheckins, applyHeadacheChecks, applyReminders, applyRiskAlert, onNotificationAction, planDrinkCheckins, planHeadacheChecks, planReminders, planRiskAlert } from '$lib/reminders';
-  import { assessRisk } from '$lib/risk';
+  import { prognosis } from '$lib/prognosis';
   import { PRESSURE_DROP_HPA } from '$lib/weather';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
@@ -55,8 +55,9 @@
     const recent = data.drinks.filter((d) => d.time >= start - 7 * 86400000);
     const checkins = planDrinkCheckins(now, data.settings.drinkCheckins, data.settings.waterGoalMl, recent);
     void applyDrinkCheckins(checkins, $state.snapshot(data.drinkPresets)).catch(() => {});
-    const tomorrow = assessRisk(data, { dropHpa: PRESSURE_DROP_HPA, goalMl: data.settings.waterGoalMl }, now, 'tomorrow');
-    void applyRiskAlert(planRiskAlert(now, data.settings.riskAlert, tomorrow)).catch(() => {});
+    const forecastAt = (time: number) =>
+      prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl, dropHpa: PRESSURE_DROP_HPA }, time);
+    void applyRiskAlert(planRiskAlert(now, data.settings.riskAlert, forecastAt)).catch(() => {});
   }
 
   $effect(reschedule);
