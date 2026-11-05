@@ -54,7 +54,7 @@ Run `bun run check` and `bun run test` before every commit.
 
 - 10/20 rule: acute medication on at most 10 of any 30 consecutive days, today included. Preventive medication does not count (`ACUTE_CATEGORIES`). The limit is a setting.
 - Personal limit per medication: at most `limitDays` days with that medication in any `limitWindow` days (default 30). Counted per `medId`.
-- Monthly overuse thresholds follow ICHD-3: simple analgesics 15 days, triptans, combinations and opioids 10 days (`MONTHLY_LIMITS`).
+- Monthly overuse thresholds follow ICHD-3 8.2: simple analgesics 15 days; triptans, ergotamines, combinations and opioids 10 days (`MONTHLY_LIMITS`); several of these classes together 10 days (`MULTIPLE_CLASSES_LIMIT`, ICHD-3 8.2.6). Preventive medication and antiemetics do not count. `guessCategory` maps known active ingredients and brands to a class.
 - `ruleStatus`: caution from 80% of the limit, over above the limit.
 - The app is a diary, not medical advice; keep the disclaimer wording.
 

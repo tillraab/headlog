@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- Medication classes follow ICHD-3: new classes ergotamine (overuse from 10 days a month) and against nausea (not counted). Each class explains itself with examples in the medication list, and known active ingredients and brands set the class automatically when you name a medication, including combinations such as "ASS + Paracetamol + Coffein".
+- Overuse limits in the Meds tab: days per class this month against the ICHD-3 limits, plus the rule for several classes together (10 days), with an explanation of what medication-overuse headache means.
+
+### Changed
+
+- Meds tab, last 30 days: a calendar with weekdays and month labels, a coloured dot per medication, a legend of what counts for the 10/20 rule, and tap a day to see what you took and whether it counts.
+
 ### Changed
 
 - Calendar: instead of the overview of the last 12 months, a chart of headache days in the last 30 days, rolling, with a line at 15 days, from which ICHD-3 speaks of chronic headache. Tap a day for its count.

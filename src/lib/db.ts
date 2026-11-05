@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 
-export type MedCategory = 'analgesic' | 'triptan' | 'combination' | 'opioid' | 'preventive' | 'other';
+export type MedCategory = 'analgesic' | 'triptan' | 'ergotamine' | 'combination' | 'opioid' | 'antiemetic' | 'preventive' | 'other';
 
 /** A headache episode. `end` is null while the headache is ongoing. */
 export interface Episode {
@@ -126,8 +126,33 @@ export class HeadLogDb extends Dexie {
   }
 }
 
-/** Categories that count toward medication overuse and the 10/20 rule. */
-export const ACUTE_CATEGORIES: readonly MedCategory[] = ['analgesic', 'triptan', 'combination', 'opioid', 'other'];
+/**
+ * Acute headache medication: counts toward the 10/20 rule. Preventive medication and medicine
+ * against nausea do not; "other" counts, to stay on the safe side.
+ */
+export const ACUTE_CATEGORIES: readonly MedCategory[] = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'other'];
+
+/** Common active ingredients and brands per category, lower case, for recognising a medication by its name. */
+const KNOWN: Partial<Record<MedCategory, string[]>> = {
+  triptan: ['triptan', 'imigran', 'maxalt', 'ascotop', 'relpax', 'naramig', 'allegro', 'formigran', 'dolortriptan'],
+  ergotamine: ['ergotamin', 'ergotamine', 'dihydroergotamin', 'migrexa'],
+  combination: ['thomapyrin', 'neuralgin', 'dolomo', 'titralgan', 'excedrin', 'spalt plus', 'ratiopyrin', 'migräne-kranit'],
+  opioid: ['tramadol', 'tilidin', 'codein', 'tapentadol', 'oxycodon', 'morphin', 'hydromorphon', 'tramal', 'valoron'],
+  antiemetic: ['metoclopramid', 'mcp', 'domperidon', 'motilium', 'vomex', 'dimenhydrinat', 'ondansetron'],
+  preventive: ['topiramat', 'propranolol', 'metoprolol', 'amitriptylin', 'flunarizin', 'valproat', 'candesartan', 'botox', 'erenumab', 'aimovig', 'fremanezumab', 'ajovy', 'galcanezumab', 'emgality', 'eptinezumab', 'vyepti', 'magnesium'],
+  analgesic: ['ibuprofen', 'paracetamol', 'acetaminophen', 'aspirin', 'acetylsalicyl', 'ass ', 'naproxen', 'diclofenac', 'metamizol', 'novalgin', 'dexketoprofen', 'ketoprofen', 'celecoxib', 'etoricoxib', 'nurofen', 'dolormin', 'voltaren', 'aleve', 'ben-u-ron', 'phenazon']
+};
+
+/** The category a medication name points to, or null when it is not known. */
+export function guessCategory(name: string): MedCategory | null {
+  const n = ` ${name.toLowerCase()} `;
+  // Two or more pain relievers in one name, e.g. "ASS + Paracetamol + Coffein", make a combination.
+  if ((KNOWN.analgesic ?? []).filter((w) => n.includes(w)).length >= 2) return 'combination';
+  for (const [category, words] of Object.entries(KNOWN) as [MedCategory, string[]][]) {
+    if (words.some((w) => n.includes(w))) return category;
+  }
+  return null;
+}
 
 export const MED_COLORS = ['#f59e0b', '#ef4444', '#8b5cf6', '#10b981', '#3b82f6', '#ec4899', '#14b8a6', '#64748b'];
 
