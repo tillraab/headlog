@@ -16,6 +16,7 @@
   let { onOpenTab }: { onOpenTab: (tab: number) => void } = $props();
 
   const ongoing = $derived(ongoingEpisode());
+  const lastNight = $derived(data.settings.sleep.enabled ? data.sleep.get(dayKey(clock.now)) : undefined);
   const pressureWarning = $derived.by(() => {
     if (!data.settings.weather.enabled) return null;
     const today = data.weather.get(dayKey(clock.now));
@@ -133,6 +134,22 @@
       </button>
       <button class="press text-sm font-medium text-muted underline underline-offset-4" onclick={earlier}>{t('today.startedEarlier')}</button>
     </section>
+  {/if}
+
+  {#if lastNight}
+    <button class="card press flex items-center gap-3 p-3 text-left" onclick={() => edit({ kind: 'sleep', item: lastNight })}>
+      <span class="grid size-10 place-items-center rounded-full bg-surface-2 text-xl">😴</span>
+      <span class="flex flex-1 flex-col">
+        <span class="text-xs text-muted">{t('sleep.lastNight')}</span>
+        <span class="font-semibold tabular">{formatDuration(lastNight.asleepMs)}</span>
+      </span>
+      <span class="text-right text-xs text-muted tabular">
+        {t('sleep.summary', { from: hm(lastNight.start), to: hm(lastNight.end) })}
+        {#if lastNight.breaks.length}
+          <br />{t('sleep.breaks', { n: lastNight.breaks.length, d: formatDuration(lastNight.breaks.reduce((s, b) => s + b.end - b.start, 0)) })}
+        {/if}
+      </span>
+    </button>
   {/if}
 
   {#if pressureWarning}

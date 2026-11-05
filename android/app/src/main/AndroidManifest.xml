@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -40,4 +41,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Water and medication reminders at the set time. Granted on install; the app is not distributed through Google Play. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Screen on/off times for the sleep estimate. Granted by the user under Settings → Usage access. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
 </manifest>

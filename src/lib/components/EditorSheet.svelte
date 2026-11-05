@@ -2,14 +2,16 @@
   import { fromPreset } from '$lib/db';
   import { editor } from '$lib/editor.svelte';
   import { t, tagLabel, TAGS } from '$lib/i18n.svelte';
-  import { data, remove, saveDrink, saveEpisode, saveIntake } from '$lib/store.svelte';
+  import { format } from 'date-fns';
+  import { editNight } from '$lib/sleep';
+  import { data, remove, saveDrink, saveEpisode, saveIntake, saveNight } from '$lib/store.svelte';
   import { closeSheet, fromLocalInput, toast, toLocalInput } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import Sheet from './Sheet.svelte';
 
   const current = $derived(editor.current);
   const title = $derived(
-    current?.kind === 'episode' ? t('edit.headache') : current?.kind === 'intake' ? t('edit.intake') : t('edit.drink')
+    current?.kind === 'episode' ? t('edit.headache') : current?.kind === 'intake' ? t('edit.intake') : current?.kind === 'sleep' ? t('sleep.title') : t('edit.drink')
   );
   let error = $state('');
 
@@ -31,6 +33,12 @@
       const med = data.medications.find((m) => m.id === c.item.medId);
       if (med && c.item.id === undefined) Object.assign(c.item, { name: med.name, dose: med.dose, category: med.category });
       await saveIntake(c.item);
+    } else if (c.kind === 'sleep') {
+      if (c.item.end <= c.item.start) {
+        error = t('edit.endBeforeStart');
+        return;
+      }
+      await saveNight(editNight(c.item, c.item.start, c.item.end));
     } else {
       await saveDrink(c.item);
     }
@@ -40,7 +48,7 @@
 
   async function del() {
     const c = editor.current;
-    if (!c || c.item.id === undefined) return;
+    if (!c || c.kind === 'sleep' || c.item.id === undefined) return;
     const table = c.kind === 'episode' ? 'episodes' : c.kind === 'intake' ? 'intakes' : 'drinks';
     const undo = await remove(table, c.item.id);
     toast(t('toast.deleted'), undo);
@@ -126,6 +134,23 @@
             {/each}
           </div>
         </div>
+      {:else if current.kind === 'sleep'}
+        {@const night = current.item}
+        <label class="flex flex-col gap-1 text-sm">
+          <span class="text-muted">{t('sleep.asleep')}</span>
+          <input type="datetime-local" value={toLocalInput(night.start)} onchange={(e) => (night.start = fromLocalInput(e.currentTarget.value))} />
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          <span class="text-muted">{t('sleep.awake')}</span>
+          <input type="datetime-local" value={toLocalInput(night.end)} onchange={(e) => (night.end = fromLocalInput(e.currentTarget.value))} />
+        </label>
+        {#if night.breaks.length}
+          <p class="text-sm text-muted">
+            {t('sleep.breaksList')}
+            {night.breaks.map((b) => `${format(b.start, 'HH:mm')}–${format(b.end, 'HH:mm')}`).join(', ')}
+          </p>
+        {/if}
+        <p class="text-xs text-muted">{t('sleep.editHint')}</p>
       {:else}
         {@const drink = current.item}
         {#if drink.id === undefined}
@@ -155,7 +180,7 @@
       {#if error}<p class="text-sm text-over">{error}</p>{/if}
 
       <div class="mt-2 flex gap-2">
-        {#if current.item.id !== undefined}
+        {#if current.kind !== 'sleep' && current.item.id !== undefined}
           <button class="press rounded-2xl px-4 py-3 font-medium text-over" onclick={del}>{t('edit.delete')}</button>
         {/if}
         <button class="press ml-auto rounded-2xl px-4 py-3 font-medium" onclick={close}>{t('edit.cancel')}</button>

@@ -18,6 +18,7 @@
   const drinks = $derived(data.drinks.filter((d) => d.time >= from && d.time < to));
   const water = $derived(drinks.reduce((s, d) => s + hydrationMl(d), 0));
   const weather = $derived(data.weather.get(day));
+  const night = $derived(data.sleep.get(day));
   const noon = $derived(Math.min(setHours(keyToDate(day), 12).getTime(), clock.now));
 
   function addMed() {
@@ -46,6 +47,15 @@
         {#if weather.humidity !== null}<span class="text-muted">·</span><span>{weather.humidity} %</span>{/if}
         {#if weather.precipitation >= 0.5}<span class="text-muted">·</span><span>{weather.precipitation.toFixed(1)} mm</span>{/if}
       </p>
+    {/if}
+
+    {#if night}
+      <button class="press flex items-center gap-3 rounded-2xl bg-surface-2 px-3 py-2 text-left text-sm tabular" onclick={() => edit({ kind: 'sleep', item: night })}>
+        <span class="text-lg">😴</span>
+        <span class="font-semibold">{formatDuration(night.asleepMs)}</span>
+        <span class="text-muted">{format(night.start, 'HH:mm')}–{format(night.end, 'HH:mm')}</span>
+        {#if night.breaks.length}<span class="text-muted">· {t('sleep.breaks', { n: night.breaks.length, d: formatDuration(night.breaks.reduce((sum, b) => sum + b.end - b.start, 0)) })}</span>{/if}
+      </button>
     {/if}
 
     {#if !episodes.length && !intakes.length && !drinks.length}

@@ -80,6 +80,19 @@ export interface WeatherDay {
   code: number;
 }
 
+/** A night, stored under the day it ends on. */
+export interface Night {
+  day: string;
+  start: number;
+  end: number;
+  /** Time asleep: from start to end minus the breaks. */
+  asleepMs: number;
+  /** Times the screen was on during the night. */
+  breaks: { start: number; end: number }[];
+  /** Estimated from screen activity, or set by the user. */
+  source: 'screen' | 'manual';
+}
+
 export interface Setting {
   key: string;
   value: unknown;
@@ -96,6 +109,7 @@ export class HeadLogDb extends Dexie {
   drinks!: EntityTable<Drink, 'id'>;
   settings!: EntityTable<Setting, 'key'>;
   weather!: EntityTable<WeatherDay, 'day'>;
+  sleep!: EntityTable<Night, 'day'>;
 
   constructor(name = 'headlog') {
     super(name);
@@ -108,6 +122,7 @@ export class HeadLogDb extends Dexie {
       settings: 'key'
     });
     this.version(2).stores({ weather: 'day' });
+    this.version(3).stores({ sleep: 'day' });
   }
 }
 
