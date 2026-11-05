@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { ChevronDown } from '@lucide/svelte';
   import { formatDuration, formatLiters } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
   import type { ActiveFactor, Risk } from '$lib/risk';
 
   let { risk }: { risk: Risk } = $props();
+  let open = $state(false);
 
   const tone = $derived(risk.level === 'high' ? 'bg-pain-soft' : risk.level === 'raised' ? 'bg-med-soft' : 'bg-surface-2');
   const percent = (v: number) => `${Math.round(v * 100)} %`;
@@ -30,23 +32,27 @@
   }
 </script>
 
-<section class="card flex flex-col gap-2 p-4 {tone}">
-  <div class="flex items-start gap-3">
-    <span class="text-2xl">{risk.level === 'possible' ? '🔎' : '⚠️'}</span>
-    <div class="flex-1">
-      <p class="font-semibold">{t(`risk.title.${risk.day}.${risk.level === 'none' ? 'possible' : risk.level}`)}</p>
+<section class="card overflow-hidden {tone}">
+  <button class="press flex w-full items-center gap-3 px-4 py-3 text-left" onclick={() => (open = !open)} aria-expanded={open}>
+    <span class="text-xl">{risk.level === 'possible' ? '🔎' : '⚠️'}</span>
+    <span class="flex-1 text-sm font-semibold leading-snug">{t(`risk.title.${risk.day}.${risk.level === 'none' ? 'possible' : risk.level}`)}</span>
+    {#if risk.estimate !== null}<span class="text-sm font-semibold tabular">{percent(risk.estimate)}</span>{/if}
+    <ChevronDown size={18} class="shrink-0 text-muted transition-transform {open ? 'rotate-180' : ''}" />
+  </button>
+  {#if open}
+    <div class="flex flex-col gap-2 px-4 pb-4">
       {#if risk.estimate !== null}
         <p class="text-sm tabular">{t('risk.estimate', { p: percent(risk.estimate), usual: percent(risk.usual) })}</p>
       {/if}
+      <ul class="flex flex-col gap-1.5 text-sm">
+        {#each risk.factors as f (f.key)}
+          <li>
+            <span class="font-medium">{describe(f)}</span>
+            <span class="block text-xs text-muted">{evidence(f)}</span>
+          </li>
+        {/each}
+      </ul>
+      <p class="text-xs text-muted">{t(`risk.tip.${risk.factors[0].key}`)}</p>
     </div>
-  </div>
-  <ul class="flex flex-col gap-1.5 text-sm">
-    {#each risk.factors as f (f.key)}
-      <li>
-        <span class="font-medium">{describe(f)}</span>
-        <span class="block text-xs text-muted">{evidence(f)}</span>
-      </li>
-    {/each}
-  </ul>
-  <p class="text-xs text-muted">{t(`risk.tip.${risk.factors[0].key}`)}</p>
+  {/if}
 </section>
