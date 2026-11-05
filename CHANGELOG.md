@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-05
+
 ### Added
 
 - Medication classes follow ICHD-3: new classes ergotamine (overuse from 10 days a month) and against nausea (not counted). Each class explains itself with examples in the medication list, and known active ingredients and brands set the class automatically when you name a medication, including combinations such as "ASS + Paracetamol + Coffein".
@@ -10,11 +12,7 @@
 ### Changed
 
 - Meds tab, last 30 days: a calendar with weekdays and month labels, a coloured dot per medication, a legend of what counts for the 10/20 rule, and tap a day to see what you took and whether it counts.
-
-### Changed
-
 - Calendar: instead of the overview of the last 12 months, a chart of headache days in the last 30 days, rolling, with a line at 15 days, from which ICHD-3 speaks of chronic headache. Tap a day for its count.
-
 - Pressure drops follow the measure of the study they come from (Kimoto et al. 2011): the daily mean pressure against the day before, unfavourable at more than 5 hPa. Before, HeadLog took the largest fall within any 24 hours and 6 hPa. Weather stored so far is fetched again once.
 
 ## [0.15.1] - 2026-11-05
