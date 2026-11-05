@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, caffeineByDay, headacheDays, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty, waterByDay } from './analysis';
+import { alcoholDays, caffeineByDay, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingMedDays, ruleStatus, tenTwenty, waterByDay } from './analysis';
 import type { Drink, Episode, Intake, MedCategory, Medication } from './db';
 import { lastDays } from './days';
 
@@ -216,5 +216,23 @@ describe('caffeine and alcohol', () => {
 
   it('lists the days with alcohol', () => {
     expect([...alcoholDays([coffee, wine])]).toEqual(['2026-03-02']);
+  });
+});
+
+describe('hydrationBefore', () => {
+  const start = at('2026-03-20T12:00');
+  const daily = Array.from({ length: 10 }, (_, i) => drink(`2026-03-${String(i + 5).padStart(2, '0')}T10:00`, 2000));
+
+  it('adds up the 72 hours before a headache', () => {
+    const recent = [drink('2026-03-18T10:00', 1000), drink('2026-03-19T10:00', 500), drink('2026-03-20T13:00', 700)];
+    expect(hydrationBefore([...daily, ...recent], start).ml).toBe(1500);
+  });
+
+  it('scales the usual daily amount to 72 hours', () => {
+    expect(hydrationBefore(daily, start).usual).toBe(6000);
+  });
+
+  it('has no usual amount with less than a week of drinks', () => {
+    expect(hydrationBefore(daily.slice(0, 3), start).usual).toBeNull();
   });
 });

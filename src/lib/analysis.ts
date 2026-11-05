@@ -35,6 +35,18 @@ export function waterByDay(drinks: Drink[]): Map<string, number> {
   return days;
 }
 
+/**
+ * Hydration in the `hours` before `time`, and what is usual for that many hours: the average over the
+ * 30 days before, scaled to the same length. Usual is null without at least 7 days with drinks.
+ */
+export function hydrationBefore(drinks: Drink[], time: number, hours = 72): { ml: number; usual: number | null } {
+  const from = time - hours * 3600000;
+  const ml = drinks.filter((d) => d.time >= from && d.time < time).reduce((sum, d) => sum + hydrationMl(d), 0);
+  const water = waterByDay(drinks.filter((d) => d.time < from && d.time >= from - 30 * 86400000));
+  const usual = water.size >= 7 ? ([...water.values()].reduce((a, b) => a + b, 0) / water.size) * (hours / 24) : null;
+  return { ml, usual };
+}
+
 /** Caffeine in mg per day, for days with any caffeinated drink. */
 export function caffeineByDay(drinks: Drink[]): Map<string, number> {
   const days = new Map<string, number>();
