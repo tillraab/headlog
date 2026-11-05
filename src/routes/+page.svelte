@@ -11,8 +11,8 @@
   import TodayTab from '$lib/components/TodayTab.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
   import { i18n, t } from '$lib/i18n.svelte';
-  import { data, load, setRelief, startClock } from '$lib/store.svelte';
-  import { applyReminders, onReliefAnswer, planReminders } from '$lib/reminders';
+  import { data, endEpisode, load, ongoingEpisode, setRelief, startClock } from '$lib/store.svelte';
+  import { applyHeadacheChecks, applyReminders, onNotificationAction, planHeadacheChecks, planReminders } from '$lib/reminders';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
 
@@ -37,13 +37,14 @@
     active = Math.round(pager.scrollLeft / pager.clientWidth);
   }
 
-  /** Reschedules water reminders after every drink, settings change and return to the app. */
+  /** Reschedules reminders after every change and on return to the app. */
   function reschedule() {
     if (!data.ready) return;
     const now = Date.now();
     const start = new Date(now).setHours(0, 0, 0, 0);
     const todayMl = data.drinks.filter((d) => d.time >= start).reduce((s, d) => s + d.ml, 0);
     void applyReminders(planReminders(now, data.settings.reminders, data.settings.waterGoalMl, todayMl)).catch(() => {});
+    void applyHeadacheChecks(planHeadacheChecks(ongoingEpisode(), now, data.settings.headacheCheckHours)).catch(() => {});
   }
 
   $effect(reschedule);
@@ -57,7 +58,10 @@
     const onHide = () => (document.visibilityState === 'hidden' ? syncQuietly() : reschedule());
     document.addEventListener('visibilitychange', onHide);
     const stopClock = startClock();
-    const stopRelief = onReliefAnswer((id, relief) => void setRelief(id, relief));
+    const stopRelief = onNotificationAction({
+      relief: (id, relief) => void setRelief(id, relief),
+      headacheGone: (id) => void endEpisode(id)
+    });
     const media = matchMedia('(prefers-color-scheme: dark)');
     const onScheme = () => applyTheme(data.settings.theme);
     media.addEventListener('change', onScheme);

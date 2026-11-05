@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-05
+
+### Added
+
+- While a headache is ongoing, a notification every few hours asks whether it is still there, with Still there / Gone buttons. Gone ends the headache. Every 1, 2, 3 (default), 4 or 6 hours, or off.
+
+### Fixed
+
+- Today no longer says "No headache today" after a headache that ended today.
+- A reminder plan made just before a change could be scheduled after it, leaving stale notifications.
+
 ## [0.3.1] - 2026-11-05
 
 ### Changed

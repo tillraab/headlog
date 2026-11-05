@@ -13,6 +13,8 @@ export interface Settings {
   reminders: { enabled: boolean; noon: number; evening: number };
   /** Ask by notification whether an intake helped. */
   reliefCheck: boolean;
+  /** Hours between "still a headache?" notifications, 0 for off. */
+  headacheCheckHours: number;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -21,7 +23,8 @@ const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   reportName: '',
   reminders: { enabled: false, noon: 12, evening: 18 },
-  reliefCheck: true
+  reliefCheck: true,
+  headacheCheckHours: 3
 };
 
 /** All data in memory. A diary stays small, so every write reloads everything. */
@@ -132,6 +135,13 @@ export async function remove(table: Table, id: number): Promise<() => Promise<vo
     if (row) await db.table(table).put(row);
     await load();
   };
+}
+
+/** Ends an ongoing episode now, from a notification. */
+export async function endEpisode(id: number) {
+  const ep = await db.episodes.get(id);
+  if (ep && ep.end === null) await db.episodes.update(id, { end: Date.now() });
+  await load();
 }
 
 /** Stores an answer given in a notification. */

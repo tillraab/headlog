@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planReminders } from './reminders';
+import { planHeadacheChecks, planReminders } from './reminders';
 
 const at = (s: string) => new Date(s).getTime();
 const on = { enabled: true, noon: 12, evening: 18 };
@@ -31,5 +31,27 @@ describe('planReminders', () => {
   it('gives every reminder its own id', () => {
     const ids = planReminders(at('2026-03-02T08:00'), on, 2000, 0).map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('planHeadacheChecks', () => {
+  const ongoing = { id: 7, start: at('2026-03-02T08:00'), end: null };
+
+  it('plans nothing without an ongoing headache', () => {
+    expect(planHeadacheChecks({ ...ongoing, end: at('2026-03-02T09:00') }, at('2026-03-02T10:00'), 3)).toEqual([]);
+  });
+
+  it('plans nothing when switched off', () => {
+    expect(planHeadacheChecks(ongoing, at('2026-03-02T09:00'), 0)).toEqual([]);
+  });
+
+  it('asks every n hours counted from the start, beginning with the next one', () => {
+    const plan = planHeadacheChecks(ongoing, at('2026-03-02T12:00'), 3);
+    expect(plan.slice(0, 2).map((r) => new Date(r.at).getHours())).toEqual([14, 17]);
+  });
+
+  it('plans 12 checks for the episode', () => {
+    const plan = planHeadacheChecks(ongoing, at('2026-03-02T09:00'), 2);
+    expect([plan.length, plan.every((r) => r.episodeId === 7)]).toEqual([12, true]);
   });
 });

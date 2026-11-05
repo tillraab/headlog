@@ -315,6 +315,13 @@
       />
     </label>
     <label class="flex items-center justify-between gap-4 text-body">
+      {t('rem.headacheSetting')}
+      <select class="w-32 shrink-0" value={data.settings.headacheCheckHours} onchange={(e) => saveSettings({ headacheCheckHours: Number(e.currentTarget.value) })}>
+        <option value={0}>{t('rem.off')}</option>
+        {#each [1, 2, 3, 4, 6] as n (n)}<option value={n}>{t('rem.headacheEvery', { n })}</option>{/each}
+      </select>
+    </label>
+    <label class="flex items-center justify-between gap-4 text-body">
       {t('rem.enabled')}
       <input
         type="checkbox"

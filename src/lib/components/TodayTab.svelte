@@ -69,9 +69,9 @@
       <p class="text-xs font-medium tracking-wide text-muted uppercase">{fmt(clock.now, 'EEEE')}</p>
       <h1 class="text-2xl font-semibold">{fmt(clock.now, 'd. MMMM')}</h1>
     </div>
-    {#if !ongoing && streak !== null}
+    {#if !ongoing && streak}
       <p class="rounded-full bg-ok/12 px-3 py-1 text-xs font-medium text-ok">
-        {streak === 0 ? t('today.clearToday') : streak === 1 ? t('today.clearStreakOne') : t('today.clearStreak', { n: streak })}
+        {streak === 1 ? t('today.clearStreakOne') : t('today.clearStreak', { n: streak })}
       </p>
     {/if}
   </header>
