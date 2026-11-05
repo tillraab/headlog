@@ -2,8 +2,11 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-05
+
 ### Added
 
+- Optional cloud backup to a secret GitHub Gist, updated whenever you leave the app, with restore on a new phone.
 - Today asks whether a medication helped, from 45 minutes after taking it.
 - The calendar shows the last 12 months at a glance, with headache intensity and medication days.
 

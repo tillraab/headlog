@@ -12,6 +12,7 @@
   import Toasts from '$lib/components/Toasts.svelte';
   import { i18n, t } from '$lib/i18n.svelte';
   import { data, load, startClock } from '$lib/store.svelte';
+  import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
 
   const tabs = $derived([
@@ -37,7 +38,12 @@
 
   onMount(() => {
     document.documentElement.lang = i18n.lang;
-    void load().then(() => applyTheme(data.settings.theme));
+    void load().then(() => {
+      applyTheme(data.settings.theme);
+      syncQuietly();
+    });
+    const onHide = () => document.visibilityState === 'hidden' && syncQuietly();
+    document.addEventListener('visibilitychange', onHide);
     const stopClock = startClock();
     const media = matchMedia('(prefers-color-scheme: dark)');
     const onScheme = () => applyTheme(data.settings.theme);
@@ -56,6 +62,7 @@
 
     return () => {
       stopClock();
+      document.removeEventListener('visibilitychange', onHide);
       media.removeEventListener('change', onScheme);
       window.removeEventListener('resize', onResize);
       void backListener?.remove();

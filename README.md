@@ -23,6 +23,7 @@
 - **Insights** over 30, 90 or 365 days: headache and medication days per month, average duration and intensity, which weekdays and times of day headaches start, how much you drank the day before a headache compared to the day before a clear day, how well each medication helped, and your most common triggers.
 - **Undo instead of "are you sure?"** Every quick action shows an undo button.
 - **Backup** as a JSON file and **CSV export** for your doctor, both through the Android share sheet.
+- **Optional cloud backup** to a secret gist in your GitHub account, updated whenever you leave the app. On a new phone, connect the same token and restore.
 - Swipeable tabs, light and dark theme, haptic feedback, Android back button support.
 
 ## Install on your phone
@@ -51,7 +52,10 @@ Updates work the same way: install the newer APK over the old one. Your data sta
 
 1. Open **Settings** (gear icon, top right). Edit **My medication** to match what you take, and **My drinks** to match your glasses and bottles. Set your daily water goal.
 2. Try **Load demo data** to see what the calendar and insights look like after a few weeks. **Delete all data** clears it again.
-3. Make a JSON backup now and then (Settings → Data). The data lives only on your phone, so uninstalling the app deletes it.
+3. The data lives only on your phone, so uninstalling the app deletes it. Either export a JSON backup now and then (Settings → Data), or turn on the Gist backup:
+   1. On GitHub, open <https://github.com/settings/personal-access-tokens/new>, give the token a name and a long expiration, and under **Account permissions** set **Gists** to **Read and write**. Generate it and copy it.
+   2. In HeadLog, Settings → Cloud backup, paste the token and tap **Connect**.
+   3. The backup lives in a secret gist named "HeadLog backup", visible under your GitHub profile → Gists.
 
 ## Development
 

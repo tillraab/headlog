@@ -3,8 +3,9 @@
   import { createBackup, createCsv, isBackup, restoreBackup, saveFile, wipe } from '$lib/backup';
   import { MED_COLORS, type DrinkPreset, type MedCategory, type Medication } from '$lib/db';
   import { loadDemo } from '$lib/demo';
-  import { i18n, setLang, t, type Lang } from '$lib/i18n.svelte';
+  import { fmt, i18n, setLang, t, type Lang } from '$lib/i18n.svelte';
   import { data, deleteDrinkPreset, deleteMedication, load, saveDrinkPreset, saveMedication, saveSettings, swapOrder } from '$lib/store.svelte';
+  import { connect, disconnect, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
   import { applyTheme, toast, type Theme } from '$lib/ui.svelte';
   import Sheet from './Sheet.svelte';
 
@@ -79,6 +80,39 @@
     if (!confirm(t('set.wipeConfirm'))) return;
     await wipe();
     await load();
+  }
+
+  let token = $state('');
+
+  async function guarded(task: () => Promise<unknown>) {
+    try {
+      await task();
+    } catch {
+      toast(t('sync.failed', { error: sync.error }));
+    }
+  }
+
+  function linkGist() {
+    return guarded(async () => {
+      const existing = await connect(token.trim());
+      token = '';
+      if (existing && confirm(t('sync.existing'))) {
+        await restoreFromGist();
+        await load();
+        toast(t('set.imported'));
+      } else if (!existing) {
+        toast(t('sync.done'));
+      }
+    });
+  }
+
+  function restoreGist() {
+    if (!confirm(t('sync.restoreConfirm'))) return;
+    return guarded(async () => {
+      await restoreFromGist();
+      await load();
+      toast(t('set.imported'));
+    });
   }
 
   async function setTheme(theme: Theme) {
@@ -237,6 +271,42 @@
         {/each}
       </div>
     </div>
+  </div>
+
+  {@render group(t('sync.title'), t('sync.hint'))}
+  <div class="card flex flex-col gap-3 p-4 text-body">
+    {#if sync.link}
+      <p class="text-sm text-muted">
+        {sync.link.lastSync ? t('sync.last', { time: fmt(sync.link.lastSync, 'd. MMM HH:mm') }) : t('sync.never')}
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <button
+          class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
+          disabled={sync.busy}
+          onclick={() => guarded(async () => {
+            await syncNow(true);
+            toast(t('sync.done'));
+          })}>{t('sync.now')}</button
+        >
+        <button class="press rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium disabled:opacity-50" disabled={sync.busy} onclick={restoreGist}>
+          {t('sync.restore')}
+        </button>
+        <button class="press rounded-xl px-4 py-2.5 text-sm font-medium text-over" onclick={disconnect}>{t('sync.disconnect')}</button>
+      </div>
+    {:else}
+      <input type="password" autocomplete="off" placeholder="github_pat_…" bind:value={token} />
+      <div class="flex items-center justify-between gap-2">
+        <a class="text-sm text-primary underline underline-offset-4" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">
+          {t('sync.tokenLink')}
+        </a>
+        <button
+          class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
+          disabled={!token.trim() || sync.busy}
+          onclick={linkGist}>{t('sync.connect')}</button
+        >
+      </div>
+    {/if}
+    {#if sync.error}<p class="text-xs text-over">{sync.error}</p>{/if}
   </div>
 
   {@render group(t('set.data'))}
