@@ -20,10 +20,10 @@
   import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
 
   const tabs = $derived([
-    { label: t('tab.today'), icon: House },
-    { label: t('tab.calendar'), icon: CalendarDays },
-    { label: t('tab.meds'), icon: Pill },
-    { label: t('tab.insights'), icon: ChartColumn }
+    { id: 'today', label: t('tab.today'), icon: House },
+    { id: 'meds', label: t('tab.meds'), icon: Pill },
+    { id: 'calendar', label: t('tab.calendar'), icon: CalendarDays },
+    { id: 'insights', label: t('tab.insights'), icon: ChartColumn }
   ]);
 
   let pager = $state<HTMLDivElement>();
@@ -124,9 +124,9 @@
       <section class="h-full w-full shrink-0 snap-start snap-always overflow-y-auto" aria-label={tab.label}>
         <div class="mx-auto max-w-lg px-4 pt-1">
           {#if data.ready}
-            {#if i === 0}<TodayTab onOpenTab={show} />
-            {:else if i === 1}<CalendarTab />
-            {:else if i === 2}<MedsTab />
+            {#if tab.id === 'today'}<TodayTab onOpenTab={(id) => show(tabs.findIndex((x) => x.id === id))} />
+            {:else if tab.id === 'meds'}<MedsTab />
+            {:else if tab.id === 'calendar'}<CalendarTab />
             {:else}<InsightsTab />{/if}
           {/if}
         </div>

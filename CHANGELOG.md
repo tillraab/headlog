@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The Meds tab comes second, before Calendar.
+
 ## [0.8.0] - 2026-11-05
 
 ### Added
