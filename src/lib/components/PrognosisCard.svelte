@@ -4,7 +4,8 @@
   import { formatDuration, formatLiters } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { t } from '$lib/i18n.svelte';
-  import { badFactors, CAFFEINE_DROP, LOW_HYDRATION, prognosis, SHORT_SLEEP_HOURS, type Status } from '$lib/prognosis';
+  import { badFactors, prognosis, type Status } from '$lib/prognosis';
+  import { CAFFEINE_DROP, LOW_HYDRATION, SHORT_SLEEP_HOURS } from '$lib/thresholds';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';

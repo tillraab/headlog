@@ -1,10 +1,11 @@
 import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
-import { headacheDays, intakeDays, MONTHLY_LIMITS, periodStats, rollingDays, ruleStatus, tenTwenty } from './analysis';
-import type { Drink, Episode, Intake, MedCategory, Medication } from './db';
+import { compareDays, dayFactors, headacheDays, intakeDays, MONTHLY_LIMITS, periodStats, rollingDays, ruleStatus, tenTwenty, type ComparisonKey, type DayFactors } from './analysis';
+import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
 import { dayKey, dayRange, formatDuration, formatLiters, keyToDate } from './days';
 import { fmt, t, tagLabel } from './i18n.svelte';
+import { PRESSURE_DROP_HPA } from './weather';
 
 type Rgb = [number, number, number];
 
@@ -39,6 +40,8 @@ export interface ReportInput {
   intakes: Intake[];
   drinks: Drink[];
   medications: Medication[];
+  sleep: Map<string, Night>;
+  weather: Map<string, WeatherDay>;
   limit: number;
   waterGoalMl: number;
   name: string;
@@ -47,7 +50,18 @@ export interface ReportInput {
   logo?: string;
 }
 
-/** One-page doctor report covering the `months` calendar months up to and including the one with `now`. */
+/** The factors of a day as short text, e.g. "pressure drop 8 hPa · 0.6 l the day before". */
+function factorText(f: DayFactors): string[] {
+  const parts: string[] = [];
+  if (f.pressure !== undefined) parts.push(t('pdf.f.pressure', { n: Math.round(f.pressure) }));
+  if (f.hydration !== undefined) parts.push(t('pdf.f.hydration', { ml: formatLiters(f.hydration) }));
+  if (f.sleep !== undefined) parts.push(t('pdf.f.sleep', { d: formatDuration(f.sleep * 3600000) }));
+  if (f.alcohol) parts.push(t('pdf.f.alcohol'));
+  if (f.caffeine !== undefined) parts.push(t('pdf.f.caffeine', { mg: Math.round(f.caffeine) }));
+  return parts;
+}
+
+/** Doctor report: an overview page, then possible triggers and a table of every headache and intake. Covers the `months` calendar months up to and including the one with `now`. */
 export function doctorReport(input: ReportInput, now: number, months: number): Uint8Array {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
@@ -129,11 +143,129 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   medicationPanel(y, medW, footerY - 3 - y);
   triggerPanel(M + medW + 4, y, inner - medW - 4, footerY - 3 - y);
 
-  doc.setDrawColor(...LINE);
-  doc.line(M, footerY, W - M, footerY);
-  text(`HeadLog ${input.version} · ${t('tenTwenty.disclaimer')}`, M, footerY + 4.5, 6.5, MUTED);
+  reasonsAndEntries();
+
+  const pages = doc.getNumberOfPages();
+  for (let page = 1; page <= pages; page++) {
+    doc.setPage(page);
+    doc.setDrawColor(...LINE);
+    doc.line(M, footerY, W - M, footerY);
+    text(`HeadLog ${input.version} · ${t('tenTwenty.disclaimer')}`, M, footerY + 4.5, 6.5, MUTED);
+    text(`${page} / ${pages}`, W - M, footerY + 4.5, 6.5, MUTED, false, 'right');
+  }
 
   return new Uint8Array(doc.output('arraybuffer'));
+
+  /**
+   * Pages after the overview: possible triggers (headache days against other days, and how many
+   * headaches each factor came with), then one row per headache and per intake without a headache.
+   */
+  function reasonsAndEntries() {
+    doc.addPage();
+    let top = 16;
+    text(t('pdf.reasons'), M, top, 14, INK, true);
+    top += 5;
+    doc.setFontSize(7.5);
+    text(doc.splitTextToSize(t('pdf.reasonsHint'), inner) as string[], M, top, 7.5, MUTED);
+    top += 9;
+
+    const periodKeys = dayRange(from, now);
+    const episodes = input.episodes.filter((e) => e.start >= fromMs && e.start <= now).sort((a, b) => a.start - b.start);
+    const factors = new Map(episodes.map((e) => [e.id, dayFactors(input, dayKey(e.start), input.waterGoalMl)]));
+    const comparisons = new Map(compareDays(input, periodKeys, now).map((c) => [c.key, c]));
+    const share = (key: keyof DayFactors) => [...factors.values()].filter((f) => f[key] !== undefined).length;
+    const percent = (v: number) => `${Math.round(v * 100)} %`;
+    const value: Record<ComparisonKey, (v: number) => string> = {
+      hydration: formatLiters,
+      sleep: (v) => formatDuration(v * 3600000),
+      caffeine: (v) => `${Math.round(v)} mg`,
+      pressure: percent,
+      alcohol: percent
+    };
+    const rows: [ComparisonKey, keyof DayFactors][] = [
+      ['pressure', 'pressure'],
+      ['hydration', 'hydration'],
+      ['sleep', 'sleep'],
+      ['alcohol', 'alcohol'],
+      ['caffeine', 'caffeine']
+    ];
+    let tableEnd = top;
+    autoTable(doc, {
+      startY: top,
+      margin: { left: M, right: M },
+      didDrawPage: (d) => {
+        tableEnd = d.cursor?.y ?? tableEnd;
+      },
+      head: [[t('pdf.factor'), t('pdf.onHeadacheDays'), t('pdf.onOtherDays'), t('pdf.withFactor')]],
+      body: rows.map(([cmp, f]) => {
+        const c = comparisons.get(cmp);
+        return [
+          t(`pdf.factor.${cmp}`, { n: PRESSURE_DROP_HPA }),
+          c ? `${value[cmp](c.headache)} (${c.nHeadache})` : '–',
+          c ? `${value[cmp](c.clear)} (${c.nClear})` : '–',
+          episodes.length ? t('pdf.ofHeadaches', { n: share(f), total: episodes.length }) : '–'
+        ];
+      }),
+      theme: 'plain',
+      styles: { fontSize: 8, cellPadding: { top: 1.6, bottom: 1.6, left: 1.5, right: 1.5 }, textColor: INK },
+      headStyles: { fontSize: 7, textColor: MUTED, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: SOFT },
+      columnStyles: { 0: { cellWidth: 70 } }
+    });
+    const tags = stats.tags.slice(0, 8).map((x) => `${tagLabel(x.tag)} ${x.count}×`).join(' · ');
+    let entriesTop = tableEnd + 6;
+    if (tags) {
+      doc.setFontSize(7.5);
+      const lines = doc.splitTextToSize(`${t('ins.tags')}: ${tags}`, inner) as string[];
+      text(lines, M, entriesTop, 7.5, MUTED);
+      entriesTop += lines.length * 3.5 + 2;
+    }
+    text(t('pdf.entries'), M, entriesTop + 3, 11, INK, true);
+
+    autoTable(doc, {
+      startY: entriesTop + 6,
+      head: [[t('pdf.date'), t('pdf.time'), t('pdf.intensity'), t('pdf.medication'), t('pdf.possible'), t('edit.note')]],
+      body: entryRows(episodes, factors),
+      margin: { left: M, right: M, bottom: 18 },
+      rowPageBreak: 'avoid',
+      theme: 'striped',
+      styles: { fontSize: 7.3, cellPadding: 1.4, textColor: INK, valign: 'top' },
+      headStyles: { fillColor: painColor(8), textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: SOFT },
+      columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 22 }, 2: { cellWidth: 11, halign: 'center' }, 3: { cellWidth: 42 }, 4: { cellWidth: 48 } }
+    });
+  }
+
+  /** One row per headache with its medication, and one per intake that belongs to no headache. */
+  function entryRows(episodes: Episode[], factors: Map<number, DayFactors>) {
+    const used = new Set<number>();
+    const reliefText = (r: number | null) => (r === null ? '' : ` (${[t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')][r].toLowerCase()})`);
+    const medLine = (i: Intake) => `${format(i.time, 'HH:mm')} ${i.name} ${i.dose}`.trim() + reliefText(i.relief);
+    const rows: { time: number; cells: string[] }[] = episodes.map((e) => {
+      const end = e.end ?? now;
+      const meds = intakes.filter((i) => i.time >= e.start - 3 * 3600000 && i.time <= end);
+      meds.forEach((i) => used.add(i.id));
+      const reasons = [...factorText(factors.get(e.id) ?? {}), ...e.tags.map(tagLabel)];
+      return {
+        time: e.start,
+        cells: [
+          fmt(e.start, 'EEE d. MMM'),
+          `${format(e.start, 'HH:mm')}–${e.end ? format(e.end, 'HH:mm') : '…'}\n${formatDuration(end - e.start)}`,
+          String(e.intensity),
+          meds.map(medLine).join('\n') || '–',
+          reasons.join('\n') || '–',
+          e.note
+        ]
+      };
+    });
+    for (const i of intakes.filter((x) => !used.has(x.id))) {
+      rows.push({
+        time: i.time,
+        cells: [fmt(i.time, 'EEE d. MMM'), t('pdf.noHeadache'), '–', medLine(i), factorText(dayFactors(input, dayKey(i.time), input.waterGoalMl)).join('\n') || '–', '']
+      });
+    }
+    return rows.sort((a, b) => a.time - b.time).map((r) => r.cells);
+  }
 
   /** One row per month, one cell per day, shaded by headache intensity, with a dot on medication days. Returns the bottom. */
   function calendar(top: number): number {

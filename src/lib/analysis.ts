@@ -1,6 +1,7 @@
 import { addDays, endOfMonth, getDay, getHours, startOfMonth } from 'date-fns';
 import { ACUTE_CATEGORIES, hydrationMl, type Drink, type Episode, type Intake, type MedCategory, type Medication, type Night, type WeatherDay } from './db';
 import { dayKey, dayRange, keyToDate, lastDays } from './days';
+import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
 
 /** Peak intensity per day touched by a headache. Ongoing episodes run until `now`. */
@@ -387,4 +388,49 @@ export function compareDays(
     if (h.length < MIN_COMPARISON_DAYS || c.length < MIN_COMPARISON_DAYS) return [];
     return [{ key, headache: avg(h), clear: avg(c), nHeadache: h.length, nClear: c.length }];
   });
+}
+
+export interface DayFactors {
+  /** Fall of the daily mean pressure from the day before, when it counts as a drop. */
+  pressure?: number;
+  /** Fluid the day before, when below three quarters of the goal. */
+  hydration?: number;
+  /** Hours asleep the night before, when the night was short. */
+  sleep?: number;
+  /** Alcohol the day before. */
+  alcohol?: true;
+  /** Caffeine on the day, when below half of the usual amount. */
+  caffeine?: number;
+}
+
+/**
+ * The factors present for a headache that started on `key`, by the same rules as the forecast:
+ * pressure drop on the day, little to drink and alcohol the day before, a short night, a caffeine
+ * drop. Factors without data are left out.
+ */
+export function dayFactors(
+  data: { drinks: Drink[]; sleep: Map<string, Night>; weather: Map<string, WeatherDay> },
+  key: string,
+  goalMl: number
+): DayFactors {
+  const before = dayKey(addDays(keyToDate(key), -1));
+  const first = firstDrinkDay(data.drinks);
+  const water = waterByDay(data.drinks);
+  const caffeine = caffeineByDay(data.drinks);
+  const factors: DayFactors = {};
+
+  const w = data.weather.get(key);
+  if (w && isPressureDrop(w.pressureDrop)) factors.pressure = w.pressureDrop;
+  if (first !== null && before >= first) {
+    const ml = water.get(before) ?? 0;
+    if (ml < goalMl * LOW_HYDRATION) factors.hydration = ml;
+  }
+  const night = data.sleep.get(key);
+  if (night && night.asleepMs < SHORT_SLEEP_HOURS * 3600000) factors.sleep = night.asleepMs / 3600000;
+  if (alcoholDays(data.drinks).has(before)) factors.alcohol = true;
+  const history = lastDays(keyToDate(before), 14).map((k) => caffeine.get(k) ?? 0);
+  const usual = history.reduce((a, b) => a + b, 0) / history.length;
+  const today = caffeine.get(key) ?? 0;
+  if (caffeine.size && usual >= MIN_USUAL_CAFFEINE && today < usual * CAFFEINE_DROP) factors.caffeine = today;
+  return factors;
 }
