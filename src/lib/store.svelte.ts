@@ -1,5 +1,7 @@
-import { CAFFEINE, db, DRINK_NAMES, fromPreset, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication } from './db';
+import { CAFFEINE, db, DRINK_NAMES, fromPreset, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type WeatherDay } from './db';
+import { dayKey } from './days';
 import { i18n } from './i18n.svelte';
+import { syncWeather, type Place } from './weather';
 import { cancelReliefCheck, scheduleReliefCheck, type DrinkCheckinSettings } from './reminders';
 import type { Theme } from './ui.svelte';
 
@@ -17,6 +19,8 @@ export interface Settings {
   headacheCheckHours: number;
   /** "What did you drink?" notifications at fixed times. */
   drinkCheckins: DrinkCheckinSettings;
+  /** Daily weather for the home town. */
+  weather: { enabled: boolean; place: Place | null };
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -27,7 +31,8 @@ const DEFAULT_SETTINGS: Settings = {
   reminders: { enabled: false, noon: 12, evening: 18 },
   reliefCheckMinutes: 60,
   headacheCheckHours: 3,
-  drinkCheckins: { enabled: false, times: ['10:00', '13:00', '16:00', '19:00'] }
+  drinkCheckins: { enabled: false, times: ['10:00', '13:00', '16:00', '19:00'] },
+  weather: { enabled: false, place: null }
 };
 
 /** All data in memory. A diary stays small, so every write reloads everything. */
@@ -38,6 +43,7 @@ export const data = $state({
   drinks: [] as Drink[],
   medications: [] as Medication[],
   drinkPresets: [] as DrinkPreset[],
+  weather: new Map<string, WeatherDay>(),
   settings: { ...DEFAULT_SETTINGS } as Settings
 });
 
@@ -64,13 +70,14 @@ async function addCaffeineDefaults() {
 export async function load() {
   await seed(db, i18n.lang);
   await addCaffeineDefaults();
-  const [episodes, intakes, drinks, medications, drinkPresets, settingRows] = await Promise.all([
+  const [episodes, intakes, drinks, medications, drinkPresets, settingRows, weather] = await Promise.all([
     db.episodes.orderBy('start').toArray(),
     db.intakes.orderBy('time').toArray(),
     db.drinks.orderBy('time').toArray(),
     db.medications.orderBy('order').toArray(),
     db.drinkPresets.orderBy('order').toArray(),
-    db.settings.toArray()
+    db.settings.toArray(),
+    db.weather.toArray()
   ]);
   const stored = Object.fromEntries(settingRows.map((r) => [r.key, r.value]));
   data.episodes = episodes;
@@ -78,6 +85,7 @@ export async function load() {
   data.drinks = drinks;
   data.medications = medications;
   data.drinkPresets = drinkPresets;
+  data.weather = new Map(weather.map((w) => [w.day, w]));
   const { reliefCheck, ...saved } = (stored.settings ?? {}) as Partial<Settings> & { reliefCheck?: boolean };
   data.settings = { ...DEFAULT_SETTINGS, ...(reliefCheck === false ? { reliefCheckMinutes: 0 } : {}), ...saved };
   data.ready = true;
@@ -191,6 +199,22 @@ export async function deleteMedication(id: number) {
 export async function deleteDrinkPreset(id: number) {
   await db.drinkPresets.delete(id);
   await load();
+}
+
+const WEATHER_SYNC_KEY = 'headlog.weatherSync';
+const WEATHER_SYNC_HOURS = 3;
+
+/** Fetches missing and recent weather, at most every few hours unless `force`. */
+export async function updateWeather(force = false) {
+  const { enabled, place } = data.settings.weather;
+  if (!enabled || !place) return;
+  const last = Number(localStorage.getItem(WEATHER_SYNC_KEY) ?? 0);
+  if (!force && Date.now() - last < WEATHER_SYNC_HOURS * 3600000) return;
+  const times = [...data.episodes.map((e) => e.start), ...data.intakes.map((i) => i.time), ...data.drinks.map((d) => d.time)];
+  const first = dayKey(Math.min(Date.now() - 30 * 86400000, ...times));
+  await syncWeather(db, $state.snapshot(place), first);
+  localStorage.setItem(WEATHER_SYNC_KEY, String(Date.now()));
+  data.weather = new Map((await db.weather.toArray()).map((w) => [w.day, w]));
 }
 
 /** Renames the default drinks into `lang`. Names the user chose stay as they are. */

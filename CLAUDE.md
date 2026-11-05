@@ -28,6 +28,7 @@ Run `bun run check` and `bun run test` before every commit.
 - `src/lib/reminders.ts`: local notifications. Hydration reminders when behind the goal, drink check-ins at fixed times with drink buttons, "did it help?" after an intake, "still a headache?" every N hours.
 - `src/lib/backup.ts`: JSON backup and restore, CSV export, `saveFile` (Android share sheet or browser download).
 - `src/lib/gist.ts`, `sync.svelte.ts`: optional backup to a secret GitHub Gist.
+- `src/lib/weather.ts`: Open-Meteo place search and daily weather (archive for old days, forecast API for the last two weeks and tomorrow), stored in the `weather` table by day. Not part of backups; it can always be fetched again. `updateWeather()` in the store syncs at most every 3 hours.
 - `src/lib/i18n.svelte.ts`: English and German strings, `t()`, date formatting `fmt()`, tag labels.
 - `src/lib/ui.svelte.ts`: toasts with undo, haptics, sheet stack, theme, datetime-local helpers.
 - `src/lib/editor.svelte.ts`: which entry the editor sheet shows.

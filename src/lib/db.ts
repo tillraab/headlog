@@ -63,6 +63,23 @@ export interface Drink extends DrinkContents {
   ml: number;
 }
 
+/** Weather of one day at the home town, from Open-Meteo. */
+export interface WeatherDay {
+  day: string;
+  /** Mean sea-level pressure in hPa. */
+  pressure: number;
+  /** Largest fall of pressure within 24 hours ending on this day, in hPa. */
+  pressureDrop: number;
+  tempMax: number;
+  tempMin: number;
+  /** Mean relative humidity in %. */
+  humidity: number | null;
+  /** Rain and snow in mm. */
+  precipitation: number;
+  /** WMO weather code. */
+  code: number;
+}
+
 export interface Setting {
   key: string;
   value: unknown;
@@ -78,6 +95,7 @@ export class HeadLogDb extends Dexie {
   drinkPresets!: EntityTable<DrinkPreset, 'id'>;
   drinks!: EntityTable<Drink, 'id'>;
   settings!: EntityTable<Setting, 'key'>;
+  weather!: EntityTable<WeatherDay, 'day'>;
 
   constructor(name = 'headlog') {
     super(name);
@@ -89,6 +107,7 @@ export class HeadLogDb extends Dexie {
       drinks: '++id, time',
       settings: 'key'
     });
+    this.version(2).stores({ weather: 'day' });
   }
 }
 

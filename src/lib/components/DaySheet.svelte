@@ -6,6 +6,7 @@
   import { edit } from '$lib/editor.svelte';
   import { fmt, t, tagLabel } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
+  import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
   import Sheet from './Sheet.svelte';
 
   let { day }: { day: string } = $props();
@@ -16,6 +17,7 @@
   const intakes = $derived(data.intakes.filter((i) => i.time >= from && i.time < to));
   const drinks = $derived(data.drinks.filter((d) => d.time >= from && d.time < to));
   const water = $derived(drinks.reduce((s, d) => s + hydrationMl(d), 0));
+  const weather = $derived(data.weather.get(day));
   const noon = $derived(Math.min(setHours(keyToDate(day), 12).getTime(), clock.now));
 
   function addMed() {
@@ -33,6 +35,19 @@
 
 <Sheet id="day" title={fmt(keyToDate(day), 'EEEE, d. MMMM yyyy')}>
   <div class="flex flex-col gap-3">
+    {#if weather}
+      <p class="flex flex-wrap items-center gap-x-2 rounded-2xl bg-surface-2 px-3 py-2 text-sm tabular">
+        <span class="text-lg">{weatherEmoji(weather.code)}</span>
+        <span>{Math.round(weather.tempMin)}–{Math.round(weather.tempMax)} °C</span>
+        <span class="text-muted">·</span>
+        <span class={weather.pressureDrop >= PRESSURE_DROP_HPA ? 'font-semibold text-over' : ''}>
+          {Math.round(weather.pressure)} hPa{weather.pressureDrop >= 1 ? ` (−${Math.round(weather.pressureDrop)})` : ''}
+        </span>
+        {#if weather.humidity !== null}<span class="text-muted">·</span><span>{weather.humidity} %</span>{/if}
+        {#if weather.precipitation >= 0.5}<span class="text-muted">·</span><span>{weather.precipitation.toFixed(1)} mm</span>{/if}
+      </p>
+    {/if}
+
     {#if !episodes.length && !intakes.length && !drinks.length}
       <p class="text-sm text-muted">{t('day.empty')}</p>
     {/if}
