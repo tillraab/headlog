@@ -85,14 +85,31 @@ export async function push(link: GistLink, force = false): Promise<GistLink> {
   return { ...link, gistId: gist.id, lastSync: Date.now(), lastHash: hash };
 }
 
-/** Reads the backup stored in the gist. */
-export async function pull(link: GistLink): Promise<Backup> {
+/** Reads the backup stored in the gist, or in one of its earlier versions. */
+export async function pull(link: GistLink, version?: string): Promise<Backup> {
   const gistId = link.gistId ?? (await findGist(link.token));
   if (!gistId) throw new Error('No HeadLog gist found');
-  const gist = await api<Gist>(link.token, `/gists/${gistId}`);
+  const gist = await api<Gist>(link.token, version ? `/gists/${gistId}/${version}` : `/gists/${gistId}`);
   const file = gist.files[FILE];
   const text = file?.truncated && file.raw_url ? await (await fetch(file.raw_url)).text() : file?.content;
   const parsed: unknown = text ? JSON.parse(text) : null;
   if (!isBackup(parsed)) throw new Error('Not a HeadLog backup');
   return parsed;
+}
+
+export interface GistVersion {
+  version: string;
+  at: number;
+}
+
+export const VERSIONS_PER_PAGE = 30;
+
+/** Saved versions of the backup, newest first. GitHub keeps one per upload. */
+export async function listVersions(link: GistLink, page = 1): Promise<GistVersion[]> {
+  if (!link.gistId) return [];
+  const commits = await api<{ version: string; committed_at: string }[]>(
+    link.token,
+    `/gists/${link.gistId}/commits?per_page=${VERSIONS_PER_PAGE}&page=${page}`
+  );
+  return commits.map((c) => ({ version: c.version, at: Date.parse(c.committed_at) }));
 }

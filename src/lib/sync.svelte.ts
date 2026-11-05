@@ -64,11 +64,12 @@ export function syncQuietly() {
   syncNow().catch(() => {});
 }
 
-export async function restoreFromGist() {
+/** Restores the current backup, or an earlier `version` of it. */
+export async function restoreFromGist(version?: string) {
   const link = sync.link;
   if (!link) return;
   await run(async () => {
-    await restoreBackup(await pull(link));
+    await restoreBackup(await pull(link, version));
     save({ ...link, lastHash: null, paused: false });
   });
 }

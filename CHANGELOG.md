@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Restore an earlier state of the Gist backup: every backup is kept as a version, listed by day and time, with a preview of what it contains.
+
 ## [0.5.0] - 2026-11-05
 
 ### Added

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBackup, wipe } from './backup';
 import { db, seed } from './db';
-import { contentHash, pull, push, type GistLink } from './gist';
+import { contentHash, listVersions, pull, push, type GistLink } from './gist';
 
 const link: GistLink = { token: 't', gistId: null, lastSync: null, lastHash: null };
 
@@ -96,5 +96,31 @@ describe('pull', () => {
   it('rejects a gist that holds something else', async () => {
     fakeGitHub('{"hello":1}');
     await expect(pull({ ...link, gistId: 'g1' })).rejects.toThrow('Not a HeadLog backup');
+  });
+});
+
+describe('versions', () => {
+  it('lists versions newest first with their time', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json([
+          { version: 'b2', committed_at: '2026-03-02T10:00:00Z' },
+          { version: 'a1', committed_at: '2026-03-01T09:00:00Z' }
+        ])
+      )
+    );
+    expect(await listVersions({ ...link, gistId: 'g1' })).toEqual([
+      { version: 'b2', at: Date.parse('2026-03-02T10:00:00Z') },
+      { version: 'a1', at: Date.parse('2026-03-01T09:00:00Z') }
+    ]);
+  });
+
+  it('reads an earlier version from its own address', async () => {
+    const backup = await createBackup();
+    const fetchMock = vi.fn(async () => Response.json({ id: 'g1', files: { 'headlog-backup.json': { content: JSON.stringify(backup) } } }));
+    vi.stubGlobal('fetch', fetchMock);
+    await pull({ ...link, gistId: 'g1' }, 'a1');
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toBe('https://api.github.com/gists/g1/a1');
   });
 });

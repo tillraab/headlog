@@ -9,7 +9,7 @@
   import { requestReminderPermission } from '$lib/reminders';
   import { doctorReport } from '$lib/report';
   import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
-  import { applyTheme, toast, type Theme } from '$lib/ui.svelte';
+  import { applyTheme, openSheet, toast, type Theme } from '$lib/ui.svelte';
   import Sheet from './Sheet.svelte';
 
   const CATEGORIES: MedCategory[] = ['analgesic', 'triptan', 'combination', 'opioid', 'preventive', 'other'];
@@ -409,6 +409,9 @@
         </button>
         <button class="press rounded-xl px-4 py-2.5 text-sm font-medium text-over" onclick={disconnect}>{t('sync.disconnect')}</button>
       </div>
+      <button class="press self-start text-sm font-medium text-primary underline underline-offset-4" onclick={() => openSheet('versions')}>
+        {t('versions.open')}
+      </button>
     {:else}
       <input type="password" autocomplete="off" placeholder="github_pat_…" bind:value={token} />
       <div class="flex items-center justify-between gap-2">

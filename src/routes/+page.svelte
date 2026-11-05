@@ -9,6 +9,7 @@
   import MedsTab from '$lib/components/MedsTab.svelte';
   import SettingsSheet from '$lib/components/SettingsSheet.svelte';
   import TodayTab from '$lib/components/TodayTab.svelte';
+  import VersionsSheet from '$lib/components/VersionsSheet.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
   import { i18n, t } from '$lib/i18n.svelte';
   import { data, endEpisode, load, ongoingEpisode, setRelief, startClock } from '$lib/store.svelte';
@@ -139,4 +140,5 @@
 
 <EditorSheet />
 <SettingsSheet />
+<VersionsSheet />
 <Toasts />
