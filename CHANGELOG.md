@@ -4,7 +4,9 @@
 
 ### Added
 
-- Headache risk for today and tomorrow, learned from your own data: for each factor (pressure drop, little to drink the day before, short night, alcohol, less caffeine than usual) HeadLog compares how often a headache started with and without it. Today shows a warning with the estimated chance, the usual chance, the reasons and a tip. An evening notification (20:00 by default, adjustable or off) warns when tomorrow looks risky.
+- Demo data shows every part of the app: links between headaches and pressure drops, short nights, little to drink and wine, caffeine, sleep with wake breaks, a hydration streak, a personal medication limit, notes, an open "did it help?" question and a pressure drop forecast for tomorrow, so the risk warnings appear.
+
+- Headache risk for today and tomorrow, learned from your own data: for each factor (pressure drop, little to drink the day before, short night, alcohol, less caffeine than usual) HeadLog compares how often a headache started with and without it. Today shows a warning with the estimated chance (the headache rate on days with the strongest active factor, a little higher for each further one), the usual chance, the reasons and a tip. An evening notification (20:00 by default, adjustable or off) warns when tomorrow looks risky.
 
 ### Changed
 

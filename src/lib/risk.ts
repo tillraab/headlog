@@ -28,6 +28,9 @@ export const MIN_WITH = 5;
 export const MIN_WITHOUT = 10;
 /** From this hour on, little to drink so far today counts toward tomorrow's risk. */
 const HYDRATION_FROM_HOUR = 16;
+/** Each active factor beyond the strongest raises the estimate by this share. */
+const EXTRA_FACTOR = 0.15;
+const MAX_ESTIMATE = 0.9;
 /** How far back the history goes. */
 const HISTORY_DAYS = 365;
 
@@ -55,7 +58,7 @@ export interface Risk {
   usual: number;
   /** Estimated chance for the day, or null when no factor has enough data. */
   estimate: number | null;
-  /** Estimate relative to usual. */
+  /** Estimate relative to usual; 1 without an estimate. */
   ratio: number;
   level: 'none' | 'possible' | 'raised' | 'high';
   factors: ActiveFactor[];
@@ -126,7 +129,8 @@ export function factorStats(data: RiskData, t: Thresholds, now: number): FactorS
 }
 
 /**
- * Risk of a headache starting today or tomorrow from the factors known now. Tomorrow uses the
+ * Risk of a headache starting today or tomorrow from the factors known now. The estimate is the
+ * headache rate on days with the strongest active factor, raised a little for each further one. Tomorrow uses the
  * pressure forecast, today's alcohol and, from 16:00, today's hydration so far; today uses last
  * night, yesterday's drinks, today's pressure and, from noon, today's caffeine.
  */
@@ -151,8 +155,10 @@ export function assessRisk(data: RiskData, t: Thresholds, now: number, day: 'tod
   }
 
   const known = factors.filter((f) => f.stats.ratio !== null);
-  const ratio = Math.min(5, known.reduce((product, f) => product * f.stats.ratio!, 1));
-  const estimate = known.length && usual > 0 ? Math.min(0.95, usual * ratio) : null;
+  // The strongest factor sets the estimate; each further one adds a little, as they overlap.
+  const strongest = Math.max(0, ...known.map((f) => f.stats.withRate));
+  const estimate = known.length ? Math.min(MAX_ESTIMATE, strongest * (1 + EXTRA_FACTOR * (known.length - 1))) : null;
+  const ratio = estimate !== null && usual > 0 ? estimate / usual : 1;
   const level = !factors.length ? 'none' : ratio >= 2.5 ? 'high' : ratio >= 1.5 ? 'raised' : 'possible';
   return { day, usual, estimate, ratio, level, factors };
 }

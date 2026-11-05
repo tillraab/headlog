@@ -74,8 +74,10 @@
   async function demo() {
     if (!confirm(t('set.demoConfirm'))) return;
     pauseSync();
+    const place = $state.snapshot(data.settings.weather.place);
     await loadDemo(Date.now(), undefined, i18n.lang);
     await load();
+    await saveSettings({ weather: { enabled: true, place }, sleep: { enabled: true } });
   }
 
   async function reset() {

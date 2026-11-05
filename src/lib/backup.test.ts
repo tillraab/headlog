@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createBackup, createCsv, isBackup, restoreBackup, wipe } from './backup';
 import { HeadLogDb, seed } from './db';
 import { loadDemo } from './demo';
+import { assessRisk } from './risk';
+import { hydrationStreak } from './analysis';
 
 let db: HeadLogDb;
 
@@ -74,5 +76,26 @@ describe('older backups', () => {
     delete backup.tables.sleep;
     await restoreBackup(backup, db);
     expect(await db.sleep.count()).toBe(0);
+  });
+});
+
+describe('demo data', () => {
+  it('shows a risk warning for today and tomorrow', async () => {
+    const now = new Date('2026-03-31T18:00').getTime();
+    await loadDemo(now, db);
+    const data = {
+      episodes: await db.episodes.toArray(),
+      drinks: await db.drinks.toArray(),
+      sleep: new Map((await db.sleep.toArray()).map((n) => [n.day, n])),
+      weather: new Map((await db.weather.toArray()).map((w) => [w.day, w]))
+    };
+    const levels = (['today', 'tomorrow'] as const).map((day) => assessRisk(data, { dropHpa: 6, goalMl: 2000 }, now, day).level);
+    expect(levels.every((l) => l === 'raised' || l === 'high')).toBe(true);
+  });
+
+  it('has a hydration streak of four days', async () => {
+    const now = new Date('2026-03-31T18:00').getTime();
+    await loadDemo(now, db);
+    expect(hydrationStreak(await db.drinks.toArray(), 2000, now).current).toBeGreaterThanOrEqual(4);
   });
 });
