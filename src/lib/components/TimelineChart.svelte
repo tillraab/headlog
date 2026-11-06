@@ -28,7 +28,20 @@
   import { keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
 
-  let { rows, bands, keys, details }: { rows: Row[]; bands: boolean[]; keys: string[]; details?: (index: number) => string[] } = $props();
+  let {
+    rows,
+    bands,
+    keys,
+    details,
+    forecast = 0
+  }: {
+    rows: Row[];
+    bands: boolean[];
+    keys: string[];
+    details?: (index: number) => string[];
+    /** Trailing days that are a forecast: shaded, with dashed lines. */
+    forecast?: number;
+  } = $props();
 
   const H = 48;
   const n = $derived(keys.length);
@@ -74,7 +87,10 @@
     {#if selected === null}
       <p class="text-muted">{t('tl.tapHint')}</p>
     {:else}
-      <p class="mb-1 font-semibold">{fmt(keyToDate(keys[selected]), 'EEEE, d. MMMM')}</p>
+      <p class="mb-1 font-semibold">
+        {fmt(keyToDate(keys[selected]), 'EEEE, d. MMMM')}
+        {#if selected >= n - forecast}<span class="font-normal text-muted">· {t('tl.forecast')}</span>{/if}
+      </p>
       <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 tabular">
         {#each rows as row (row.label)}
           {@const v = row.values[selected]}
@@ -134,13 +150,25 @@
             {#each row.values as v, i (i)}
               {@const next = row.values[i + 1]}
               {#if v !== null && next !== null && next !== undefined}
-                <line x1={i + 0.5} x2={i + 1.5} y1={s.y(v)} y2={s.y(next)} stroke={row.color} stroke-width="2" vector-effect="non-scaling-stroke" />
+                <line
+                  x1={i + 0.5}
+                  x2={i + 1.5}
+                  y1={s.y(v)}
+                  y2={s.y(next)}
+                  stroke={row.color}
+                  stroke-width="2"
+                  stroke-dasharray={i + 1 >= n - forecast ? '3 2' : undefined}
+                  vector-effect="non-scaling-stroke"
+                />
               {/if}
             {/each}
           {/if}
           {#each row.marks ?? [] as mark, i (i)}
             {#if mark}<line x1={i + 0.5} x2={i + 0.5} y1="0" y2="7" stroke={row.markColor ?? row.color} stroke-width="3" vector-effect="non-scaling-stroke" />{/if}
           {/each}
+          {#if forecast}
+            <rect x={n - forecast} width={forecast} y="0" height={H} fill="var(--color-surface-2)" opacity="0.6" />
+          {/if}
           {#if selected !== null}
             <line x1={selected + 0.5} x2={selected + 0.5} y1="0" y2={H} stroke="var(--color-fg)" stroke-width="1.5" vector-effect="non-scaling-stroke" />
           {/if}

@@ -345,7 +345,7 @@ function avg(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-/** One value per day of `keys` for the timeline charts. Null where nothing is known. */
+/** One value per day of `keys` for the timeline charts. Null where nothing is known; days after today only have the weather forecast. */
 export function timeline(
   data: { episodes: Episode[]; drinks: Drink[]; sleep: Map<string, Night>; weather: Map<string, WeatherDay> },
   keys: string[],
@@ -354,9 +354,10 @@ export function timeline(
   const pain = headacheDays(data.episodes, now);
   const water = waterByDay(data.drinks);
   const first = firstDrinkDay(data.drinks);
+  const today = dayKey(now);
   return {
     headache: keys.map((k) => pain.get(k) ?? 0),
-    hydration: keys.map((k) => (water.has(k) ? water.get(k)! : first !== null && k >= first ? 0 : null)),
+    hydration: keys.map((k) => (water.has(k) ? water.get(k)! : first !== null && k >= first && k <= today ? 0 : null)),
     sleepHours: keys.map((k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / 3600000 : null)),
     pressure: keys.map((k) => data.weather.get(k)?.pressure ?? null),
     pressureDrop: keys.map((k) => data.weather.get(k)?.pressureDrop ?? null)

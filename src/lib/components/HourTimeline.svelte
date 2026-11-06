@@ -80,7 +80,7 @@
     const box = (event.currentTarget as Element).getBoundingClientRect();
     const share = Math.min(Math.max((event.clientX - box.left) / box.width, 0), 1);
     const time = from + share * (to - from);
-    selected = Math.min(Math.round(time / (5 * 60000)) * 5 * 60000, now);
+    selected = Math.round(time / (5 * 60000)) * 5 * 60000;
   }
 
   const lines = $derived.by(() => {
@@ -93,7 +93,7 @@
     const values = [
       { key: 'headache', value: episode ? `${episode.intensity}/10` : '–' },
       { key: 'hydration', value: ml === null ? '–' : `${formatLiters(ml)} / ${formatLiters(goal)}` },
-      { key: 'sleep', value: sleeping ? t('hv.asleep') : data.sleep.size ? t('hv.awake') : '–' },
+      { key: 'sleep', value: sleeping ? t('hv.asleep') : data.sleep.size && shown <= now ? t('hv.awake') : '–' },
       { key: 'pressure', value: weather ? String(Math.round(weather.value)) : '–' }
     ] as const;
     const near = (time: number) => Math.abs(time - shown) <= NEAR;
@@ -170,7 +170,7 @@
 
 {#snippet hydration()}
   <line x1="0" x2={width} y1={yWater(goal)} y2={yWater(goal)} stroke="var(--color-water)" stroke-width="1" stroke-dasharray="3 2" opacity="0.7" vector-effect="non-scaling-stroke" />
-  {#each days as d (d.key)}
+  {#each days.filter((d) => d.start <= now) as d (d.key)}
     <line
       x1={x(d.start + PACE_FROM * HOUR)}
       x2={x(d.start + PACE_TO * HOUR)}
@@ -207,7 +207,16 @@
     {#if prev && prev.end === p.start}
       <line x1={x(p.start)} x2={x(p.start)} y1={pressureScale.y(prev.value)} y2={pressureScale.y(p.value)} stroke="var(--color-muted)" stroke-width="2" vector-effect="non-scaling-stroke" />
     {/if}
-    <line x1={x(p.start)} x2={x(p.end)} y1={pressureScale.y(p.value)} y2={pressureScale.y(p.value)} stroke="var(--color-muted)" stroke-width="2" vector-effect="non-scaling-stroke" />
+    <line
+      x1={x(p.start)}
+      x2={x(p.end)}
+      y1={pressureScale.y(p.value)}
+      y2={pressureScale.y(p.value)}
+      stroke="var(--color-muted)"
+      stroke-width="2"
+      stroke-dasharray={p.start > now ? '3 2' : undefined}
+      vector-effect="non-scaling-stroke"
+    />
     {#if p.drop}
       <line x1={x(p.start) + 0.5} x2={x(p.end) - 0.5} y1="1.5" y2="1.5" stroke="var(--color-caution)" stroke-width="3" vector-effect="non-scaling-stroke" />
     {/if}
@@ -219,7 +228,10 @@
     {#if shown === null || !lines}
       <p class="text-muted">{t('hv.tapHint')}</p>
     {:else}
-      <p class="mb-1 font-semibold">{fmt(shown, 'EEEE, d. MMMM, HH:mm')}</p>
+      <p class="mb-1 font-semibold">
+        {fmt(shown, 'EEEE, d. MMMM, HH:mm')}
+        {#if shown > now}<span class="font-normal text-muted">· {t('tl.forecast')}</span>{/if}
+      </p>
       <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 tabular">
         {#each lines.values as v (v.key)}
           {@const r = row(v.key)!}

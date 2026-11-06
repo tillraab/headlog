@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The Insights timelines run on into tomorrow when the weather forecast covers it: tomorrow is shaded, the air pressure line is dashed there, and tapping it shows the forecast.
+
 ## [0.19.0] - 2026-11-06
 
 ### Added
