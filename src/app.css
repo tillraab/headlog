@@ -49,6 +49,10 @@ body {
   background: var(--color-bg);
   color: var(--color-fg);
   overscroll-behavior: none;
+  /* Like a native app: a long press on a label does not select text. Fields stay selectable. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -111,4 +115,10 @@ body {
   input[type='checkbox'] {
     width: auto;
   }
+}
+
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
