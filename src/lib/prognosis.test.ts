@@ -34,16 +34,16 @@ describe('prognosis', () => {
     expect([p.light, p.bad, p.weather.status, p.hydration.status, p.sleep.status]).toEqual(['green', 0, 'ok', 'ok', 'ok']);
   });
 
-  it('stays green with one unfavourable factor', () => {
-    expect(prognosis(input({ sleep: new Map([['2026-03-10', night(4.5)]]) }), now).light).toBe('green');
+  it('turns yellow with one unfavourable factor', () => {
+    expect(prognosis(input({ sleep: new Map([['2026-03-10', night(4.5)]]) }), now).light).toBe('yellow');
   });
 
-  it('turns yellow with two', () => {
+  it('turns red with two', () => {
     const p = prognosis(input({ sleep: new Map([['2026-03-10', night(4.5)]]), weather: new Map([['2026-03-11', weather('2026-03-11', 8)]]) }), now);
-    expect([p.light, p.weather.drop]).toEqual(['yellow', 8]);
+    expect([p.light, p.weather.drop]).toEqual(['red', 8]);
   });
 
-  it('turns red with three or more', () => {
+  it('stays red with three or more', () => {
     const p = prognosis(
       input({
         drinks: [drink('2026-03-09T12:00', 800), drink('2026-03-09T20:00', 150, { alcohol: true }), drink('2026-03-10T09:00', 300)],
