@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.20.3] - 2026-11-06
+
 ### Fixed
 
 - Caffeine in the forecast stayed grey for new users: days before the first logged drink counted as 0 mg, so the usual amount looked too low. It now averages only the days since you started logging. Caffeine is checked from 10:00 instead of noon.
