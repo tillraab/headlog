@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-06
+
 ### Changed
 
 - The evening warning is about tomorrow only. It counts a pressure drop tomorrow, too little to drink today (under three quarters of the goal) and alcohol today. Last night's sleep and today's caffeine no longer trigger it. The notification names the reasons, for example "pressure drop tomorrow, alcohol today".
