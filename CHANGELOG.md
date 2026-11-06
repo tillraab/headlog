@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Insights can show 3 and 7 days. For these, the timeline switches to hour by hour: headaches with their exact times and intensity, medication as ticks, hydration adding up through each day against the goal and the even pace towards it, sleep with wake breaks, and air pressure. Tapping shows that moment and what happened within half an hour.
+
+### Changed
+
+- The forecast next to the date is a large coloured circle, pulsing when yellow or red.
+
 ## [0.18.2] - 2026-11-05
 
 ### Changed

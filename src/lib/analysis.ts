@@ -44,6 +44,33 @@ export function waterByDay(drinks: Drink[]): Map<string, number> {
 }
 
 /**
+ * Hydration adding up through each day in `keys`, as steps: a point before and after each drink,
+ * starting at 0 at midnight and ending at the next midnight or at `now`. Days after `now` are left out.
+ */
+export function hydrationCurve(drinks: Drink[], keys: string[], now: number): { key: string; points: { time: number; ml: number }[] }[] {
+  const byDay = new Map<string, Drink[]>();
+  for (const d of drinks) {
+    if (d.time > now) continue;
+    const key = dayKey(d.time);
+    byDay.set(key, [...(byDay.get(key) ?? []), d]);
+  }
+  return keys
+    .filter((key) => keyToDate(key).getTime() <= now)
+    .map((key) => {
+      const start = keyToDate(key).getTime();
+      let ml = 0;
+      const points = [{ time: start, ml }];
+      for (const d of (byDay.get(key) ?? []).sort((a, b) => a.time - b.time)) {
+        points.push({ time: d.time, ml });
+        ml += hydrationMl(d);
+        points.push({ time: d.time, ml });
+      }
+      points.push({ time: Math.min(addDays(start, 1).getTime(), now), ml });
+      return { key, points };
+    });
+}
+
+/**
  * Hydration in the `hours` before `time`, and what is usual for that many hours: the average over the
  * 30 days before, scaled to the same length. Usual is null without at least 7 days with drinks.
  */

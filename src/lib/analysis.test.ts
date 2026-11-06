@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, waterByDay } from './analysis';
+import { alcoholDays, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, waterByDay } from './analysis';
 import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
 import { lastDays } from './days';
 
@@ -295,5 +295,20 @@ describe('dayFactors', () => {
   it('does not call the day before the first drink a dry day', () => {
     const data = { drinks: [drink('2026-03-10T10:00', 2000)], sleep: new Map(), weather: new Map() };
     expect(dayFactors(data, '2026-03-10', 2000)).toEqual({});
+  });
+});
+
+describe('hydrationCurve', () => {
+  it('adds up each day from midnight and stops at now', () => {
+    const curve = hydrationCurve([drink('2026-03-01T09:00', 250), drink('2026-03-02T10:00', 500), drink('2026-03-02T15:00', 300)], ['2026-03-01', '2026-03-02', '2026-03-03'], at('2026-03-02T12:00'));
+    expect(curve.map((d) => d.points.map((p) => p.ml))).toEqual([
+      [0, 0, 250, 250],
+      [0, 0, 500, 500]
+    ]);
+  });
+
+  it('ends today at now', () => {
+    const curve = hydrationCurve([], ['2026-03-02'], at('2026-03-02T12:00'));
+    expect(curve[0].points.at(-1)!.time).toBe(at('2026-03-02T12:00'));
   });
 });
