@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-06
+
 ### Added
 
 - Last night on Today: an estimated night waits there with "Looks right" and "Correct" until it is confirmed, then shrinks to one line. Without data it offers to enter the night.
