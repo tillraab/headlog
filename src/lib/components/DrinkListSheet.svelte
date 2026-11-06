@@ -2,7 +2,7 @@
   import { Plus, Trash2 } from '@lucide/svelte';
   import type { DrinkPreset } from '$lib/db';
   import { t } from '$lib/i18n.svelte';
-  import { data, deleteDrinkPreset, saveDrinkPreset, saveSettings } from '$lib/store.svelte';
+  import { data, deleteDrinkPreset, saveDrinkPreset, saveSettings, updateDrinkPreset } from '$lib/store.svelte';
   import OrderButtons from './OrderButtons.svelte';
   import Sheet from './Sheet.svelte';
 
@@ -21,7 +21,7 @@
   }
 
   async function updateDrink(preset: DrinkPreset, patch: Partial<DrinkPreset>) {
-    await saveDrinkPreset({ ...$state.snapshot(preset), ...patch });
+    await updateDrinkPreset(preset.id, patch);
   }
 </script>
 

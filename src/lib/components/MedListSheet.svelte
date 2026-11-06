@@ -3,7 +3,7 @@
   import { guessCategory, MED_COLORS, type MedCategory, type Medication } from '$lib/db';
   import { toast } from '$lib/ui.svelte';
   import { t } from '$lib/i18n.svelte';
-  import { data, deleteMedication, saveMedication } from '$lib/store.svelte';
+  import { data, deleteMedication, saveMedication, updateMedication } from '$lib/store.svelte';
   import OrderButtons from './OrderButtons.svelte';
   import Sheet from './Sheet.svelte';
 
@@ -31,7 +31,7 @@
   }
 
   async function updateMed(med: Medication, patch: Partial<Medication>) {
-    await saveMedication({ ...$state.snapshot(med), ...patch });
+    await updateMedication(med.id, patch);
   }
 
   function updateLimit(med: Medication, days: string, window: string) {

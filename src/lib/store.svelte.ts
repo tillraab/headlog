@@ -205,6 +205,18 @@ export async function saveDrinkPreset(preset: Draft<DrinkPreset>) {
   await load();
 }
 
+/** Changes only the given fields, so two quick edits in a row cannot undo each other. */
+export async function updateMedication(id: number, patch: Partial<Medication>) {
+  await db.medications.update(id, $state.snapshot(patch));
+  await load();
+}
+
+/** Changes only the given fields, so two quick edits in a row cannot undo each other. */
+export async function updateDrinkPreset(id: number, patch: Partial<DrinkPreset>) {
+  await db.drinkPresets.update(id, $state.snapshot(patch));
+  await load();
+}
+
 export async function deleteMedication(id: number) {
   await db.medications.delete(id);
   await load();

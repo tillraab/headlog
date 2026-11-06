@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- In My medication and My drinks, a change to one field could be lost when you went straight on to another control, for example typing 500 ml and then tapping an icon. Each change now saves only its own field.
+
 ## [0.20.4] - 2026-11-06
 
 ### Fixed
