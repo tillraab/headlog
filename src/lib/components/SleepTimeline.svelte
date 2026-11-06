@@ -147,8 +147,12 @@
 </script>
 
 <div class="flex flex-col gap-3 select-none">
-  <div class="grid grid-cols-3 items-end gap-2">
-    <label class="flex flex-col text-xs text-muted">
+  <p class="text-center">
+    <span class="text-lg font-semibold text-primary tabular">{formatDuration(asleep)}</span>
+    <span class="text-xs text-muted">{t('sleep.asleepTotal')}</span>
+  </p>
+  <div class="grid grid-cols-2 gap-3">
+    <label class="flex min-w-0 flex-col text-xs text-muted">
       {t('sleep.asleep')}
       <input
         type="time"
@@ -160,11 +164,7 @@
         }}
       />
     </label>
-    <p class="pb-2 text-center">
-      <span class="block text-lg font-semibold text-primary tabular">{formatDuration(asleep)}</span>
-      <span class="block text-2xs text-muted">{t('sleep.asleepTotal')}</span>
-    </p>
-    <label class="flex flex-col text-right text-xs text-muted">
+    <label class="flex min-w-0 flex-col text-right text-xs text-muted">
       {t('sleep.awake')}
       <input
         type="time"

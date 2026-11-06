@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- The sleep editor's time fields cut off 12-hour times ("11:01 PM" showed as "11:01 PI"). The sleep duration now sits on its own line above them, so each field has half the width.
+
 ## [0.20.3] - 2026-11-06
 
 ### Fixed
