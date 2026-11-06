@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- Last night on Today: an estimated night waits there with "Looks right" and "Correct" until it is confirmed, then shrinks to one line. Without data it offers to enter the night.
+- A morning notification (default 9:00, Settings → Sleep) asks whether last night's times are right, with the same two buttons.
+- The sleep editor is a timeline from evening to noon: drag the dots to move falling asleep and waking up, tap a wake break to edit it on a magnified bar, add or remove wake breaks, and see when the screen was on. The sleep tile in the forecast opens it directly.
+
 ## [0.19.2] - 2026-11-06
 
 ### Changed

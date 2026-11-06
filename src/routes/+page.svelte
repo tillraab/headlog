@@ -16,8 +16,8 @@
   import VersionsSheet from '$lib/components/VersionsSheet.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
   import { i18n, t } from '$lib/i18n.svelte';
-  import { data, endEpisode, load, logDrinkFromPreset, ongoingEpisode, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
-  import { applyDrinkCheckins, applyHeadacheChecks, applyReminders, applyRiskAlert, onNotificationAction, planDrinkCheckins, planHeadacheChecks, planReminders, planRiskAlert } from '$lib/reminders';
+  import { confirmNight, data, endEpisode, load, logDrinkFromPreset, ongoingEpisode, openNight, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
+  import { applyDrinkCheckins, applyHeadacheChecks, applyReminders, applyRiskAlert, applySleepChecks, onNotificationAction, planDrinkCheckins, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from '$lib/reminders';
   import { prognosis } from '$lib/prognosis';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
@@ -57,6 +57,8 @@
     const forecastAt = (time: number) =>
       prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, time);
     void applyRiskAlert(planRiskAlert(now, data.settings.riskAlert, forecastAt)).catch(() => {});
+    const sleepCheck = { ...data.settings.sleepCheck, enabled: data.settings.sleep.enabled && data.settings.sleepCheck.enabled };
+    void applySleepChecks(planSleepChecks(now, sleepCheck, data.sleep)).catch(() => {});
   }
 
   $effect(reschedule);
@@ -84,7 +86,9 @@
       },
       relief: (id, relief) => void setRelief(id, relief),
       headacheGone: (id) => void endEpisode(id),
-      drink: (id) => void logDrinkFromPreset(id)
+      drink: (id) => void logDrinkFromPreset(id),
+      sleepOk: (day) => void confirmNight(day),
+      sleepFix: (day) => void openNight(day)
     });
     const media = matchMedia('(prefers-color-scheme: dark)');
     const onScheme = () => applyTheme(data.settings.theme);

@@ -14,6 +14,7 @@
   import WelcomeCard from './WelcomeCard.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
+  import SleepCard from './SleepCard.svelte';
 
   let { onOpenTab }: { onOpenTab: (tab: 'meds') => void } = $props();
 
@@ -220,6 +221,8 @@
       {t('prog.title')}
     </button>
   </header>
+
+  <SleepCard />
 
   {#if ongoing}
     {@const long = clock.now - ongoing.start > 24 * 3600000}

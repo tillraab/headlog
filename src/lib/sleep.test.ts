@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { editNight, estimateNight, type ScreenEvent } from './sleep';
+import { defaultNight, estimateNight, manualNight, nightSpan, onPeriods, type ScreenEvent } from './sleep';
 
 const at = (s: string) => new Date(s).getTime();
 const off = (s: string): ScreenEvent => ({ time: at(s), on: false });
@@ -45,10 +45,48 @@ describe('estimateNight', () => {
   });
 });
 
-describe('editNight', () => {
-  it('keeps the breaks inside the new times and marks the night as set by hand', () => {
-    const night = estimateNight([off('2026-03-09T23:00'), on('2026-03-10T03:10'), off('2026-03-10T03:35'), on('2026-03-10T06:30')], '2026-03-10', now)!;
-    const edited = editNight(night, at('2026-03-09T22:30'), at('2026-03-10T07:00'));
-    expect([edited.asleepMs, edited.source]).toEqual([8.5 * HOUR - 25 * 60000, 'manual']);
+describe('manualNight', () => {
+  it('cuts breaks to the night, joins overlapping ones and recomputes the sleep', () => {
+    const night = manualNight('2026-03-10', at('2026-03-09T23:00'), at('2026-03-10T07:00'), [
+      { start: at('2026-03-10T03:30'), end: at('2026-03-10T04:00') },
+      { start: at('2026-03-10T03:00'), end: at('2026-03-10T03:45') },
+      { start: at('2026-03-10T06:50'), end: at('2026-03-10T07:30') }
+    ]);
+    expect([night.breaks, night.asleepMs, night.source]).toEqual([
+      [
+        { start: at('2026-03-10T03:00'), end: at('2026-03-10T04:00') },
+        { start: at('2026-03-10T06:50'), end: at('2026-03-10T07:00') }
+      ],
+      8 * HOUR - 70 * 60000,
+      'manual'
+    ]);
+  });
+});
+
+describe('defaultNight', () => {
+  it('runs from 23:00 to 7:00', () => {
+    const night = defaultNight('2026-03-10');
+    expect([night.start, night.end, night.asleepMs]).toEqual([at('2026-03-09T23:00'), at('2026-03-10T07:00'), 8 * HOUR]);
+  });
+});
+
+describe('nightSpan', () => {
+  it.each([
+    ['2026-03-09T23:00', '2026-03-10T07:00', '2026-03-09T20:00', '2026-03-10T12:00'],
+    ['2026-03-09T19:30', '2026-03-10T12:10', '2026-03-09T18:00', '2026-03-10T14:00']
+  ])('for a night %s to %s shows %s to %s', (start, end, from, to) => {
+    const span = nightSpan(manualNight('2026-03-10', at(start), at(end), []));
+    expect([span.from, span.to]).toEqual([at(from), at(to)]);
+  });
+});
+
+describe('onPeriods', () => {
+  it('pairs on and off events and cuts them to the span', () => {
+    const periods = onPeriods([on('2026-03-09T19:00'), off('2026-03-09T21:00'), on('2026-03-10T03:00'), off('2026-03-10T03:20'), on('2026-03-10T11:00')], at('2026-03-09T20:00'), at('2026-03-10T12:00'));
+    expect(periods).toEqual([
+      { start: at('2026-03-09T20:00'), end: at('2026-03-09T21:00') },
+      { start: at('2026-03-10T03:00'), end: at('2026-03-10T03:20') },
+      { start: at('2026-03-10T11:00'), end: at('2026-03-10T12:00') }
+    ]);
   });
 });

@@ -79,9 +79,9 @@ export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lan
     const asleep = addMinutes(day, -90 + Math.floor(rnd() * 120)).getTime();
     const hours = shortNight ? 4.6 + rnd() * 1.1 : 6.8 + rnd() * 1.6;
     const wake = Math.min(asleep + hours * 3600000, today);
-    const breaks = rnd() < 0.2 ? [{ start: asleep + 3 * 3600000, end: asleep + 3 * 3600000 + (10 + Math.floor(rnd() * 30)) * 60000 }] : [];
+    const breaks = isToday || rnd() < 0.2 ? [{ start: asleep + 3 * 3600000, end: asleep + 3 * 3600000 + (10 + Math.floor(rnd() * 30)) * 60000 }] : [];
     const awake = breaks.reduce((sum, b) => sum + b.end - b.start, 0);
-    if (wake > asleep + awake) nights.push({ day: key, start: asleep, end: wake, asleepMs: wake - asleep - awake, breaks, source: 'manual' });
+    if (wake > asleep + awake) nights.push({ day: key, start: asleep, end: wake, asleepMs: wake - asleep - awake, breaks, source: isToday ? 'screen' : 'manual' });
 
     // Drinks: the four days before today reach the goal for a streak; today is still under way.
     const streakDay = i >= 1 && i <= 4;

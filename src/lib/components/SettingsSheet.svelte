@@ -350,6 +350,22 @@
       {#if data.settings.sleep.enabled && access?.granted}
         <p class="text-xs text-muted">{data.sleep.size ? t('sleep.nights', { n: data.sleep.size }) : t('sleep.none')}</p>
       {/if}
+      {#if data.settings.sleep.enabled}
+        <label class="flex items-center justify-between gap-4">
+          {t('sleep.checkSetting')}
+          <select
+            class="w-32 shrink-0"
+            value={data.settings.sleepCheck.enabled ? data.settings.sleepCheck.hour : 0}
+            onchange={(e) => {
+              const hour = Number(e.currentTarget.value);
+              void saveSettings({ sleepCheck: hour ? { enabled: true, hour } : { ...data.settings.sleepCheck, enabled: false } });
+            }}
+          >
+            <option value={0}>{t('rem.off')}</option>
+            {#each [7, 8, 9, 10, 11] as h (h)}<option value={h}>{String(h).padStart(2, '0')}:00</option>{/each}
+          </select>
+        </label>
+      {/if}
       {#if data.settings.sleep.enabled && access && !access.granted}
         <p class="text-xs text-muted">{t('sleep.allowHint')}</p>
         <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={() => openUsageAccessSettings()}>

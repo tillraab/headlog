@@ -1,0 +1,58 @@
+<script lang="ts">
+  /**
+   * Last night on Today. An estimate waits here with Looks right / Correct until it is confirmed;
+   * a confirmed night shrinks to one line that still opens the editor.
+   */
+  import { Check, Moon } from '@lucide/svelte';
+  import { format } from 'date-fns';
+  import { dayKey, formatDuration } from '$lib/days';
+  import { t } from '$lib/i18n.svelte';
+  import { clock, confirmNight, data, openNight } from '$lib/store.svelte';
+  import { tap, toast } from '$lib/ui.svelte';
+
+  const day = $derived(dayKey(clock.now));
+  const night = $derived(data.sleep.get(day));
+  const hm = (time: number) => format(time, 'HH:mm');
+  const awake = $derived(night ? night.breaks.reduce((sum, b) => sum + b.end - b.start, 0) : 0);
+
+  async function confirm() {
+    tap();
+    await confirmNight(day);
+    toast(t('toast.saved'));
+  }
+</script>
+
+{#if night?.source === 'manual'}
+  <button class="press card flex items-center gap-3 px-4 py-2.5 text-left text-sm" onclick={() => openNight(day)}>
+    <Moon size={16} class="shrink-0 text-primary" />
+    <span class="flex-1 text-muted">{t('sleep.card.title')}</span>
+    <span class="font-medium tabular">{hm(night.start)}–{hm(night.end)} · {formatDuration(night.asleepMs)}</span>
+    <Check size={16} class="shrink-0 text-ok" />
+  </button>
+{:else if night}
+  <section class="card flex flex-col gap-3 p-4">
+    <div class="flex items-center gap-3">
+      <span class="grid size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary"><Moon size={20} /></span>
+      <div class="flex-1">
+        <p class="text-xs text-muted">{t('sleep.card.title')}</p>
+        <p class="font-semibold tabular">
+          {hm(night.start)}–{hm(night.end)} · {formatDuration(night.asleepMs)}
+        </p>
+        {#if night.breaks.length}
+          <p class="text-xs text-muted tabular">{t('sleep.breaks', { n: night.breaks.length, d: formatDuration(awake) })}</p>
+        {/if}
+      </div>
+    </div>
+    <p class="text-xs text-muted">{t('sleep.card.question')}</p>
+    <div class="grid grid-cols-2 gap-2">
+      <button class="press rounded-xl bg-surface-2 py-2.5 text-sm font-medium" onclick={() => openNight(day)}>{t('sleep.card.fix')}</button>
+      <button class="press rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-fg" onclick={confirm}>{t('sleep.card.ok')}</button>
+    </div>
+  </section>
+{:else if data.settings.sleep.enabled}
+  <section class="card flex items-center gap-3 p-4">
+    <span class="grid size-10 shrink-0 place-items-center rounded-full bg-surface-2 text-muted"><Moon size={20} /></span>
+    <p class="flex-1 text-sm text-muted">{t('sleep.card.none')}</p>
+    <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={() => openNight(day)}>{t('sleep.card.add')}</button>
+  </section>
+{/if}

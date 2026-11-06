@@ -1,12 +1,11 @@
 <script lang="ts">
   import { ChevronDown, Pencil } from '@lucide/svelte';
   import { format } from 'date-fns';
-  import { formatDuration, formatLiters } from '$lib/days';
-  import { edit } from '$lib/editor.svelte';
+  import { dayKey, formatDuration, formatLiters } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
   import { badFactors, prognosis, type Status } from '$lib/prognosis';
   import { CAFFEINE_DROP, LOW_HYDRATION, SHORT_SLEEP_HOURS } from '$lib/thresholds';
-  import { clock, data } from '$lib/store.svelte';
+  import { clock, data, openNight } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import TrafficLight, { LIGHT_COLOR } from './TrafficLight.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
@@ -16,6 +15,8 @@
   const p = $derived(
     prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, clock.now)
   );
+
+  const toggle = () => (open = !open);
 
   const STATUS: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
   const hm = (time: number) => format(time, 'HH:mm');
@@ -48,19 +49,22 @@
       icon: '🌦️',
       label: t('prog.weather'),
       status: p.weather.status,
-      value: p.weather.status === 'unknown' ? '–' : p.weather.drop >= 1 ? `−${Math.round(p.weather.drop)} hPa` : t('prog.stable')
+      value: p.weather.status === 'unknown' ? '–' : p.weather.drop >= 1 ? `−${Math.round(p.weather.drop)} hPa` : t('prog.stable'),
+      onclick: toggle
     },
     {
       icon: '💧',
       label: t('prog.hydration'),
       status: p.hydration.status,
-      value: p.hydration.status === 'unknown' ? '–' : `${formatLiters(p.hydration.today)}`
+      value: p.hydration.status === 'unknown' ? '–' : `${formatLiters(p.hydration.today)}`,
+      onclick: toggle
     },
     {
       icon: '😴',
       label: t('prog.sleep'),
       status: p.sleep.status,
-      value: p.sleep.night ? formatDuration(p.sleep.night.asleepMs) : '–'
+      value: p.sleep.night ? formatDuration(p.sleep.night.asleepMs) : '–',
+      onclick: () => openNight(dayKey(clock.now))
     }
   ]);
 
@@ -91,7 +95,7 @@
 {/snippet}
 
 <section class="card overflow-hidden">
-  <button class="press flex w-full flex-col gap-3 p-4 text-left" onclick={() => (open = !open)} aria-expanded={open}>
+  <button class="press flex w-full flex-col gap-3 p-4 pb-3 text-left" onclick={toggle} aria-expanded={open}>
     <div class="flex items-center gap-3">
       <TrafficLight light={p.light} />
       <span class="flex-1">
@@ -101,18 +105,18 @@
       </span>
       <ChevronDown size={18} class="shrink-0 text-muted transition-transform {open ? 'rotate-180' : ''}" />
     </div>
-    <div class="grid grid-cols-3 gap-2">
-      {#each tiles as tile (tile.label)}
-        <div class="flex flex-col gap-0.5 rounded-xl bg-surface-2 px-2.5 py-2">
-          <span class="flex items-center gap-1.5 text-xs text-muted">
-            <span class="size-2 rounded-full" style:background-color={STATUS[tile.status]}></span>
-            {tile.icon} {tile.label}
-          </span>
-          <span class="text-sm font-semibold tabular">{tile.value}</span>
-        </div>
-      {/each}
-    </div>
   </button>
+  <div class="grid grid-cols-3 gap-2 px-4 pb-4">
+    {#each tiles as tile (tile.label)}
+      <button class="press flex flex-col gap-0.5 rounded-xl bg-surface-2 px-2.5 py-2 text-left" onclick={tile.onclick}>
+        <span class="flex items-center gap-1.5 text-xs text-muted">
+          <span class="size-2 rounded-full" style:background-color={STATUS[tile.status]}></span>
+          {tile.icon} {tile.label}
+        </span>
+        <span class="text-sm font-semibold tabular">{tile.value}</span>
+      </button>
+    {/each}
+  </div>
 
   {#if open}
     <div class="flex flex-col gap-3 px-4 pb-4 text-sm">
@@ -159,7 +163,7 @@
           ? t(data.settings.sleep.enabled ? 'prog.why.sleepNone' : 'prog.why.sleepOff')
           : t(p.sleep.status === 'bad' ? 'prog.why.sleepBad' : 'prog.why.sleepOk', { d: formatDuration(p.sleep.night.asleepMs), limit: SHORT_SLEEP_HOURS }),
         t('prog.rule.sleep', { limit: SHORT_SLEEP_HOURS }),
-        p.sleep.night ? () => edit({ kind: 'sleep', item: p.sleep.night! }) : data.settings.sleep.enabled ? undefined : () => openSheet('settings')
+        data.settings.sleep.enabled || p.sleep.night ? () => openNight(dayKey(clock.now)) : () => openSheet('settings')
       )}
 
       {#if p.alcohol.status !== 'unknown'}

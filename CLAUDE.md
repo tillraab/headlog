@@ -61,7 +61,7 @@ Run `bun run check` and `bun run test` before every commit.
 
 ### Notifications
 
-- Fixed id ranges: water 100–113, "still a headache?" 200–211, drink check-ins 300–355, evening forecast 400, "did it help?" 100000 + intake id. Keep new kinds out of these ranges.
+- Fixed id ranges: water 100–113, "still a headache?" 200–211, drink check-ins 300–355, evening forecast 400, morning sleep question 500–501, "did it help?" 100000 + intake id. Keep new kinds out of these ranges.
 - Every scheduling call goes through `serial()` in `reminders.ts`. Without it, an older plan can finish after a newer one and leave stale notifications.
 - Rescheduling is declarative: `+page.svelte` recomputes the plans whenever data or settings change and on return to the app. Add new reminder kinds the same way (pure `plan…` function with tests, `apply…` that cancels its id range and schedules).
 - The manifest declares `USE_EXACT_ALARM`, which Android grants on install for apps outside Google Play. Without it, the plugin opens the "Alarms & reminders" settings screen on its own, or falls back to alarms up to 45 minutes late.

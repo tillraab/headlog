@@ -4,7 +4,7 @@ import { i18n } from './i18n.svelte';
 beforeAll(() => {
   i18n.lang = 'en';
 });
-import { planDrinkCheckins, planHeadacheChecks, planReminders, planRiskAlert } from './reminders';
+import { planDrinkCheckins, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from './reminders';
 import type { Prognosis } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
@@ -134,5 +134,27 @@ describe('planRiskAlert', () => {
 
   it('stays silent after the hour has passed', () => {
     expect(planRiskAlert(at('2026-03-02T21:00'), { enabled: true, hour: 20 }, forecast('red'))).toEqual([]);
+  });
+});
+
+describe('planSleepChecks', () => {
+  const settings = { enabled: true, hour: 9 };
+  const night = (source: 'screen' | 'manual') =>
+    new Map([['2026-03-10', { day: '2026-03-10', start: at('2026-03-09T23:40'), end: at('2026-03-10T06:55'), asleepMs: 7.25 * 3600000, breaks: [], source }]]);
+
+  it('asks this morning with the estimated times, and tomorrow morning', () => {
+    const plan = planSleepChecks(at('2026-03-10T07:30'), settings, night('screen'));
+    expect(plan.map((r) => [r.day, r.at, r.body.includes('23:40–06:55')])).toEqual([
+      ['2026-03-10', at('2026-03-10T09:00'), true],
+      ['2026-03-11', at('2026-03-11T09:00'), false]
+    ]);
+  });
+
+  it('skips a night that is already confirmed', () => {
+    expect(planSleepChecks(at('2026-03-10T07:30'), settings, night('manual')).map((r) => r.day)).toEqual(['2026-03-11']);
+  });
+
+  it('plans nothing when switched off', () => {
+    expect(planSleepChecks(at('2026-03-10T07:30'), { ...settings, enabled: false }, night('screen'))).toEqual([]);
   });
 });
