@@ -1,8 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { addDays, format, isSameDay, setHours, startOfDay } from 'date-fns';
-import { hydrationMl } from './db';
-import { formatDuration, formatLiters } from './days';
+import { hydrationMl, type Night } from './db';
+import { dayKey, formatDuration, formatLiters } from './days';
 import { fmt, t } from './i18n.svelte';
 import { badFactors, type Prognosis } from './prognosis';
 
@@ -104,6 +104,7 @@ export async function requestReminderPermission(): Promise<boolean> {
 }
 
 const RELIEF_TYPE = 'relief';
+const SLEEP_TYPE = 'sleep';
 const HEADACHE_TYPE = 'headache';
 const DRINK_TYPE = 'drink';
 
@@ -129,7 +130,14 @@ async function registerActions() {
           { id: 'headache-gone', title: t('rem.headacheGone') }
         ]
       },
-      { id: DRINK_TYPE, actions: drinkButtons.map((b) => ({ id: `drink-${b.id}`, title: b.label })) }
+      { id: DRINK_TYPE, actions: drinkButtons.map((b) => ({ id: `drink-${b.id}`, title: b.label })) },
+      {
+        id: SLEEP_TYPE,
+        actions: [
+          { id: 'sleep-ok', title: t('sleep.card.ok') },
+          { id: 'sleep-fix', title: t('sleep.card.fix') }
+        ]
+      }
     ]
   });
 }
@@ -168,6 +176,8 @@ export interface NotificationAnswers {
   relief: (intakeId: number, relief: number) => void;
   headacheGone: (episodeId: number) => void;
   drink: (presetId: number) => void;
+  sleepOk: (day: string) => void;
+  sleepFix: (day: string) => void;
 }
 
 /** Handles taps on notification buttons. */
@@ -175,12 +185,14 @@ export function onNotificationAction(answers: NotificationAnswers) {
   if (!Capacitor.isNativePlatform()) return () => {};
   const handle = LocalNotifications.addListener('localNotificationActionPerformed', ({ actionId, notification }) => {
     answers.opened();
-    const extra = notification.extra as { intakeId?: number; episodeId?: number } | undefined;
+    const extra = notification.extra as { intakeId?: number; episodeId?: number; day?: string } | undefined;
     const relief = /^relief-(\d)$/.exec(actionId);
     if (relief && extra?.intakeId !== undefined) answers.relief(extra.intakeId, Number(relief[1]));
     if (actionId === 'headache-gone' && extra?.episodeId !== undefined) answers.headacheGone(extra.episodeId);
     const drink = /^drink-(\d+)$/.exec(actionId);
     if (drink) answers.drink(Number(drink[1]));
+    if (actionId === 'sleep-ok' && extra?.day) answers.sleepOk(extra.day);
+    if (actionId === 'sleep-fix' && extra?.day) answers.sleepFix(extra.day);
   });
   return () => void handle.then((h) => h.remove());
 }
@@ -327,6 +339,49 @@ export function applyDrinkCheckins(plan: PlannedReminder[], presets: { id: numbe
         largeBody: r.largeBody,
         actionTypeId: DRINK_TYPE,
         autoCancel: true,
+        schedule: { at: new Date(r.at), allowWhileIdle: true }
+      }))
+    });
+  });
+}
+
+const SLEEP_FIRST_ID = 500;
+const SLEEP_DAYS = 2;
+
+/**
+ * "How did you sleep?" this morning and tomorrow morning at `hour`, while the night is not confirmed.
+ * This morning's names the estimated times; tomorrow's night is not known yet.
+ */
+export function planSleepChecks(now: number, settings: { enabled: boolean; hour: number }, nights: Map<string, Night>): (PlannedReminder & { day: string })[] {
+  if (!settings.enabled) return [];
+  return Array.from({ length: SLEEP_DAYS }, (_, d) => addDays(startOfDay(now), d)).flatMap((morning, d) => {
+    const day = dayKey(morning);
+    const at = setHours(morning, settings.hour).getTime();
+    const night = nights.get(day);
+    if (at <= now || night?.source === 'manual') return [];
+    const body =
+      night && d === 0
+        ? t('rem.sleepBody', { d: formatDuration(night.asleepMs), from: format(night.start, 'HH:mm'), to: format(night.end, 'HH:mm') })
+        : t('rem.sleepBodyLater');
+    return [{ id: SLEEP_FIRST_ID + d, at, day, title: t('rem.sleepTitle'), body }];
+  });
+}
+
+/** Replaces the pending sleep questions with the plan, with Looks right / Correct buttons. */
+export function applySleepChecks(plan: (PlannedReminder & { day: string })[]) {
+  return serial(async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    await LocalNotifications.cancel({ notifications: Array.from({ length: SLEEP_DAYS }, (_, i) => ({ id: SLEEP_FIRST_ID + i })) });
+    if (!plan.length || !(await requestReminderPermission())) return;
+    await registerActions();
+    await LocalNotifications.schedule({
+      notifications: plan.map((r) => ({
+        id: r.id,
+        title: r.title,
+        body: r.body,
+        actionTypeId: SLEEP_TYPE,
+        autoCancel: true,
+        extra: { day: r.day },
         schedule: { at: new Date(r.at), allowWhileIdle: true }
       }))
     });

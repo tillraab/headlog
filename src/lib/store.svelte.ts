@@ -1,7 +1,8 @@
 import { CAFFEINE, db, DRINK_NAMES, fromPreset, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type WeatherDay } from './db';
 import { dayKey } from './days';
 import { i18n } from './i18n.svelte';
-import { syncNights } from './sleep';
+import { edit } from './editor.svelte';
+import { defaultNight, syncNights } from './sleep';
 import { syncWeather, type Place } from './weather';
 import { cancelReliefCheck, scheduleReliefCheck, type DrinkCheckinSettings } from './reminders';
 import type { Theme } from './ui.svelte';
@@ -24,6 +25,8 @@ export interface Settings {
   weather: { enabled: boolean; place: Place | null };
   /** Estimate sleep from screen activity. */
   sleep: { enabled: boolean };
+  /** Morning notification asking whether last night's times are right. */
+  sleepCheck: { enabled: boolean; hour: number };
   /** Evening notification when a headache is more likely tomorrow. */
   riskAlert: { enabled: boolean; hour: number };
 }
@@ -39,6 +42,7 @@ const DEFAULT_SETTINGS: Settings = {
   drinkCheckins: { enabled: false, times: ['10:00', '13:00', '16:00', '19:00'] },
   weather: { enabled: false, place: null },
   sleep: { enabled: false },
+  sleepCheck: { enabled: true, hour: 9 },
   riskAlert: { enabled: true, hour: 20 }
 };
 
@@ -244,6 +248,19 @@ export async function updateSleep() {
 export async function saveNight(night: Night) {
   await db.sleep.put($state.snapshot(night));
   await load();
+}
+
+/** Opens the sleep editor for the night ending on `day`, starting from 23:00–7:00 when nothing is known. */
+export async function openNight(day: string) {
+  await updateSleep();
+  edit({ kind: 'sleep', item: data.sleep.get(day) ?? defaultNight(day) });
+}
+
+/** Keeps the night ending on `day` as estimated, so it is no longer estimated again. */
+export async function confirmNight(day: string) {
+  await updateSleep();
+  const night = data.sleep.get(day);
+  if (night && night.source !== 'manual') await saveNight({ ...night, source: 'manual' });
 }
 
 /** Renames the default drinks into `lang`. Names the user chose stay as they are. */

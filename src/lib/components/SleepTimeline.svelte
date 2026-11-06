@@ -1,0 +1,265 @@
+<script lang="ts">
+  /**
+   * A night on a time axis from evening to noon. The dots at both ends of the sleep bar move falling
+   * asleep and waking up; tapping a gap selects that wake break and opens a magnified bar around it,
+   * where its edges can be dragged. Grey ticks below show when the screen was on, the source of the
+   * estimate.
+   */
+  import { addDays, format, setHours, startOfDay } from 'date-fns';
+  import type { Night } from '$lib/db';
+  import { formatDuration } from '$lib/days';
+  import { t } from '$lib/i18n.svelte';
+  import { nightSpan, onPeriods, screenEvents } from '$lib/sleep';
+  import { tap } from '$lib/ui.svelte';
+
+  let { night = $bindable() }: { night: Night } = $props();
+
+  const MINUTE = 60000;
+  const SNAP = 5 * MINUTE;
+  /** Shortest sleep before or after a break, and shortest break. */
+  const MIN_GAP = 5 * MINUTE;
+  const NEW_BREAK = 15 * MINUTE;
+  /** The magnified bar shows this much before and after the selected break. */
+  const ZOOM_MARGIN = 90 * MINUTE;
+  const HALF_HOUR = 30 * MINUTE;
+
+  type Span = { from: number; to: number };
+
+  /** The span is fixed when the editor opens, so it does not move under the finger. */
+  const span: Span = nightSpan(night);
+  const pct = (time: number, within: Span = span) => ((time - within.from) / (within.to - within.from)) * 100;
+  const ticks = (within: Span, step: number) => {
+    const list: number[] = [];
+    const midnight = startOfDay(within.from).getTime();
+    for (let h = midnight + Math.ceil((within.from - midnight) / step) * step; h <= within.to; h += step) list.push(h);
+    return list;
+  };
+
+  let screen = $state<{ start: number; end: number }[]>([]);
+  void screenEvents(span.from, span.to)
+    .then((events) => (screen = onPeriods(events, span.from, span.to)))
+    .catch(() => {});
+
+  let selected = $state<number | null>(null);
+  /** Fixed while a break is selected, so the magnified bar does not move under the finger. */
+  let zoom = $state<Span | null>(null);
+  type Handle = 'start' | 'end' | 'breakStart' | 'breakEnd';
+  let dragging = $state<{ handle: Handle; track: Element; within: Span } | null>(null);
+
+  const awake = $derived(night.breaks.reduce((sum, b) => sum + b.end - b.start, 0));
+  const asleep = $derived(Math.max(0, night.end - night.start - awake));
+  /** The sleep stretches between the breaks. */
+  const segments = $derived.by(() => {
+    const list: { start: number; end: number }[] = [];
+    let start = night.start;
+    for (const b of night.breaks) {
+      list.push({ start, end: b.start });
+      start = b.end;
+    }
+    list.push({ start, end: night.end });
+    return list;
+  });
+
+  function timeAt(clientX: number, track: Element, within: Span): number {
+    const box = track.getBoundingClientRect();
+    const share = Math.min(Math.max((clientX - box.left) / box.width, 0), 1);
+    return Math.round((within.from + share * (within.to - within.from)) / SNAP) * SNAP;
+  }
+
+  function select(index: number | null) {
+    selected = index;
+    const b = index === null ? undefined : night.breaks[index];
+    zoom = b
+      ? {
+          from: Math.max(span.from, Math.floor((b.start - ZOOM_MARGIN) / HALF_HOUR) * HALF_HOUR),
+          to: Math.min(span.to, Math.ceil((b.end + ZOOM_MARGIN) / HALF_HOUR) * HALF_HOUR)
+        }
+      : null;
+  }
+
+  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
+  function move(handle: Handle, time: number) {
+    const b = night.breaks;
+    const i = selected ?? 0;
+    const before = Math.floor(time / (15 * MINUTE));
+    if (handle === 'start') night.start = clamp(time, span.from, (b[0]?.start ?? night.end) - MIN_GAP);
+    if (handle === 'end') night.end = clamp(time, (b.at(-1)?.end ?? night.start) + MIN_GAP, span.to);
+    if (handle === 'breakStart') b[i].start = clamp(time, (i ? b[i - 1].end : night.start) + MIN_GAP, b[i].end - MIN_GAP);
+    if (handle === 'breakEnd') b[i].end = clamp(time, b[i].start + MIN_GAP, (b[i + 1]?.start ?? night.end) - MIN_GAP);
+    if (before !== lastQuarter) tap('light');
+    lastQuarter = before;
+  }
+  let lastQuarter = 0;
+
+  function grab(handle: Handle, within: Span) {
+    return (e: PointerEvent) => {
+      e.stopPropagation();
+      const target = e.currentTarget as Element;
+      target.setPointerCapture(e.pointerId);
+      dragging = { handle, track: target.parentElement!, within };
+      lastQuarter = Math.floor(timeAt(e.clientX, dragging.track, within) / (15 * MINUTE));
+    };
+  }
+
+  function drag(e: PointerEvent) {
+    if (dragging) move(dragging.handle, timeAt(e.clientX, dragging.track, dragging.within));
+  }
+
+  function release() {
+    dragging = null;
+  }
+
+  /** Selects the break under a tap on the bar, or clears the selection. */
+  function pick(e: MouseEvent) {
+    const time = timeAt(e.clientX, e.currentTarget as Element, span);
+    const hit = night.breaks.findIndex((b) => time >= b.start - 10 * MINUTE && time <= b.end + 10 * MINUTE);
+    select(hit < 0 ? null : hit);
+  }
+
+  /** A 15-minute break in the middle of the longest sleep stretch. */
+  function addBreak() {
+    const longest = segments.reduce((a, s) => (s.end - s.start > a.end - a.start ? s : a));
+    if (longest.end - longest.start < NEW_BREAK + 2 * MIN_GAP) return;
+    const middle = Math.round((longest.start + longest.end) / 2 / SNAP) * SNAP;
+    const added = { start: middle - NEW_BREAK / 2, end: middle + NEW_BREAK / 2 };
+    night.breaks = [...night.breaks, added].sort((a, b) => a.start - b.start);
+    select(night.breaks.findIndex((b) => b.start === added.start));
+  }
+
+  function removeBreak() {
+    if (selected === null) return;
+    night.breaks = night.breaks.filter((_, i) => i !== selected);
+    select(null);
+  }
+
+  /** Typed times: evening hours belong to the day before, morning hours to the day itself. */
+  function typed(value: string): number | null {
+    const [h, m] = value.split(':').map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    const morning = startOfDay(new Date(`${night.day}T12:00`));
+    const day = h >= 15 ? addDays(morning, -1) : morning;
+    return setHours(day, h).getTime() + m * MINUTE;
+  }
+
+  const hm = (time: number) => format(time, 'HH:mm');
+  const sel = $derived(selected !== null ? night.breaks[selected] : undefined);
+</script>
+
+<div class="flex flex-col gap-3 select-none">
+  <div class="grid grid-cols-3 items-end gap-2">
+    <label class="flex flex-col text-xs text-muted">
+      {t('sleep.asleep')}
+      <input
+        type="time"
+        class="mt-0.5 w-full px-2 text-lg font-semibold text-fg tabular"
+        value={hm(night.start)}
+        onchange={(e) => {
+          const time = typed(e.currentTarget.value);
+          if (time !== null) move('start', time);
+        }}
+      />
+    </label>
+    <p class="pb-2 text-center">
+      <span class="block text-lg font-semibold text-primary tabular">{formatDuration(asleep)}</span>
+      <span class="block text-2xs text-muted">{t('sleep.asleepTotal')}</span>
+    </p>
+    <label class="flex flex-col text-right text-xs text-muted">
+      {t('sleep.awake')}
+      <input
+        type="time"
+        class="mt-0.5 w-full px-2 text-right text-lg font-semibold text-fg tabular"
+        value={hm(night.end)}
+        onchange={(e) => {
+          const time = typed(e.currentTarget.value);
+          if (time !== null) move('end', time);
+        }}
+      />
+    </label>
+  </div>
+
+  {#snippet bar(within: Span, handles: [Handle, number][], ontap?: (e: MouseEvent) => void)}
+    <div
+      class="relative h-14 touch-none rounded-xl bg-surface-2"
+      role="presentation"
+      onclick={ontap}
+      onpointermove={drag}
+      onpointerup={release}
+      onpointercancel={release}
+    >
+      <div class="absolute inset-0 overflow-hidden rounded-xl">
+        {#each segments as seg, i (i)}
+          <div class="absolute inset-y-3 bg-primary" style:left="{pct(seg.start, within)}%" style:width="{pct(seg.end, within) - pct(seg.start, within)}%"></div>
+        {/each}
+        {#each night.breaks as b, i (i)}
+          <div
+            class="absolute inset-y-2 rounded-sm border-2 border-dashed {selected === i ? 'border-caution bg-caution/25' : 'border-caution/60 bg-caution/10'}"
+            style:left="{pct(b.start, within)}%"
+            style:width="max(4px, {pct(b.end, within) - pct(b.start, within)}%)"
+          ></div>
+        {/each}
+      </div>
+      {#each handles as [handle, time] (handle)}
+        {@const big = handle === 'start' || handle === 'end'}
+        <button
+          class="absolute top-1/2 grid size-10 -translate-x-1/2 -translate-y-1/2 touch-none place-items-center"
+          style:left="{pct(time, within)}%"
+          aria-label={handle === 'start' ? t('sleep.asleep') : handle === 'end' ? t('sleep.awake') : t('sleep.breakEdge')}
+          onpointerdown={grab(handle, within)}
+          onpointermove={drag}
+          onpointerup={release}
+          onclick={(e) => e.stopPropagation()}
+        >
+          <span
+            class="rounded-full border-4 border-surface shadow-md transition-transform {big ? 'size-7 bg-primary' : 'size-6 bg-caution'} {dragging?.handle === handle
+              ? 'scale-125'
+              : ''}"
+          ></span>
+        </button>
+      {/each}
+    </div>
+  {/snippet}
+
+  {#snippet axis(within: Span, step: number, label: string)}
+    <div class="relative mt-1 h-4 text-2xs text-muted tabular">
+      {#each ticks(within, step) as h (h)}
+        <span class="absolute -translate-x-1/2" style:left="{pct(h, within)}%">{format(h, label)}</span>
+      {/each}
+    </div>
+  {/snippet}
+
+  <div class="px-3.5">
+    {@render bar(span, [['start', night.start], ['end', night.end]], pick)}
+    <div class="relative mt-1.5 h-1.5">
+      {#each screen as on, i (i)}
+        <div class="absolute inset-y-0 rounded-full bg-muted/60" style:left="{pct(on.start)}%" style:width="max(2px, {pct(on.end) - pct(on.start)}%)"></div>
+      {/each}
+    </div>
+    {@render axis(span, 2 * 3600000, 'H')}
+
+    {#if sel && zoom}
+      <p class="mt-2 mb-1.5 text-xs text-muted">{t('sleep.zoom')}</p>
+      {@render bar(zoom, [['breakStart', sel.start], ['breakEnd', sel.end]])}
+      <div class="relative mt-1.5 h-1.5">
+        {#each screen as on, i (i)}
+          {#if on.end > zoom.from && on.start < zoom.to}
+            {@const left = Math.max(pct(on.start, zoom), 0)}
+            <div class="absolute inset-y-0 rounded-full bg-muted/60" style:left="{left}%" style:width="max(2px, {Math.min(pct(on.end, zoom), 100) - left}%)"></div>
+          {/if}
+        {/each}
+      </div>
+      {@render axis(zoom, HALF_HOUR, 'H:mm')}
+    {/if}
+  </div>
+
+  <div class="flex min-h-10 items-center gap-2 text-sm">
+    {#if sel}
+      <span class="flex-1 font-medium text-caution tabular">{t('sleep.breakLabel', { from: hm(sel.start), to: hm(sel.end) })}</span>
+      <button class="press rounded-xl px-3 py-2 font-medium text-over" onclick={removeBreak}>{t('sleep.removeBreak')}</button>
+    {:else}
+      <span class="flex-1 text-xs text-muted">{night.breaks.length ? t('sleep.breaks', { n: night.breaks.length, d: formatDuration(awake) }) : t('sleep.noBreaks')}</span>
+    {/if}
+    <button class="press rounded-xl bg-surface-2 px-3 py-2 font-medium" onclick={addBreak}>{t('sleep.addBreak')}</button>
+  </div>
+  <p class="text-xs text-muted">{t('sleep.dragHint')}</p>
+</div>

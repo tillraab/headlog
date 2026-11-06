@@ -101,9 +101,60 @@ export async function syncNights(database: HeadLogDb, days = 8, now = Date.now()
   }
 }
 
-/** Sleep minus breaks, for a night whose start or end the user changed. */
-export function editNight(night: Night, start: number, end: number): Night {
-  const breaks = night.breaks.filter((b) => b.start >= start && b.end <= end);
-  const awake = breaks.reduce((sum, b) => sum + b.end - b.start, 0);
-  return { ...night, start, end, breaks, asleepMs: Math.max(0, end - start - awake), source: 'manual' };
+/**
+ * A night as the user set it: breaks cut to the night, sorted and joined where they overlap, sleep
+ * recomputed. Such nights are never estimated again.
+ */
+export function manualNight(day: string, start: number, end: number, breaks: { start: number; end: number }[]): Night {
+  const inside = breaks
+    .map((b) => ({ start: Math.max(b.start, start), end: Math.min(b.end, end) }))
+    .filter((b) => b.end > b.start)
+    .sort((a, b) => a.start - b.start);
+  const joined: { start: number; end: number }[] = [];
+  for (const b of inside) {
+    const last = joined.at(-1);
+    if (last && b.start <= last.end) last.end = Math.max(last.end, b.end);
+    else joined.push(b);
+  }
+  const awake = joined.reduce((sum, b) => sum + b.end - b.start, 0);
+  return { day, start, end, breaks: joined, asleepMs: Math.max(0, end - start - awake), source: 'manual' };
+}
+
+/** A starting point for a night without data: 23:00 to 7:00. */
+export function defaultNight(day: string): Night {
+  const morning = startOfDay(new Date(`${day}T12:00`));
+  return manualNight(day, setHours(addDays(morning, -1), 23).getTime(), setHours(morning, 7).getTime(), []);
+}
+
+/** The span the sleep editor shows: 20:00 to 12:00, wider when the night reaches beyond it. */
+export function nightSpan(night: Night): { from: number; to: number } {
+  const morning = startOfDay(new Date(`${night.day}T12:00`));
+  const hour = 3600000;
+  return {
+    from: Math.min(setHours(addDays(morning, -1), 20).getTime(), Math.floor((night.start - hour) / hour) * hour),
+    to: Math.max(setHours(morning, 12).getTime(), Math.ceil((night.end + hour) / hour) * hour)
+  };
+}
+
+/** Screen events between `from` and `to`; none outside the Android app or without usage access. */
+export async function screenEvents(from: number, to: number): Promise<ScreenEvent[]> {
+  const access = await screenAccess();
+  if (!access.granted) return [];
+  return (await ScreenEvents.events({ from, to })).events;
+}
+
+/** Screen-on stretches from the events, cut to `from`–`to`. */
+export function onPeriods(events: ScreenEvent[], from: number, to: number): { start: number; end: number }[] {
+  const sorted = [...events].sort((a, b) => a.time - b.time);
+  const periods: { start: number; end: number }[] = [];
+  let onSince: number | null = null;
+  for (const e of sorted) {
+    if (e.on && onSince === null) onSince = e.time;
+    if (!e.on && onSince !== null) {
+      periods.push({ start: onSince, end: e.time });
+      onSince = null;
+    }
+  }
+  if (onSince !== null) periods.push({ start: onSince, end: to });
+  return periods.map((p) => ({ start: Math.max(p.start, from), end: Math.min(p.end, to) })).filter((p) => p.end > p.start);
 }

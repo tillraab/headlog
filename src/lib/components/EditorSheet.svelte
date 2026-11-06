@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { fromPreset } from '$lib/db';
+  import { fromPreset, type Night } from '$lib/db';
   import { editor } from '$lib/editor.svelte';
   import { t, tagLabel, TAGS } from '$lib/i18n.svelte';
-  import { format } from 'date-fns';
-  import { editNight } from '$lib/sleep';
+  import { manualNight } from '$lib/sleep';
   import { data, remove, saveDrink, saveEpisode, saveIntake, saveNight } from '$lib/store.svelte';
   import { closeSheet, fromLocalInput, toast, toLocalInput } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
+  import SleepTimeline from './SleepTimeline.svelte';
   import Sheet from './Sheet.svelte';
 
   const current = $derived(editor.current);
@@ -38,7 +38,7 @@
         error = t('edit.endBeforeStart');
         return;
       }
-      await saveNight(editNight(c.item, c.item.start, c.item.end));
+      await saveNight(manualNight(c.item.day, c.item.start, c.item.end, c.item.breaks));
     } else {
       await saveDrink(c.item);
     }
@@ -135,21 +135,16 @@
           </div>
         </div>
       {:else if current.kind === 'sleep'}
-        {@const night = current.item}
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{t('sleep.asleep')}</span>
-          <input type="datetime-local" value={toLocalInput(night.start)} onchange={(e) => (night.start = fromLocalInput(e.currentTarget.value))} />
-        </label>
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{t('sleep.awake')}</span>
-          <input type="datetime-local" value={toLocalInput(night.end)} onchange={(e) => (night.end = fromLocalInput(e.currentTarget.value))} />
-        </label>
-        {#if night.breaks.length}
-          <p class="text-sm text-muted">
-            {t('sleep.breaksList')}
-            {night.breaks.map((b) => `${format(b.start, 'HH:mm')}–${format(b.end, 'HH:mm')}`).join(', ')}
-          </p>
-        {/if}
+        {#key current.item.day}
+          <SleepTimeline
+            bind:night={
+              () => current.item as Night,
+              (night) => {
+                if (editor.current?.kind === 'sleep') editor.current.item = night;
+              }
+            }
+          />
+        {/key}
         <p class="text-xs text-muted">{t('sleep.editHint')}</p>
       {:else}
         {@const drink = current.item}
