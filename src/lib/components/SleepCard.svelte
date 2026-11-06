@@ -1,9 +1,9 @@
 <script lang="ts">
   /**
-   * Last night on Today. An estimate waits here with Looks right / Correct until it is confirmed;
-   * a confirmed night shrinks to one line that still opens the editor.
+   * Last night on Today. An estimate waits here with Looks right / Correct until it is confirmed,
+   * then the card goes away. A confirmed night stays editable from the forecast's sleep tile.
    */
-  import { Check, Moon } from '@lucide/svelte';
+  import { Moon } from '@lucide/svelte';
   import { format } from 'date-fns';
   import { dayKey, formatDuration } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
@@ -22,14 +22,7 @@
   }
 </script>
 
-{#if night?.source === 'manual'}
-  <button class="press card flex items-center gap-3 px-4 py-2.5 text-left text-sm" onclick={() => openNight(day)}>
-    <Moon size={16} class="shrink-0 text-primary" />
-    <span class="flex-1 text-muted">{t('sleep.card.title')}</span>
-    <span class="font-medium tabular">{hm(night.start)}–{hm(night.end)} · {formatDuration(night.asleepMs)}</span>
-    <Check size={16} class="shrink-0 text-ok" />
-  </button>
-{:else if night}
+{#if night && night.source !== 'manual'}
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-center gap-3">
       <span class="grid size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary"><Moon size={20} /></span>
@@ -49,7 +42,7 @@
       <button class="press rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-fg" onclick={confirm}>{t('sleep.card.ok')}</button>
     </div>
   </section>
-{:else if data.settings.sleep.enabled}
+{:else if !night && data.settings.sleep.enabled}
   <section class="card flex items-center gap-3 p-4">
     <span class="grid size-10 shrink-0 place-items-center rounded-full bg-surface-2 text-muted"><Moon size={20} /></span>
     <p class="flex-1 text-sm text-muted">{t('sleep.card.none')}</p>
