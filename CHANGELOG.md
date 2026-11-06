@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.20.6] - 2026-11-06
+
 ### Fixed
 
 - A long press on a label no longer selects text and leaves a Copy / Share bar on screen. Text fields stay selectable.
