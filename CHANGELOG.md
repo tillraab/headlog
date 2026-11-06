@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The sleep editor lists the wake breaks below the timeline; tapping one opens its magnified bar, so short breaks next to falling asleep or waking up are easy to reach. The magnified bar shows 45 minutes around the break instead of 90, so the edges of short breaks sit further apart.
+
 ## [0.20.0] - 2026-11-06
 
 ### Added
