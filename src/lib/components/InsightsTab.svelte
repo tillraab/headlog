@@ -10,10 +10,13 @@
   import BarChart from './BarChart.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
   import ReportSheet from './ReportSheet.svelte';
+  import HourTimeline from './HourTimeline.svelte';
   import TimelineChart, { type Row } from './TimelineChart.svelte';
 
-  const PERIODS = [30, 90, 365];
-  const REPORT_MONTHS: Record<number, number> = { 30: 1, 90: 3, 365: 12 };
+  const PERIODS = [3, 7, 30, 90, 365];
+  /** Up to this many days the timeline shows hours instead of days. */
+  const HOUR_VIEW_DAYS = 7;
+  const REPORT_MONTHS: Record<number, number> = { 3: 1, 7: 1, 30: 1, 90: 3, 365: 12 };
   const SLEEP_REFERENCE_HOURS = 7;
   let span = $state(90);
   let reportMonths = $state(3);
@@ -40,11 +43,12 @@
 
   const rows = $derived.by(() => {
     const result: Row[] = [
-      { label: t('tl.headache'), summary: t('tl.days', { n: stats.headacheDays }), values: series.headache, color: 'var(--color-pain)', kind: 'bars', format: (v) => (v ? `${Math.round(v)}/10` : '–') }
+      { key: 'headache', label: t('tl.headache'), summary: t('tl.days', { n: stats.headacheDays }), values: series.headache, color: 'var(--color-pain)', kind: 'bars', format: (v) => (v ? `${Math.round(v)}/10` : '–') }
     ];
     const water = known(series.hydration);
     if (water.length) {
       result.push({
+        key: 'hydration',
         label: t('tl.hydration'),
         summary: t('tl.hydrationSummary', {
           ml: formatLiters(average(water)!),
@@ -60,6 +64,7 @@
     const sleep = known(series.sleepHours);
     if (sleep.length) {
       result.push({
+        key: 'sleep',
         label: t('tl.sleep'),
         summary: t('tl.sleepSummary', { d: formatDuration(average(sleep)! * 3600000), n: sleep.length }),
         values: series.sleepHours,
@@ -72,6 +77,7 @@
     if (known(series.pressure).length) {
       const marks = series.pressureDrop.map((d) => d !== null && isPressureDrop(d));
       result.push({
+        key: 'pressure',
         label: t('tl.pressure'),
         summary: t('tl.pressureSummary', { n: marks.filter(Boolean).length, hpa: PRESSURE_DROP_HPA }),
         values: series.pressure,
@@ -126,11 +132,11 @@
 {/snippet}
 
 <div class="flex flex-col gap-3 pb-6">
-  <header class="flex items-center justify-between pt-2">
+  <header class="flex flex-col gap-2 pt-2">
     <h1 class="text-2xl font-semibold">{t('tab.insights')}</h1>
-    <div class="flex rounded-full bg-surface-2 p-1 text-xs font-medium">
+    <div class="grid grid-cols-5 rounded-full bg-surface-2 p-1 text-xs font-medium">
       {#each PERIODS as p (p)}
-        <button class="press rounded-full px-3 py-1.5 {span === p ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => (span = p)}>
+        <button class="press rounded-full py-1.5 {span === p ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => (span = p)}>
           {t('ins.days', { n: p })}
         </button>
       {/each}
@@ -170,9 +176,15 @@
 
     {@render heading(t('ins.connections'))}
     <section class="card p-4">
-      <h2 class="text-sm font-semibold">{t('tl.title')}</h2>
-      <p class="mb-3 text-xs text-muted">{t('tl.hint')}</p>
-      <TimelineChart {rows} {keys} bands={series.headache.map((v) => v > 0)} details={dayDetails} />
+      {#if span <= HOUR_VIEW_DAYS}
+        <h2 class="text-sm font-semibold">{t('hv.title')}</h2>
+        <p class="mb-3 text-xs text-muted">{t('hv.hint')}</p>
+        <HourTimeline {rows} {keys} now={clock.now} />
+      {:else}
+        <h2 class="text-sm font-semibold">{t('tl.title')}</h2>
+        <p class="mb-3 text-xs text-muted">{t('tl.hint')}</p>
+        <TimelineChart {rows} {keys} bands={series.headache.map((v) => v > 0)} details={dayDetails} />
+      {/if}
     </section>
 
     <section class="card p-4">

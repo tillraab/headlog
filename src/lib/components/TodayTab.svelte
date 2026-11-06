@@ -10,7 +10,7 @@
   import { celebrate, openSheet, tap, toast } from '$lib/ui.svelte';
   import { prognosis } from '$lib/prognosis';
   import PrognosisCard from './PrognosisCard.svelte';
-  import TrafficLight, { LIGHT_COLOR } from './TrafficLight.svelte';
+  import { LIGHT_COLOR } from './TrafficLight.svelte';
   import WelcomeCard from './WelcomeCard.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
@@ -201,13 +201,22 @@
       {/if}
     </div>
     <button
-      class="press flex shrink-0 items-center gap-2.5 rounded-2xl py-1 pr-3 pl-1 text-sm font-semibold"
+      class="press flex shrink-0 items-center gap-2.5 rounded-full py-1.5 pr-3.5 pl-1.5 text-sm font-semibold"
       style:color={LIGHT_COLOR[forecast.light]}
       style:background-color="color-mix(in oklab, {LIGHT_COLOR[forecast.light]} 12%, transparent)"
       onclick={showForecast}
       aria-label={`${t('prog.title')}: ${t(`prog.${forecast.light}`)}`}
     >
-      <TrafficLight light={forecast.light} size={14} />
+      <span class="relative grid size-8 place-items-center">
+        {#if forecast.light !== 'green'}
+          <span class="absolute inset-0 animate-ping rounded-full opacity-50 [animation-duration:2s]" style:background-color={LIGHT_COLOR[forecast.light]}></span>
+        {/if}
+        <span
+          class="relative size-8 rounded-full"
+          style:background-color={LIGHT_COLOR[forecast.light]}
+          style:box-shadow="0 0 12px {LIGHT_COLOR[forecast.light]}, inset 0 3px 5px rgb(255 255 255 / 0.35), inset 0 -3px 6px rgb(0 0 0 / 0.15)"
+        ></span>
+      </span>
       {t('prog.title')}
     </button>
   </header>

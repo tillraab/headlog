@@ -1,5 +1,7 @@
 <script lang="ts" module>
   export interface Row {
+    /** Which series this is, so the hour view can draw it. */
+    key?: 'headache' | 'hydration' | 'sleep' | 'pressure';
     label: string;
     summary: string;
     values: (number | null)[];
