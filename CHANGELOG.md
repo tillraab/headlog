@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-11-06
+
 ### Changed
 
 - Confirming last night removes the sleep card from Today. To edit the night later, open the forecast (the circle next to the date) and tap the sleep tile.
