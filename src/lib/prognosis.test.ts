@@ -74,7 +74,17 @@ describe('prognosis', () => {
     expect([p.sleep.status, p.weather.status, p.light]).toEqual(['unknown', 'unknown', 'green']);
   });
 
-  it('counts a caffeine drop from noon', () => {
+  it.each([
+    ['2026-03-10T14:30', 250, 'ok'],
+    ['2026-03-10T10:30', 0, 'bad'],
+    ['2026-03-10T09:30', 0, 'unknown']
+  ])('at %s with %i mg today, after three days of 200 mg, caffeine is %s', (time, mg, status) => {
+    const coffees = ['2026-03-07', '2026-03-08', '2026-03-09'].map((d) => drink(`${d}T08:00`, 200, { caffeineMg: 200 }));
+    const today = mg ? [drink('2026-03-10T08:00', 200, { caffeineMg: mg })] : [];
+    expect(prognosis(input({ drinks: [...coffees, ...today, drink('2026-03-10T09:00', 1200)] }), at(time)).caffeine.status).toBe(status);
+  });
+
+  it('counts a caffeine drop from 10:00', () => {
     const coffees = Array.from({ length: 9 }, (_, i) => drink(`2026-03-0${i + 1}T08:00`, 200, { caffeineMg: 200 }));
     const p = prognosis(input({ drinks: [...input().drinks, ...coffees] }), now);
     expect([p.caffeine.status, p.caffeine.today]).toEqual(['bad', 0]);

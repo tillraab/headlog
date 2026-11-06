@@ -14,7 +14,7 @@ export type Status = 'ok' | 'bad' | 'unknown';
 const DAY_START_HOUR = 7;
 const DAY_END_HOUR = 22;
 /** Before this hour today's caffeine says nothing yet. */
-const CAFFEINE_FROM_HOUR = 12;
+const CAFFEINE_FROM_HOUR = 10;
 
 export interface PrognosisInput {
   drinks: Drink[];
@@ -76,8 +76,11 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   const alcoholStatus: Status = !tracksAlcohol ? 'unknown' : alcohol.has(yesterday) || alcohol.has(today) ? 'bad' : 'ok';
 
   const caffeine = caffeineByDay(input.drinks);
-  const history = lastDays(addDays(now, -1), 14).map((k) => caffeine.get(k) ?? 0);
-  const usual = caffeine.size ? history.reduce((a, b) => a + b, 0) / history.length : null;
+  // The usual amount counts only days since the first logged drink, at most the last 14.
+  const history = lastDays(addDays(now, -1), 14)
+    .filter((k) => first !== null && k >= first)
+    .map((k) => caffeine.get(k) ?? 0);
+  const usual = caffeine.size && history.length ? history.reduce((a, b) => a + b, 0) / history.length : null;
   const caffeineToday = caffeine.get(today) ?? 0;
   const caffeineStatus: Status =
     usual === null || usual < MIN_USUAL_CAFFEINE || getHours(now) < CAFFEINE_FROM_HOUR ? 'unknown' : caffeineToday < usual * CAFFEINE_DROP ? 'bad' : 'ok';
