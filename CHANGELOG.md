@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-06
+
 ### Added
 
 - Insights can show 3 and 7 days. For these, the timeline switches to hour by hour: headaches with their exact times and intensity, medication as ticks, hydration adding up through each day against the goal and the even pace towards it, sleep with wake breaks, and air pressure. Tapping shows that moment and what happened within half an hour.
