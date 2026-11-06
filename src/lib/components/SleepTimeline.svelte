@@ -1,9 +1,9 @@
 <script lang="ts">
   /**
    * A night on a time axis from evening to noon. The dots at both ends of the sleep bar move falling
-   * asleep and waking up; tapping a gap selects that wake break and opens a magnified bar around it,
-   * where its edges can be dragged. Grey ticks below show when the screen was on, the source of the
-   * estimate.
+   * asleep and waking up; tapping a gap, or the wake break in the list below, selects it and opens a
+   * magnified bar around it, where its edges can be dragged. Grey ticks below show when the screen was
+   * on, the source of the estimate.
    */
   import { addDays, format, setHours, startOfDay } from 'date-fns';
   import type { Night } from '$lib/db';
@@ -20,7 +20,7 @@
   const MIN_GAP = 5 * MINUTE;
   const NEW_BREAK = 15 * MINUTE;
   /** The magnified bar shows this much before and after the selected break. */
-  const ZOOM_MARGIN = 90 * MINUTE;
+  const ZOOM_MARGIN = 45 * MINUTE;
   const HALF_HOUR = 30 * MINUTE;
 
   type Span = { from: number; to: number };
@@ -236,6 +236,19 @@
       {/each}
     </div>
     {@render axis(span, 2 * 3600000, 'H')}
+
+    {#if night.breaks.length}
+      <div class="mt-2 flex flex-wrap gap-2">
+        {#each night.breaks as b, i (i)}
+          <button
+            class="press rounded-full px-3 py-1.5 text-xs font-medium tabular {selected === i ? 'bg-caution text-white' : 'bg-caution/15 text-caution'}"
+            onclick={() => select(selected === i ? null : i)}
+          >
+            {hm(b.start)}–{hm(b.end)} · {formatDuration(b.end - b.start)}
+          </button>
+        {/each}
+      </div>
+    {/if}
 
     {#if sel && zoom}
       <p class="mt-2 mb-1.5 text-xs text-muted">{t('sleep.zoom')}</p>
