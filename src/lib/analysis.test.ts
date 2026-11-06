@@ -259,6 +259,11 @@ describe('timeline and compareDays', () => {
     expect([series.hydration[0], series.hydration[3]]).toEqual([null, 2000]);
   });
 
+  it('leaves hydration unknown after today', () => {
+    const series = timeline(data, ['2026-03-20', '2026-03-21'], at('2026-03-20T12:00'));
+    expect(series.hydration[1]).toBeNull();
+  });
+
   it('gives one value per day with headache intensity and hydration', () => {
     const series = timeline(data, keys, now);
     expect([series.headache[2], series.headache[3], series.hydration[1]]).toEqual([6, 0, 1000]);

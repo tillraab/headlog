@@ -1,7 +1,7 @@
 <script lang="ts">
   import { FileText } from '@lucide/svelte';
   import { alcoholDays, caffeineByDay, compareDays, hydrationStreak, monthlyCounts, periodStats, timeline, type ComparisonKey } from '$lib/analysis';
-  import { format } from 'date-fns';
+  import { addDays, format } from 'date-fns';
   import { dayKey, formatDuration, formatLiters, lastDays } from '$lib/days';
   import { openSheet } from '$lib/ui.svelte';
   import { fmt, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
@@ -23,7 +23,10 @@
 
   const keys = $derived(lastDays(clock.now, span));
   const stats = $derived(periodStats(data, clock.now, span));
-  const series = $derived(timeline(data, keys, clock.now));
+  /** The charts run on into tomorrow when the weather forecast covers it. */
+  const forecastKey = $derived(dayKey(addDays(clock.now, 1)));
+  const chartKeys = $derived(data.weather.has(forecastKey) ? [...keys, forecastKey] : keys);
+  const series = $derived(timeline(data, chartKeys, clock.now));
   const streak = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
   const months = $derived(monthlyCounts(data, clock.now, span === 365 ? 12 : 6));
   const hasData = $derived(stats.episodes > 0 || stats.intakes > 0 || stats.avgWaterMl !== null);
@@ -93,7 +96,7 @@
 
   /** Extra lines for the selected day: headaches with times, medication, the pressure drop. */
   function dayDetails(index: number): string[] {
-    const key = keys[index];
+    const key = chartKeys[index];
     const lines: string[] = [];
     for (const e of data.episodes.filter((ep) => dayKey(ep.start) === key)) {
       lines.push(t('tl.detailHeadache', { from: format(e.start, 'HH:mm'), to: e.end ? format(e.end, 'HH:mm') : '…', n: e.intensity }));
@@ -179,11 +182,11 @@
       {#if span <= HOUR_VIEW_DAYS}
         <h2 class="text-sm font-semibold">{t('hv.title')}</h2>
         <p class="mb-3 text-xs text-muted">{t('hv.hint')}</p>
-        <HourTimeline {rows} {keys} now={clock.now} />
+        <HourTimeline {rows} keys={chartKeys} now={clock.now} />
       {:else}
         <h2 class="text-sm font-semibold">{t('tl.title')}</h2>
         <p class="mb-3 text-xs text-muted">{t('tl.hint')}</p>
-        <TimelineChart {rows} {keys} bands={series.headache.map((v) => v > 0)} details={dayDetails} />
+        <TimelineChart {rows} keys={chartKeys} forecast={chartKeys.length - keys.length} bands={series.headache.map((v) => v > 0)} details={dayDetails} />
       {/if}
     </section>
 
