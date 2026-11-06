@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Drink, Night, WeatherDay } from './db';
-import { expectedByNow, prognosis, type PrognosisInput } from './prognosis';
+import { expectedByNow, prognosis, tomorrowRisk, type PrognosisInput } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
 const now = at('2026-03-10T14:30');
@@ -88,5 +88,29 @@ describe('prognosis', () => {
     const coffees = Array.from({ length: 9 }, (_, i) => drink(`2026-03-0${i + 1}T08:00`, 200, { caffeineMg: 200 }));
     const p = prognosis(input({ drinks: [...input().drinks, ...coffees] }), now);
     expect([p.caffeine.status, p.caffeine.today]).toEqual(['bad', 0]);
+  });
+});
+
+describe('tomorrowRisk', () => {
+  const evening = at('2026-03-10T20:00');
+
+  it('ignores a short night and counts only what matters tomorrow', () => {
+    const r = tomorrowRisk(input({ sleep: new Map([['2026-03-10', night(4)]]), drinks: [drink('2026-03-10T09:00', 1800)] }), evening);
+    expect([r.light, r.factors]).toEqual(['green', []]);
+  });
+
+  it.each([
+    ['a pressure drop tomorrow', { weather: new Map([['2026-03-11', weather('2026-03-11', 8)]]) }, ['weather']],
+    ['too little to drink today', { drinks: [drink('2026-03-10T09:00', 1000)] }, ['hydration']],
+    ['alcohol today', { drinks: [drink('2026-03-10T09:00', 1800), drink('2026-03-10T19:00', 150, { alcohol: true })] }, ['alcohol']]
+  ])('turns yellow with %s', (_, overrides, factors) => {
+    const base = { drinks: [drink('2026-03-10T09:00', 1800)] };
+    const r = tomorrowRisk(input({ ...base, ...overrides }), evening);
+    expect([r.light, r.factors]).toEqual(['yellow', factors]);
+  });
+
+  it('turns red with two factors', () => {
+    const r = tomorrowRisk(input({ drinks: [drink('2026-03-10T09:00', 1000)], weather: new Map([['2026-03-11', weather('2026-03-11', 8)]]) }), evening);
+    expect([r.light, r.factors]).toEqual(['red', ['weather', 'hydration']]);
   });
 });

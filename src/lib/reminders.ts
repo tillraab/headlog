@@ -4,7 +4,7 @@ import { addDays, format, isSameDay, setHours, startOfDay } from 'date-fns';
 import { hydrationMl, type Night } from './db';
 import { dayKey, formatDuration, formatLiters } from './days';
 import { fmt, t } from './i18n.svelte';
-import { badFactors, type Prognosis } from './prognosis';
+import type { TomorrowRisk } from './prognosis';
 
 export interface ReminderSettings {
   enabled: boolean;
@@ -33,17 +33,17 @@ function serial(task: () => Promise<void>): Promise<void> {
 const RISK_ID = 400;
 
 /**
- * The evening warning: the forecast as it stands at the chosen hour, if nothing more is logged
+ * The evening warning: tomorrow's outlook as it stands at the chosen hour, if nothing more is logged
  * until then. Sent when it is yellow or red and the hour has not passed yet.
  */
-export function planRiskAlert(now: number, settings: { enabled: boolean; hour: number }, atHour: (time: number) => Prognosis): PlannedReminder[] {
+export function planRiskAlert(now: number, settings: { enabled: boolean; hour: number }, atHour: (time: number) => TomorrowRisk): PlannedReminder[] {
   if (!settings.enabled) return [];
   const at = setHours(startOfDay(now), settings.hour).getTime();
   if (at <= now) return [];
-  const p = atHour(at);
-  if (p.light === 'green') return [];
-  const factors = badFactors(p).map((k) => t(`prog.${k}`)).join(', ');
-  return [{ id: RISK_ID, at, title: t(`prog.notify.${p.light}`), body: t('prog.notifyBody', { factors }) }];
+  const risk = atHour(at);
+  if (risk.light === 'green') return [];
+  const factors = risk.factors.map((k) => t(`prog.tomorrowFactor.${k}`)).join(', ');
+  return [{ id: RISK_ID, at, title: t(`prog.notify.${risk.light}`), body: t('prog.notifyBody', { factors }) }];
 }
 
 export function applyRiskAlert(plan: PlannedReminder[]) {
