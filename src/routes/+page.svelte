@@ -18,7 +18,7 @@
   import { i18n, t } from '$lib/i18n.svelte';
   import { confirmNight, data, endEpisode, load, logDrinkFromPreset, ongoingEpisode, openNight, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
   import { applyDrinkCheckins, applyHeadacheChecks, applyReminders, applyRiskAlert, applySleepChecks, onNotificationAction, planDrinkCheckins, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from '$lib/reminders';
-  import { prognosis } from '$lib/prognosis';
+  import { tomorrowRisk } from '$lib/prognosis';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
 
@@ -55,7 +55,7 @@
     const checkins = planDrinkCheckins(now, data.settings.drinkCheckins, data.settings.waterGoalMl, recent);
     void applyDrinkCheckins(checkins, $state.snapshot(data.drinkPresets)).catch(() => {});
     const forecastAt = (time: number) =>
-      prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, time);
+      tomorrowRisk({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, time);
     void applyRiskAlert(planRiskAlert(now, data.settings.riskAlert, forecastAt)).catch(() => {});
     const sleepCheck = { ...data.settings.sleepCheck, enabled: data.settings.sleep.enabled && data.settings.sleepCheck.enabled };
     void applySleepChecks(planSleepChecks(now, sleepCheck, data.sleep)).catch(() => {});
