@@ -43,8 +43,8 @@ export function expectedByNow(goalMl: number, now: number): number {
 
 /**
  * Traffic light for the hours ahead: weather today and tomorrow, hydration yesterday and today,
- * last night's sleep, alcohol and caffeine. Each unfavourable factor counts; 0–1 is green,
- * 2 yellow, 3 or more red. Unknown factors (no weather, no sleep data) do not count.
+ * last night's sleep, alcohol and caffeine. Each unfavourable factor counts; none is green,
+ * 1 yellow, 2 or more red. Unknown factors (no weather, no sleep data) do not count.
  */
 export function prognosis(input: PrognosisInput, now: number): Prognosis {
   const today = dayKey(now);
@@ -85,7 +85,7 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   const statuses = [weatherStatus, hydrationStatus, sleepStatus, alcoholStatus, caffeineStatus];
   const bad = statuses.filter((s) => s === 'bad').length;
   return {
-    light: bad >= 3 ? 'red' : bad === 2 ? 'yellow' : 'green',
+    light: bad >= 2 ? 'red' : bad === 1 ? 'yellow' : 'green',
     bad,
     weather: { status: weatherStatus, today: todayWeather, tomorrow: tomorrowWeather, drop },
     hydration: { status: hydrationStatus, today: todayMl, yesterday: yesterdayMl, expected, goal: input.goalMl, behind: behindToday, lowYesterday },

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The forecast is stricter: one unfavourable factor turns it yellow, two or more red. The evening notification therefore comes from one factor on.
+
 ## [0.19.1] - 2026-11-06
 
 ### Changed
