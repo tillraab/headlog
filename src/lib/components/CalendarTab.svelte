@@ -48,14 +48,14 @@
   <header class="flex items-center justify-between pt-2">
     <h1 class="text-2xl font-semibold capitalize">{fmt(month, 'LLLL yyyy')}</h1>
     <div class="flex gap-1">
-      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (month = addMonths(month, -1))} aria-label="Previous month">
+      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (month = addMonths(month, -1))} aria-label={t('a11y.prevMonth')}>
         <ChevronLeft size={20} />
       </button>
       <button
         class="press grid size-10 place-items-center rounded-full bg-surface-2 disabled:opacity-40"
         disabled={isAfter(addMonths(month, 1), clock.now)}
         onclick={() => (month = addMonths(month, 1))}
-        aria-label="Next month"
+        aria-label={t('a11y.nextMonth')}
       >
         <ChevronRight size={20} />
       </button>

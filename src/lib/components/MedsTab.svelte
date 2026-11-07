@@ -64,7 +64,7 @@
       <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => openSheet('medList')} aria-label={t('set.meds')}>
         <Pencil size={18} />
       </button>
-      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (showInfo = !showInfo)} aria-label="Info">
+      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (showInfo = !showInfo)} aria-label={t('a11y.info')}>
         <Info size={20} />
       </button>
     </div>

@@ -9,6 +9,7 @@
 - Only one headache can be ongoing at a time. Saving a second ongoing headache in the editor shows a message instead.
 - A backup file that cannot be restored now shows "import failed" instead of failing silently. The previous data stays.
 - Numbers use the decimal mark of the app language, not of the phone's language, e.g. "1,5 l" in German on an English phone.
+- Screen readers read the close, month, explanation and order buttons in the app language.
 
 ## [0.22.1] - 2026-11-07
 
