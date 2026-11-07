@@ -1,9 +1,9 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { addDays, format, isSameDay, setHours, startOfDay } from 'date-fns';
-import { hydrationMl, type Night } from './db';
+import { addDays, format, setHours, startOfDay } from 'date-fns';
+import type { Night } from './db';
 import { dayKey, formatDuration, formatLiters } from './days';
-import { fmt, t } from './i18n.svelte';
+import { t } from './i18n.svelte';
 import type { TomorrowRisk } from './prognosis';
 
 export interface ReminderSettings {
@@ -106,10 +106,7 @@ export async function requestReminderPermission(): Promise<boolean> {
 const RELIEF_TYPE = 'relief';
 const SLEEP_TYPE = 'sleep';
 const HEADACHE_TYPE = 'headache';
-const DRINK_TYPE = 'drink';
 
-/** Drink buttons on check-in notifications: the first three drinks of the list. */
-let drinkButtons: { id: number; label: string }[] = [];
 
 /** Buttons shown on notifications. Registered again before scheduling so the labels follow the language. */
 async function registerActions() {
@@ -130,7 +127,6 @@ async function registerActions() {
           { id: 'headache-gone', title: t('rem.headacheGone') }
         ]
       },
-      { id: DRINK_TYPE, actions: drinkButtons.map((b) => ({ id: `drink-${b.id}`, title: b.label })) },
       {
         id: SLEEP_TYPE,
         actions: [
@@ -175,7 +171,6 @@ export interface NotificationAnswers {
   opened: () => void;
   relief: (intakeId: number, relief: number) => void;
   headacheGone: (episodeId: number) => void;
-  drink: (presetId: number) => void;
   sleepOk: (day: string) => void;
   sleepFix: (day: string) => void;
 }
@@ -189,8 +184,6 @@ export function onNotificationAction(answers: NotificationAnswers) {
     const relief = /^relief-(\d)$/.exec(actionId);
     if (relief && extra?.intakeId !== undefined) answers.relief(extra.intakeId, Number(relief[1]));
     if (actionId === 'headache-gone' && extra?.episodeId !== undefined) answers.headacheGone(extra.episodeId);
-    const drink = /^drink-(\d+)$/.exec(actionId);
-    if (drink) answers.drink(Number(drink[1]));
     if (actionId === 'sleep-ok' && extra?.day) answers.sleepOk(extra.day);
     if (actionId === 'sleep-fix' && extra?.day) answers.sleepFix(extra.day);
   });
@@ -242,105 +235,65 @@ export function applyHeadacheChecks(plan: (PlannedReminder & { episodeId: number
   });
 }
 
-export interface DrinkCheckinSettings {
+export interface DrinkReminderSettings {
   enabled: boolean;
-  /** Times of day as `HH:mm`. */
-  times: string[];
+  /** Hours of the day the reminder is active, from and to. */
+  from: number;
+  to: number;
+  /** Hours without a logged drink before the reminder comes. */
+  everyHours: number;
 }
 
-const CHECKIN_FIRST_ID = 300;
-export const MAX_CHECKIN_TIMES = 8;
-/** A check-in is skipped when a drink was logged this many minutes before it. */
-export const CHECKIN_QUIET_MINUTES = 60;
+const DRINK_FIRST_ID = 300;
+const DRINK_DAYS = 3;
+const DRINK_PER_DAY = 18;
 
-/** A logged drink, as far as check-ins need it. */
+/** A logged drink, as far as the drink reminder needs it. */
 export interface LoggedDrink {
   time: number;
   name: string;
   emoji: string;
-  ml: number;
-  alcohol?: boolean;
 }
 
-const CHECKIN_LIST = 3;
-
 /**
- * "What did you drink?" at the chosen times for the next 7 days. Each check-in lists the drinks logged
- * since the check-in before it on the same day; the first one of a day names the last drink.
+ * "Don't forget to drink" whenever `everyHours` pass inside the daily window without a logged drink,
+ * for today and the next two days. Counted from the last drink, or from the window start when there was
+ * none that day. Logging a drink reschedules everything, which moves the next reminder out.
  */
-export function planDrinkCheckins(now: number, settings: DrinkCheckinSettings, goalMl: number, drinks: LoggedDrink[]): PlannedReminder[] {
-  if (!settings.enabled) return [];
-  const times = [...settings.times].sort().slice(0, MAX_CHECKIN_TIMES);
+export function planDrinkReminders(now: number, settings: DrinkReminderSettings, drinks: LoggedDrink[]): PlannedReminder[] {
+  if (!settings.enabled || settings.everyHours <= 0 || settings.to <= settings.from) return [];
+  const step = settings.everyHours * 3600000;
   const plan: PlannedReminder[] = [];
-  for (let d = 0; d < DAYS; d++) {
+  for (let d = 0; d < DRINK_DAYS; d++) {
     const day = addDays(startOfDay(now), d);
-    times.forEach((time, i) => {
-      const at = atTime(day, time);
-      if (at <= now) return;
-      const before = drinks.filter((x) => x.time <= at);
-      const last = before.length ? before.reduce((a, b) => (b.time > a.time ? b : a)) : null;
-      if (last && at - last.time < CHECKIN_QUIET_MINUTES * 60000) return;
-      const ml = before.filter((x) => isSameDay(x.time, at)).reduce((sum, x) => sum + hydrationMl(x), 0);
-      const amount = t('rem.checkinBody', { ml: formatLiters(ml), goal: formatLiters(goalMl) });
-      const sameDay = last !== null && isSameDay(last.time, at);
-      const title = sameDay ? t('rem.checkinTitleSince', { time: format(last.time, 'HH:mm') }) : t('rem.checkinTitle');
-      const id = CHECKIN_FIRST_ID + d * MAX_CHECKIN_TIMES + i;
-
-      if (i === 0) {
-        const body = last && !sameDay ? `${t('rem.checkinLast', { time: lastDrinkLabel(last.time, at) })} ${amount}` : amount;
-        plan.push({ id, at, title, body });
-        return;
-      }
-      const previous = format(atTime(day, times[i - 1]), 'HH:mm');
-      const since = before.filter((x) => x.time >= atTime(day, times[i - 1])).sort((a, b) => a.time - b.time);
-      if (!since.length) {
-        plan.push({ id, at, title, body: `${t('rem.checkinNothing', { time: previous })} · ${amount}` });
-        return;
-      }
-      const lines = since.slice(-CHECKIN_LIST).map((x) => `${format(x.time, 'HH:mm')}  ${x.emoji} ${x.name}  ${x.ml} ml`);
-      if (since.length > CHECKIN_LIST) lines.unshift(t('rem.checkinMore', { n: since.length - CHECKIN_LIST }));
-      plan.push({
-        id,
-        at,
-        title,
-        body: `${t('rem.checkinSince', { time: previous, drinks: since.map((x) => x.name).join(', ') })} · ${amount}`,
-        largeBody: `${lines.join('\n')}\n${amount}`
-      });
-    });
+    const from = setHours(day, settings.from).getTime();
+    const to = setHours(day, settings.to).getTime();
+    const today = drinks.filter((x) => x.time >= day.getTime() && x.time <= Math.min(now, to));
+    const last = today.length ? today.reduce((a, b) => (b.time > a.time ? b : a)) : null;
+    const base = Math.max(from, last?.time ?? 0);
+    for (let k = 1, n = 0; n < DRINK_PER_DAY; k++) {
+      const at = base + k * step;
+      if (at > to) break;
+      if (at <= now) continue;
+      const body = last
+        ? t('rem.drinkBodyLast', { d: formatDuration(at - last.time), drink: `${last.emoji} ${last.name}` })
+        : t('rem.drinkBodyNone');
+      plan.push({ id: DRINK_FIRST_ID + d * DRINK_PER_DAY + n, at, title: t('rem.drinkTitle'), body });
+      n++;
+    }
   }
   return plan;
 }
 
-function atTime(day: Date, time: string): number {
-  const [h, m] = time.split(':').map(Number);
-  return day.getTime() + (h * 60 + m) * 60000;
-}
-
-/** "yesterday 21:30" or "Mon 5 Nov 21:30", seen from the day of the check-in. */
-function lastDrinkLabel(lastDrink: number, at: number): string {
-  if (isSameDay(lastDrink, addDays(at, -1))) return `${t('versions.yesterday').toLowerCase()} ${format(lastDrink, 'HH:mm')}`;
-  return fmt(lastDrink, 'EEE d. MMM HH:mm');
-}
-
-/** Replaces the pending check-ins with the plan, with buttons for the first three drinks. */
-export function applyDrinkCheckins(plan: PlannedReminder[], presets: { id: number; name: string; emoji: string }[]) {
+/** Replaces the pending drink reminders with the plan. A tap opens HeadLog. */
+export function applyDrinkReminders(plan: PlannedReminder[]) {
   return serial(async () => {
     if (!Capacitor.isNativePlatform()) return;
-    const ids = Array.from({ length: DAYS * MAX_CHECKIN_TIMES }, (_, i) => ({ id: CHECKIN_FIRST_ID + i }));
+    const ids = Array.from({ length: DRINK_DAYS * DRINK_PER_DAY }, (_, i) => ({ id: DRINK_FIRST_ID + i }));
     await LocalNotifications.cancel({ notifications: ids });
     if (!plan.length || !(await requestReminderPermission())) return;
-    drinkButtons = presets.slice(0, 3).map((p) => ({ id: p.id, label: `${p.emoji} ${p.name}` }));
-    await registerActions();
     await LocalNotifications.schedule({
-      notifications: plan.map((r) => ({
-        id: r.id,
-        title: r.title,
-        body: r.body,
-        largeBody: r.largeBody,
-        actionTypeId: DRINK_TYPE,
-        autoCancel: true,
-        schedule: { at: new Date(r.at), allowWhileIdle: true }
-      }))
+      notifications: plan.map((r) => ({ id: r.id, title: r.title, body: r.body, autoCancel: true, schedule: { at: new Date(r.at), allowWhileIdle: true } }))
     });
   });
 }

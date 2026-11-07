@@ -16,8 +16,8 @@
   import VersionsSheet from '$lib/components/VersionsSheet.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
   import { i18n, t } from '$lib/i18n.svelte';
-  import { confirmNight, data, endEpisode, load, logDrinkFromPreset, ongoingEpisode, openNight, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
-  import { applyDrinkCheckins, applyHeadacheChecks, applyReminders, applyRiskAlert, applySleepChecks, onNotificationAction, planDrinkCheckins, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from '$lib/reminders';
+  import { confirmNight, data, endEpisode, load, ongoingEpisode, openNight, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
+  import { applyDrinkReminders, applyHeadacheChecks, applyReminders, applyRiskAlert, applySleepChecks, onNotificationAction, planDrinkReminders, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from '$lib/reminders';
   import { tomorrowRisk } from '$lib/prognosis';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
@@ -52,8 +52,7 @@
     void applyReminders(planReminders(now, data.settings.reminders, data.settings.waterGoalMl, todayMl)).catch(() => {});
     void applyHeadacheChecks(planHeadacheChecks(ongoingEpisode(), now, data.settings.headacheCheckHours)).catch(() => {});
     const recent = data.drinks.filter((d) => d.time >= start - 7 * 86400000);
-    const checkins = planDrinkCheckins(now, data.settings.drinkCheckins, data.settings.waterGoalMl, recent);
-    void applyDrinkCheckins(checkins, $state.snapshot(data.drinkPresets)).catch(() => {});
+    void applyDrinkReminders(planDrinkReminders(now, data.settings.drinkReminder, recent)).catch(() => {});
     const forecastAt = (time: number) =>
       tomorrowRisk({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, time);
     void applyRiskAlert(planRiskAlert(now, data.settings.riskAlert, forecastAt)).catch(() => {});
@@ -86,7 +85,6 @@
       },
       relief: (id, relief) => void setRelief(id, relief),
       headacheGone: (id) => void endEpisode(id),
-      drink: (id) => void logDrinkFromPreset(id),
       sleepOk: (day) => void confirmNight(day),
       sleepFix: (day) => void openNight(day)
     });

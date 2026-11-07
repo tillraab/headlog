@@ -4,7 +4,7 @@ import { i18n } from './i18n.svelte';
 import { edit } from './editor.svelte';
 import { defaultNight, syncNights } from './sleep';
 import { syncWeather, type Place } from './weather';
-import { cancelReliefCheck, scheduleReliefCheck, type DrinkCheckinSettings } from './reminders';
+import { cancelReliefCheck, scheduleReliefCheck, type DrinkReminderSettings } from './reminders';
 import type { Theme } from './ui.svelte';
 
 export interface Settings {
@@ -20,7 +20,7 @@ export interface Settings {
   /** Hours between "still a headache?" notifications, 0 for off. */
   headacheCheckHours: number;
   /** "What did you drink?" notifications at fixed times. */
-  drinkCheckins: DrinkCheckinSettings;
+  drinkReminder: DrinkReminderSettings;
   /** Daily weather for the home town. */
   weather: { enabled: boolean; place: Place | null };
   /** Estimate sleep from screen activity. */
@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS: Settings = {
   reminders: { enabled: false, noon: 12, evening: 18 },
   reliefCheckMinutes: 60,
   headacheCheckHours: 3,
-  drinkCheckins: { enabled: false, times: ['10:00', '13:00', '16:00', '19:00'] },
+  drinkReminder: { enabled: false, from: 8, to: 20, everyHours: 2 },
   weather: { enabled: false, place: null },
   sleep: { enabled: false },
   sleepCheck: { enabled: true, hour: 9 },
@@ -100,8 +100,13 @@ export async function load() {
   data.drinkPresets = drinkPresets;
   data.weather = new Map(weather.map((w) => [w.day, w]));
   data.sleep = new Map(nights.map((n) => [n.day, n]));
-  const { reliefCheck, ...saved } = (stored.settings ?? {}) as Partial<Settings> & { reliefCheck?: boolean };
-  data.settings = { ...DEFAULT_SETTINGS, ...(reliefCheck === false ? { reliefCheckMinutes: 0 } : {}), ...saved };
+  const { reliefCheck, drinkCheckins, ...saved } = (stored.settings ?? {}) as Partial<Settings> & {
+    reliefCheck?: boolean;
+    drinkCheckins?: { enabled: boolean };
+  };
+  // Drink check-ins at fixed times became the drink reminder; whoever had them on keeps a reminder.
+  const drinkReminder = !saved.drinkReminder && drinkCheckins?.enabled ? { drinkReminder: { ...DEFAULT_SETTINGS.drinkReminder, enabled: true } } : {};
+  data.settings = { ...DEFAULT_SETTINGS, ...(reliefCheck === false ? { reliefCheckMinutes: 0 } : {}), ...drinkReminder, ...saved };
   data.ready = true;
 }
 
@@ -160,12 +165,6 @@ export async function logDrink(preset: DrinkPreset, time = Date.now()): Promise<
   const id = await db.drinks.add({ time, ...fromPreset(preset) });
   await load();
   return id;
-}
-
-/** Logs a drink by its button id, from a notification. */
-export async function logDrinkFromPreset(presetId: number) {
-  const preset = await db.drinkPresets.get(presetId);
-  if (preset) await logDrink(preset);
 }
 
 type Table = 'episodes' | 'intakes' | 'drinks';
