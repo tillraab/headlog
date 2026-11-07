@@ -81,14 +81,14 @@ function factorText(f: DayFactors): string[] {
 }
 
 /** An intake up to this long before a headache started belongs to that headache. */
-export const INTAKE_BEFORE_EPISODE_MS = 3 * HOUR;
+const INTAKE_BEFORE_EPISODE_MS = 3 * HOUR;
 
 /**
  * Each headache with the intakes that belong to it: taken from 3 hours before it started until it
  * ended (or `now`). An intake can belong to two headaches close together. `unmatched` are the
  * intakes that belong to none.
  */
-export function matchIntakes(episodes: Episode[], intakes: Intake[], now: number): { matched: { episode: Episode; intakes: Intake[] }[]; unmatched: Intake[] } {
+function matchIntakes(episodes: Episode[], intakes: Intake[], now: number): { matched: { episode: Episode; intakes: Intake[] }[]; unmatched: Intake[] } {
   const used = new Set<number>();
   const matched = episodes.map((episode) => {
     const own = intakes.filter((i) => i.time >= episode.start - INTAKE_BEFORE_EPISODE_MS && i.time <= (episode.end ?? now));
