@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import { MED_COLORS } from './colors';
 import { CAFFEINE } from './drinks';
 import type { MedCategory } from './medication';
+import { doneFlags } from './migrations';
 
 /** A headache episode. `end` is null while the headache is ongoing. */
 export interface Episode {
@@ -155,7 +156,7 @@ export async function seed(db: HeadLogDb, lang: 'en' | 'de' = 'en'): Promise<voi
     if (await db.settings.get('seeded')) return;
     await db.medications.bulkAdd(DEFAULT_MEDICATIONS);
     await db.drinkPresets.bulkAdd(defaultDrinkPresets(lang));
-    await db.settings.put({ key: 'seeded', value: true });
+    await db.settings.bulkPut([{ key: 'seeded', value: true }, ...doneFlags()]);
   });
 }
 

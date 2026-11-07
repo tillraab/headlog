@@ -156,6 +156,14 @@ describe('migrations', () => {
     expect([flag?.value, await db.weather.count()]).toEqual([true, 1]);
   });
 
+  it('do not run on a database seeded fresh, so demo weather stays', async () => {
+    await wipe(db);
+    await seed(db);
+    await db.weather.put({ day: '2026-03-10', pressure: 1010, pressureDrop: 0, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 });
+    await load();
+    expect(await db.weather.count()).toBe(1);
+  });
+
   it('clear weather stored before the daily-mean pressure drop', async () => {
     await db.settings.delete('weatherDailyMeanDrop');
     await db.weather.put({ day: '2026-03-10', pressure: 1010, pressureDrop: 0, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 });

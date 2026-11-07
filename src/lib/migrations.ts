@@ -35,6 +35,11 @@ const MIGRATIONS: Migration[] = [
   { key: 'weatherDailyMeanDrop', run: weatherDailyMeanDrop }
 ];
 
+/** The flag rows of every step. A database seeded fresh starts with them, since it has nothing to change. */
+export function doneFlags(): { key: string; value: true }[] {
+  return MIGRATIONS.map((m) => ({ key: m.key, value: true }));
+}
+
 /** Runs every step that has not run yet, each in a transaction together with its flag. */
 export async function migrate(database: HeadLogDb) {
   for (const migration of MIGRATIONS) {
