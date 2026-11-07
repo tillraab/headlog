@@ -4,14 +4,14 @@
 |---|---|---|
 | `HeadLog-teaser.en.mp4` | Teaser, about 47 s | 1920 x 1080 |
 | `HeadLog-teaser.en-portrait.mp4` | The same teaser for phones: intro as text, then the phone full height | 1080 x 1920 |
-| `HeadLog-guide.en.mp4` | Guide, about 4:40: a look around with demo data, making it your own, installing with Obtainium | 1280 x 720 |
+| `HeadLog-guide.en.mp4` | Guide, about 4:35: a look around with demo data, making it your own, installing with Obtainium | 1280 x 720 |
 | `*.srt` | Subtitles. They are also burned into the picture. | |
 
 The guide is stored at 720p because GitHub does not accept files over 100 MB.
 
 ## How they were made
 
-Every phone screen in the videos is a screen recording of the real app (v0.20.6 to v0.21.0) on an Android emulator, not a mock-up. The notifications are real ones, triggered by moving the emulator's clock.
+Every phone screen in the videos is a screen recording of the real app (v0.20.6 to v0.22.0) on an Android emulator, not a mock-up. The notifications are real ones, triggered by moving the emulator's clock.
 
 1. **Narration.** The script is a Markdown file with one `[beat]` line per section, for example `[forecast] A traffic light shows your headache risk for today…`. Each beat is spoken by the local text-to-speech model Kokoro (voice `af_heart`). The result is one WAV file plus a JSON file with the start time of every beat and every sentence. The sentences become the subtitles.
 2. **Recording.** A Node script drives the emulator over `adb`: it taps, types, scrolls, sets the clock and records each step with `screenrecord` as its own clip (install, demo data, a headache episode, the sleep editor, the notifications, setup and so on). The display runs at 720 x 1600 so the software renderer reaches about 20 frames per second. Where the WebView does not expose its buttons to `uiautomator`, the script taps positions measured from screenshots.
