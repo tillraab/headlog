@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { wipe } from './backup';
 import { db, seed } from './db';
-import { data, load, saveSettings, setRelief, translateDrinkNames, updateDrinkPreset, updateMedication } from './store.svelte';
+import { confirmNight, data, deleteMedication, endEpisode, load, logIntake, remove, saveSettings, setRelief, translateDrinkNames, updateDrinkPreset, updateMedication } from './store.svelte';
 
 beforeEach(async () => {
   await wipe(db);
@@ -91,5 +91,58 @@ describe('setRelief', () => {
   it('does not create an intake that is gone', async () => {
     await setRelief(1, 2, 1000);
     expect(await db.intakes.count()).toBe(0);
+  });
+});
+
+describe('relief check migration', () => {
+  it('turns the old switched-off relief question into 0 minutes', async () => {
+    await db.settings.put({ key: 'settings', value: { reliefCheck: false } });
+    await load();
+    expect(data.settings.reliefCheckMinutes).toBe(0);
+  });
+});
+
+describe('intakes', () => {
+  it('keep name, dose and category after their medication is edited and deleted', async () => {
+    await load();
+    const [med] = data.medications;
+    const id = await logIntake(med, 1000);
+    await updateMedication(med.id, { name: 'Renamed', dose: '1 g', category: 'other' });
+    await deleteMedication(med.id);
+    const intake = (await db.intakes.get(id))!;
+    expect([intake.name, intake.dose, intake.category]).toEqual([med.name, med.dose, med.category]);
+  });
+});
+
+describe('remove', () => {
+  it('returns an undo that restores the identical row', async () => {
+    const id = await db.episodes.add({ start: 1000, end: 2000, intensity: 6, tags: ['stress'], note: 'n' });
+    const row = await db.episodes.get(id);
+    const undo = await remove('episodes', id);
+    await undo();
+    expect(await db.episodes.get(id)).toEqual(row);
+  });
+});
+
+describe('endEpisode', () => {
+  it('leaves an episode that has already ended as it is', async () => {
+    const id = await db.episodes.add({ start: 1000, end: 2000, intensity: 6, tags: [], note: '' });
+    await endEpisode(id);
+    expect((await db.episodes.get(id))!.end).toBe(2000);
+  });
+
+  it('ends an ongoing episode', async () => {
+    const id = await db.episodes.add({ start: 1000, end: null, intensity: 6, tags: [], note: '' });
+    await endEpisode(id);
+    expect((await db.episodes.get(id))!.end).not.toBeNull();
+  });
+});
+
+describe('confirmNight', () => {
+  it('keeps an estimated night as the user confirmed it', async () => {
+    await db.sleep.put({ day: '2026-03-10', start: 1000, end: 2000, asleepMs: 1000, breaks: [], source: 'screen' });
+    await load();
+    await confirmNight('2026-03-10');
+    expect((await db.sleep.get('2026-03-10'))!.source).toBe('manual');
   });
 });

@@ -51,9 +51,12 @@ function csvCell(value: unknown): string {
   return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-/** One row per headache and per intake from `from` on, sorted by time. Readable by Excel and doctors. */
-export async function createCsv(database: HeadLogDb = db, from = 0): Promise<string> {
-  const episodes = (await database.episodes.toArray()).filter((e) => (e.end ?? Date.now()) >= from);
+/**
+ * One row per headache and per intake from `from` on, sorted by time. Readable by Excel and doctors.
+ * Ongoing headaches count as lasting until `now`.
+ */
+export async function createCsv(database: HeadLogDb = db, from = 0, now = Date.now()): Promise<string> {
+  const episodes = (await database.episodes.toArray()).filter((e) => (e.end ?? now) >= from);
   const intakes = (await database.intakes.toArray()).filter((i) => i.time >= from);
   const fmt = (t: number | null) => (t === null ? '' : format(t, 'yyyy-MM-dd HH:mm'));
   const rows: [number, string[]][] = [

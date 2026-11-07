@@ -29,6 +29,11 @@ describe('planReminders', () => {
     expect(new Date(plan[0].at).getHours()).toBe(18);
   });
 
+  it('reminds at noon local time on the day summer time starts', () => {
+    const [noon] = planReminders(at('2026-03-29T08:00'), on, 2000, 0);
+    expect(noon.at).toBe(at('2026-03-29T12:00'));
+  });
+
   it('gives every reminder its own id', () => {
     const ids = planReminders(at('2026-03-02T08:00'), on, 2000, 0).map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -78,6 +83,20 @@ describe('planDrinkReminders', () => {
   it('ignores yesterday’s drinks and stays inside the window', () => {
     const plan = planDrinkReminders(at('2026-03-02T19:00'), on, [drink('2026-03-01T21:00')]);
     expect(plan.filter((r) => r.at < at('2026-03-03T00:00')).map((r) => new Date(r.at).getHours())).toEqual([20]);
+  });
+
+  it('stops at 18 reminders a day', () => {
+    const today = planDrinkReminders(at('2026-03-02T04:00'), { ...on, from: 5, to: 23, everyHours: 0.5 }, []).filter((r) => r.at < at('2026-03-03T00:00'));
+    expect(today).toHaveLength(18);
+  });
+
+  it('plans nothing when the window ends before it starts', () => {
+    expect(planDrinkReminders(at('2026-03-02T07:00'), { ...on, from: 20, to: 8 }, [])).toEqual([]);
+  });
+
+  it('counts from the window start when the last drink came before it', () => {
+    const [next] = planDrinkReminders(at('2026-03-02T07:30'), on, [drink('2026-03-02T07:00')]);
+    expect(next.at).toBe(at('2026-03-02T10:00'));
   });
 
   it('plans today and the next two days with distinct ids', () => {

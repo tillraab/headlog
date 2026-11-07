@@ -133,3 +133,26 @@ describe('typedSleepTime', () => {
     expect(typedSleepTime('2026-03-10', '')).toBeNull();
   });
 });
+
+describe('estimateNight at the limits', () => {
+  it.each([
+    [19, at('2026-03-09T23:00')],
+    [20, at('2026-03-09T22:00')]
+  ])('joins an evening off stretch of %i minutes only from 20 minutes on', (minutes, start) => {
+    const events = [off('2026-03-09T22:00'), { time: at('2026-03-09T22:00') + minutes * 60000, on: true }, off('2026-03-09T23:00'), on('2026-03-10T06:00')];
+    expect(estimateNight(events, '2026-03-10', now)?.start).toBe(start);
+  });
+
+  it.each([
+    ['03:30', at('2026-03-09T23:00')],
+    ['03:31', at('2026-03-10T03:31')]
+  ])('keeps a 90-minute wake break inside the night, but not a longer one (back to sleep at %s)', (back, start) => {
+    const events = [off('2026-03-09T23:00'), on('2026-03-10T02:00'), off(`2026-03-10T${back}`), on('2026-03-10T07:00')];
+    expect(estimateNight(events, '2026-03-10', now)?.start).toBe(start);
+  });
+
+  it('counts the real time asleep across the change to summer time', () => {
+    const night = estimateNight([off('2026-03-28T23:00'), on('2026-03-29T07:00')], '2026-03-29', at('2026-03-29T12:00'));
+    expect(night?.asleepMs).toBe(7 * HOUR);
+  });
+});
