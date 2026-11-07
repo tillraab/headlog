@@ -5,6 +5,7 @@
 ### Fixed
 
 - Clearing a date or time field in the editor no longer saves an invalid time, which made the entry disappear and broke the CSV export. The field keeps its previous value.
+- The doctor report now judges a caffeine drop by the same rule as the forecast: the usual amount only counts days since the first logged drink.
 
 ## [0.22.1] - 2026-11-07
 

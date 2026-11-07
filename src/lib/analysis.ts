@@ -93,6 +93,22 @@ export function caffeineByDay(drinks: Drink[]): Map<string, number> {
   return days;
 }
 
+/** Days the usual caffeine amount looks back on. */
+const USUAL_CAFFEINE_DAYS = 14;
+
+/**
+ * The usual daily caffeine before `day`: the average over the 14 days before it, counting only days
+ * since the first logged drink, since days before it are unknown. Null without any caffeine logged or
+ * without a known day. The forecast and the report both judge a caffeine drop against this.
+ */
+export function usualCaffeine(caffeine: Map<string, number>, firstDrink: string | null, day: string): number | null {
+  if (!caffeine.size || firstDrink === null) return null;
+  const history = lastDays(addDays(keyToDate(day), -1), USUAL_CAFFEINE_DAYS)
+    .filter((k) => k >= firstDrink)
+    .map((k) => caffeine.get(k) ?? 0);
+  return history.length ? average(history) : null;
+}
+
 /** Days with at least one alcoholic drink. */
 export function alcoholDays(drinks: Drink[]): Set<string> {
   return new Set(drinks.filter((d) => d.alcohol).map((d) => dayKey(d.time)));
@@ -293,19 +309,19 @@ export function periodStats(
     days: span,
     headacheDays: keys.filter((k) => hDays.has(k)).length,
     episodes: episodes.length,
-    avgDurationMs: done.length ? avg(done.map((e) => e.end! - e.start)) : null,
-    avgIntensity: episodes.length ? avg(episodes.map((e) => e.intensity)) : null,
+    avgDurationMs: done.length ? average(done.map((e) => e.end! - e.start)) : null,
+    avgIntensity: episodes.length ? average(episodes.map((e) => e.intensity)) : null,
     medDays: mDays.size,
     intakes: intakes.length,
     weekday,
     timeOfDay,
-    avgWaterMl: waterDays.length ? avg(waterDays.map((k) => water.get(k)!)) : null,
+    avgWaterMl: waterDays.length ? average(waterDays.map((k) => water.get(k)!)) : null,
     meds: [...medMap]
       .map(([name, m]) => ({
         name,
         intakes: m.intakes,
         days: m.days.size,
-        avgRelief: m.relief.length ? avg(m.relief) : null
+        avgRelief: m.relief.length ? average(m.relief) : null
       }))
       .sort((a, b) => b.intakes - a.intakes),
     tags: [...tagMap].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count),
@@ -341,7 +357,8 @@ function addMonthsSafe(time: number, months: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + months, 1);
 }
 
-function avg(values: number[]): number {
+/** The mean of `values`. Callers make sure the list is not empty. */
+function average(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
@@ -414,7 +431,7 @@ export function compareDays(
     const h = startDays.map(value).filter((v): v is number => v !== null);
     const c = clearDays.map(value).filter((v): v is number => v !== null);
     if (h.length < MIN_COMPARISON_DAYS || c.length < MIN_COMPARISON_DAYS) return [];
-    return [{ key, headache: avg(h), clear: avg(c), nHeadache: h.length, nClear: c.length }];
+    return [{ key, headache: average(h), clear: average(c), nHeadache: h.length, nClear: c.length }];
   });
 }
 
@@ -456,9 +473,8 @@ export function dayFactors(
   const night = data.sleep.get(key);
   if (night && night.asleepMs < SHORT_SLEEP_HOURS * 3600000) factors.sleep = night.asleepMs / 3600000;
   if (alcoholDays(data.drinks).has(before)) factors.alcohol = true;
-  const history = lastDays(keyToDate(before), 14).map((k) => caffeine.get(k) ?? 0);
-  const usual = history.reduce((a, b) => a + b, 0) / history.length;
+  const usual = usualCaffeine(caffeine, first, key);
   const today = caffeine.get(key) ?? 0;
-  if (caffeine.size && usual >= MIN_USUAL_CAFFEINE && today < usual * CAFFEINE_DROP) factors.caffeine = today;
+  if (usual !== null && usual >= MIN_USUAL_CAFFEINE && today < usual * CAFFEINE_DROP) factors.caffeine = today;
   return factors;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, waterByDay } from './analysis';
+import { alcoholDays, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, firstDrinkDay } from './analysis';
+import { prognosis } from './prognosis';
 import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
 import { lastDays } from './days';
 
@@ -315,5 +316,31 @@ describe('hydrationCurve', () => {
   it('ends today at now', () => {
     const curve = hydrationCurve([], ['2026-03-02'], at('2026-03-02T12:00'));
     expect(curve[0].points.at(-1)!.time).toBe(at('2026-03-02T12:00'));
+  });
+});
+
+describe('usualCaffeine', () => {
+  /** Logging starts on Oct 7 with 3 × 120 mg a day; Oct 10 has water but no coffee. */
+  const day = (d: number, h: number) => new Date(2026, 9, d, h).getTime();
+  const drinks: Drink[] = [
+    ...[7, 8, 9].flatMap((d) => [8, 11, 14].map((h): Drink => ({ id: 1, time: day(d, h), presetId: null, name: 'Coffee', emoji: '☕', ml: 200, caffeineMg: 120 }))),
+    { id: 2, time: day(10, 8), presetId: null, name: 'Water', emoji: '🥛', ml: 250 }
+  ];
+  const input = { drinks, sleep: new Map(), weather: new Map(), goalMl: 250 };
+
+  it('averages only the days since the first logged drink', () => {
+    expect(usualCaffeine(caffeineByDay(drinks), firstDrinkDay(drinks), '2026-10-10')).toBe(360);
+  });
+
+  it('is null without any caffeine', () => {
+    expect(usualCaffeine(new Map(), '2026-10-01', '2026-10-10')).toBeNull();
+  });
+
+  it('is the amount the forecast judges against', () => {
+    expect(prognosis(input, day(10, 18)).caffeine.usual).toBe(usualCaffeine(caffeineByDay(drinks), firstDrinkDay(drinks), '2026-10-10'));
+  });
+
+  it('makes the forecast and the report agree on a caffeine drop', () => {
+    expect([prognosis(input, day(10, 18)).caffeine.status, dayFactors(input, '2026-10-10', 250).caffeine]).toEqual(['bad', 0]);
   });
 });
