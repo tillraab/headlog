@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-11-07
+
 ### Changed
 
 - New app icon: the HL brain logo in a purple-to-pink gradient on a white circle.
