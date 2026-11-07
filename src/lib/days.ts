@@ -34,6 +34,11 @@ export function lastDays(end: number | Date, count: number): string[] {
   return dayRange(addDays(end, -(count - 1)), end);
 }
 
+/** An hour of the day as a clock time, e.g. `08:00`. */
+export function hourLabel(hour: number): string {
+  return `${String(hour).padStart(2, '0')}:00`;
+}
+
 export function formatDuration(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / MINUTE));
   const h = Math.floor(minutes / 60);

@@ -3,7 +3,7 @@
   import { createBackup, isBackup, restoreBackup, saveFile, wipe } from '$lib/backup';
   import { loadDemo } from '$lib/demo';
   import { fmt, i18n, num, setLang, t, type Lang } from '$lib/i18n.svelte';
-  import { formatLiters } from '$lib/days';
+  import { formatLiters, hourLabel } from '$lib/days';
   import { data, load, saveSettings, translateDrinkNames, updateSleep, updateWeather } from '$lib/store.svelte';
   import { requestReminderPermission } from '$lib/reminders';
   import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
@@ -11,21 +11,15 @@
   import { searchPlaces, type Place } from '$lib/weather';
   import type { Theme } from '$lib/settings';
   import { applyTheme, openSheet, toast } from '$lib/ui.svelte';
+  import HourSelect from './HourSelect.svelte';
   import Sheet from './Sheet.svelte';
 
-
   let fileInput = $state<HTMLInputElement>();
-
-
-
-
-
 
   async function exportJson() {
     const backup = await createBackup();
     await saveFile(`headlog-backup-${backup.exportedAt.slice(0, 10)}.json`, JSON.stringify(backup, null, 1), 'application/json');
   }
-
 
   async function importFile(file: File) {
     let parsed: unknown;
@@ -74,7 +68,6 @@
   function duration(minutes: number): string {
     return minutes < 60 ? t('rem.minutes', { n: minutes }) : t('rem.hours', { n: num(minutes / 60, 0, 2) });
   }
-
 
   let access = $state<{ supported: boolean; granted: boolean } | null>(null);
 
@@ -246,17 +239,7 @@
     </label>
     <label class="flex items-center justify-between gap-4 text-body">
       {t('risk.setting')}
-      <select
-        class="w-32 shrink-0"
-        value={data.settings.riskAlert.enabled ? data.settings.riskAlert.hour : 0}
-        onchange={(e) => {
-          const hour = Number(e.currentTarget.value);
-          void saveSettings({ riskAlert: hour ? { enabled: true, hour } : { ...data.settings.riskAlert, enabled: false } });
-        }}
-      >
-        <option value={0}>{t('rem.off')}</option>
-        {#each [18, 19, 20, 21, 22] as h (h)}<option value={h}>{String(h).padStart(2, '0')}:00</option>{/each}
-      </select>
+      <HourSelect setting={data.settings.riskAlert} hours={[18, 19, 20, 21, 22]} onchange={(riskAlert) => saveSettings({ riskAlert })} />
     </label>
     <label class="flex items-center justify-between gap-4 text-body">
       {t('rem.headacheSetting')}
@@ -285,11 +268,11 @@
         {t('rem.drinkWindow')}
         <span class="flex shrink-0 items-center gap-1">
           <select class="w-24" aria-label={t('rem.drinkFrom')} value={data.settings.drinkReminder.from} onchange={(e) => setDrinkReminder({ from: Number(e.currentTarget.value) })}>
-            {#each [5, 6, 7, 8, 9, 10, 11, 12] as h (h)}<option value={h}>{String(h).padStart(2, '0')}:00</option>{/each}
+            {#each [5, 6, 7, 8, 9, 10, 11, 12] as h (h)}<option value={h}>{hourLabel(h)}</option>{/each}
           </select>
           –
           <select class="w-24" aria-label={t('rem.drinkTo')} value={data.settings.drinkReminder.to} onchange={(e) => setDrinkReminder({ to: Number(e.currentTarget.value) })}>
-            {#each [16, 17, 18, 19, 20, 21, 22, 23] as h (h)}<option value={h}>{String(h).padStart(2, '0')}:00</option>{/each}
+            {#each [16, 17, 18, 19, 20, 21, 22, 23] as h (h)}<option value={h}>{hourLabel(h)}</option>{/each}
           </select>
         </span>
       </div>
@@ -314,7 +297,7 @@
             value={data.settings.reminders[field]}
             onchange={(e) => saveSettings({ reminders: { ...data.settings.reminders, [field]: Number(e.currentTarget.value) } })}
           >
-            {#each hours as h (h)}<option value={h}>{String(h).padStart(2, '0')}:00</option>{/each}
+            {#each hours as h (h)}<option value={h}>{hourLabel(h)}</option>{/each}
           </select>
         </label>
       {/each}
@@ -344,22 +327,12 @@
       {#if data.settings.sleep.enabled}
         <label class="flex items-center justify-between gap-4">
           {t('sleep.checkSetting')}
-          <select
-            class="w-32 shrink-0"
-            value={data.settings.sleepCheck.enabled ? data.settings.sleepCheck.hour : 0}
-            onchange={(e) => {
-              const hour = Number(e.currentTarget.value);
-              void saveSettings({ sleepCheck: hour ? { enabled: true, hour } : { ...data.settings.sleepCheck, enabled: false } });
-            }}
-          >
-            <option value={0}>{t('rem.off')}</option>
-            {#each [7, 8, 9, 10, 11] as h (h)}<option value={h}>{String(h).padStart(2, '0')}:00</option>{/each}
-          </select>
+          <HourSelect setting={data.settings.sleepCheck} hours={[7, 8, 9, 10, 11]} onchange={(sleepCheck) => saveSettings({ sleepCheck })} />
         </label>
       {/if}
       {#if data.settings.sleep.enabled && access && !access.granted}
         <p class="text-xs text-muted">{t('sleep.allowHint')}</p>
-        <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={() => openUsageAccessSettings()}>
+        <button class="press btn-primary" onclick={() => openUsageAccessSettings()}>
           {t('sleep.allow')}
         </button>
       {/if}
@@ -418,7 +391,7 @@
       </p>
       <div class="flex flex-wrap gap-2">
         <button
-          class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
+          class="press btn-primary disabled:opacity-50"
           disabled={sync.busy}
           onclick={backupNow}>{t('sync.now')}</button
         >
@@ -437,7 +410,7 @@
           {t('sync.tokenLink')}
         </a>
         <button
-          class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
+          class="press btn-primary disabled:opacity-50"
           disabled={!token.trim() || sync.busy}
           onclick={linkGist}>{t('sync.connect')}</button
         >
@@ -448,7 +421,7 @@
 
   {@render group(t('set.backup'), t('set.backupHint'))}
   <div class="card grid grid-cols-2 gap-2 p-4">
-    <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={exportJson}>{t('set.export')}</button>
+    <button class="press btn-primary" onclick={exportJson}>{t('set.export')}</button>
     <button class="press rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium" onclick={() => fileInput?.click()}>{t('set.import')}</button>
   </div>
 

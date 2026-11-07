@@ -46,6 +46,6 @@
   <section class="card flex items-center gap-3 p-4">
     <span class="grid size-10 shrink-0 place-items-center rounded-full bg-surface-2 text-muted"><Moon size={20} /></span>
     <p class="flex-1 text-sm text-muted">{t('sleep.card.none')}</p>
-    <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={() => openNight(day)}>{t('sleep.card.add')}</button>
+    <button class="press btn-primary" onclick={() => openNight(day)}>{t('sleep.card.add')}</button>
   </section>
 {/if}
