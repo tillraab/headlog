@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/icon.svg" alt="HeadLog logo" width="140"></p>
+
 <h1 align="center">HeadLog</h1>
 
 <p align="center">
