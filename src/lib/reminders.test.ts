@@ -4,7 +4,7 @@ import { i18n } from './i18n.svelte';
 beforeAll(() => {
   i18n.lang = 'en';
 });
-import { planDrinkCheckins, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from './reminders';
+import { planDrinkReminders, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from './reminders';
 import type { TomorrowRisk } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
@@ -62,52 +62,32 @@ describe('planHeadacheChecks', () => {
   });
 });
 
-describe('planDrinkCheckins', () => {
-  const on = { enabled: true, times: ['16:00', '10:00', '13:00'] };
-  const drink = (time: string, name = 'Glass', ml = 250) => ({ time: at(time), name, emoji: '🥛', ml });
+describe('planDrinkReminders', () => {
+  const on = { enabled: true, from: 8, to: 20, everyHours: 2 };
+  const drink = (time: string) => ({ time: at(time), name: 'Glass', emoji: '🥛' });
 
   it('plans nothing when switched off', () => {
-    expect(planDrinkCheckins(at('2026-03-02T08:00'), { ...on, enabled: false }, 2000, [])).toEqual([]);
+    expect(planDrinkReminders(at('2026-03-02T07:00'), { ...on, enabled: false }, [])).toEqual([]);
   });
 
-  it('plans every time for each of the next 7 days, in order', () => {
-    const plan = planDrinkCheckins(at('2026-03-02T08:00'), on, 2000, []);
-    expect([plan.length, ...plan.slice(0, 3).map((r) => new Date(r.at).getHours())]).toEqual([21, 10, 13, 16]);
+  it('reminds every 2 h from the window start on a day without drinks', () => {
+    const today = planDrinkReminders(at('2026-03-02T07:00'), on, []).filter((r) => r.at < at('2026-03-03T00:00'));
+    expect(today.map((r) => new Date(r.at).getHours())).toEqual([10, 12, 14, 16, 18, 20]);
   });
 
-  it('skips a check-in within an hour after the last drink', () => {
-    const plan = planDrinkCheckins(at('2026-03-02T09:30'), on, 2000, [drink('2026-03-02T09:20')]);
-    expect(new Date(plan[0].at).getHours()).toBe(13);
+  it('counts from the last drink and names it', () => {
+    const [next] = planDrinkReminders(at('2026-03-02T11:00'), on, [drink('2026-03-02T10:30')]);
+    expect([next.at, next.body]).toEqual([at('2026-03-02T12:30'), 'Last drink 2h 00m ago: 🥛 Glass. Log it in HeadLog when you drink.']);
   });
 
-  it('ignores a drink logged after the check-in time', () => {
-    const plan = planDrinkCheckins(at('2026-03-02T08:00'), on, 2000, [drink('2026-03-02T20:00')]);
-    expect(plan).toHaveLength(21);
+  it('ignores yesterday’s drinks and stays inside the window', () => {
+    const plan = planDrinkReminders(at('2026-03-02T19:00'), on, [drink('2026-03-01T21:00')]);
+    expect(plan.filter((r) => r.at < at('2026-03-03T00:00')).map((r) => new Date(r.at).getHours())).toEqual([20]);
   });
 
-  it('lists the drinks since the previous check-in, the last three when expanded', () => {
-    const drinks = [drink('2026-03-02T10:10'), drink('2026-03-02T11:00', 'Coffee', 200), drink('2026-03-02T11:40'), drink('2026-03-02T11:50', 'Tea', 300)];
-    const [next] = planDrinkCheckins(at('2026-03-02T12:00'), on, 2000, drinks);
-    expect([next.title, next.body, next.largeBody]).toEqual([
-      '💧 What did you drink since 11:50?',
-      'Since 10:00: Glass, Coffee, Glass, Tea · 1.0 l of 2.0 l today',
-      '+1 more before\n11:00  🥛 Coffee  200 ml\n11:40  🥛 Glass  250 ml\n11:50  🥛 Tea  300 ml\n1.0 l of 2.0 l today'
-    ]);
-  });
-
-  it('says so when nothing was logged since the previous check-in', () => {
-    const [next] = planDrinkCheckins(at('2026-03-02T12:00'), on, 2000, [drink('2026-03-02T09:00')]);
-    expect(next.body).toBe('Nothing logged since the 10:00 check-in · 0.25 l of 2.0 l today');
-  });
-
-  it('names the last drink of the day before at the first check-in', () => {
-    const [first] = planDrinkCheckins(at('2026-03-02T08:00'), on, 2000, [drink('2026-03-01T21:30')]);
-    expect([first.title, first.body]).toEqual(['💧 What did you drink?', 'Last drink: yesterday 21:30. 0.0 l of 2.0 l today']);
-  });
-
-  it('gives every check-in its own id', () => {
-    const ids = planDrinkCheckins(at('2026-03-02T08:00'), { enabled: true, times: ['08:30', '09:00', '12:00', '18:00'] }, 2000, []).map((r) => r.id);
-    expect(new Set(ids).size).toBe(ids.length);
+  it('plans today and the next two days with distinct ids', () => {
+    const plan = planDrinkReminders(at('2026-03-02T07:00'), { ...on, everyHours: 1 }, []);
+    expect([plan.length, new Set(plan.map((r) => r.id)).size]).toEqual([36, 36]);
   });
 });
 

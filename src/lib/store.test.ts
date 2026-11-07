@@ -25,8 +25,8 @@ describe('translateDrinkNames', () => {
 describe('saveSettings', () => {
   it('stores nested values taken from the current settings', async () => {
     await load();
-    await saveSettings({ drinkCheckins: { ...data.settings.drinkCheckins, enabled: true } });
-    expect(data.settings.drinkCheckins).toEqual({ enabled: true, times: ['10:00', '13:00', '16:00', '19:00'] });
+    await saveSettings({ drinkReminder: { ...data.settings.drinkReminder, enabled: true } });
+    expect(data.settings.drinkReminder).toEqual({ enabled: true, from: 8, to: 20, everyHours: 2 });
   });
 });
 
@@ -62,5 +62,13 @@ describe('updateMedication', () => {
     await Promise.all([updateMedication(med.id, { dose: '10 mg' }), updateMedication(med.id, { name: 'Rizatriptan' })]);
     const saved = (await db.medications.get(med.id))!;
     expect([saved.name, saved.dose]).toEqual(['Rizatriptan', '10 mg']);
+  });
+});
+
+describe('drink reminder migration', () => {
+  it('turns the drink reminder on for whoever had drink check-ins on', async () => {
+    await db.settings.put({ key: 'settings', value: { drinkCheckins: { enabled: true, times: ['10:00'] } } });
+    await load();
+    expect(data.settings.drinkReminder).toEqual({ enabled: true, from: 8, to: 20, everyHours: 2 });
   });
 });

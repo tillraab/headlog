@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, Plus, X } from '@lucide/svelte';
+  import { ChevronDown, ChevronRight } from '@lucide/svelte';
   import { createBackup, isBackup, restoreBackup, saveFile, wipe } from '$lib/backup';
   import { loadDemo } from '$lib/demo';
   import { fmt, i18n, setLang, t, type Lang } from '$lib/i18n.svelte';
   import { formatLiters } from '$lib/days';
   import { data, load, saveSettings, translateDrinkNames, updateSleep, updateWeather } from '$lib/store.svelte';
-  import { MAX_CHECKIN_TIMES, requestReminderPermission } from '$lib/reminders';
+  import { requestReminderPermission } from '$lib/reminders';
   import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
   import { openUsageAccessSettings, screenAccess } from '$lib/sleep';
   import { searchPlaces, type Place } from '$lib/weather';
@@ -70,7 +70,6 @@
   }
 
 
-  let newCheckin = $state('');
   let access = $state<{ supported: boolean; granted: boolean } | null>(null);
 
   /** Checks usage access again, e.g. after returning from Android's settings. */
@@ -112,9 +111,13 @@
     }
   }
 
-  async function toggleCheckins(input: HTMLInputElement) {
+  async function toggleDrinkReminder(input: HTMLInputElement) {
     const enabled = await allowed(input);
-    await saveSettings({ drinkCheckins: { ...data.settings.drinkCheckins, enabled } });
+    await setDrinkReminder({ enabled });
+  }
+
+  function setDrinkReminder(patch: Partial<typeof data.settings.drinkReminder>) {
+    return saveSettings({ drinkReminder: { ...data.settings.drinkReminder, ...patch } });
   }
 
   /** Whether a reminder switch may turn on. Turns the switch back off when notifications are not allowed. */
@@ -123,11 +126,6 @@
     toast(t('rem.denied'));
     input.checked = false;
     return false;
-  }
-
-  async function setCheckinTimes(times: string[]) {
-    const unique = [...new Set(times)].sort().slice(0, MAX_CHECKIN_TIMES);
-    await saveSettings({ drinkCheckins: { ...data.settings.drinkCheckins, times: unique } });
   }
 
   async function toggleReminders(input: HTMLInputElement) {
@@ -262,47 +260,34 @@
       </select>
     </label>
     <label class="flex items-center justify-between gap-4 text-body">
-      {t('rem.checkinSetting')}
+      {t('rem.drinkSetting')}
       <input
         type="checkbox"
         class="size-6 shrink-0 accent-primary"
-        checked={data.settings.drinkCheckins.enabled}
-        onchange={(e) => toggleCheckins(e.currentTarget)}
+        checked={data.settings.drinkReminder.enabled}
+        onchange={(e) => toggleDrinkReminder(e.currentTarget)}
       />
     </label>
-    {#if data.settings.drinkCheckins.enabled}
-      <div class="-mt-2 flex flex-col gap-2">
-        <div class="flex flex-wrap gap-2">
-          {#each data.settings.drinkCheckins.times as time (time)}
-            <span class="flex items-center gap-1 rounded-full bg-water-soft py-1 pr-1 pl-3 text-sm font-medium tabular">
-              {time}
-              <button
-                class="press grid size-6 place-items-center rounded-full"
-                onclick={() => setCheckinTimes(data.settings.drinkCheckins.times.filter((x) => x !== time))}
-                aria-label={t('edit.delete')}
-              >
-                <X size={14} />
-              </button>
-            </span>
-          {/each}
-          {#if data.settings.drinkCheckins.times.length < MAX_CHECKIN_TIMES}
-            <label class="flex items-center gap-1 rounded-full bg-surface-2 py-1 pr-1 pl-3 text-sm font-medium">
-              <Plus size={14} />
-              <input
-                type="time"
-                class="w-24 bg-transparent p-0 text-sm"
-                aria-label={t('rem.checkinAdd')}
-                bind:value={newCheckin}
-                onchange={() => {
-                  if (newCheckin) void setCheckinTimes([...data.settings.drinkCheckins.times, newCheckin]);
-                  newCheckin = '';
-                }}
-              />
-            </label>
-          {/if}
-        </div>
-        <p class="text-xs text-muted">{t('rem.checkinHint')}</p>
+    {#if data.settings.drinkReminder.enabled}
+      <label class="flex items-center justify-between gap-4 text-body">
+        {t('rem.drinkAfter')}
+        <select class="w-32 shrink-0" value={data.settings.drinkReminder.everyHours} onchange={(e) => setDrinkReminder({ everyHours: Number(e.currentTarget.value) })}>
+          {#each [1, 1.5, 2, 3, 4] as n (n)}<option value={n}>{duration(n * 60)}</option>{/each}
+        </select>
+      </label>
+      <div class="flex items-center justify-between gap-4 text-body">
+        {t('rem.drinkWindow')}
+        <span class="flex shrink-0 items-center gap-1">
+          <select class="w-24" aria-label={t('rem.drinkFrom')} value={data.settings.drinkReminder.from} onchange={(e) => setDrinkReminder({ from: Number(e.currentTarget.value) })}>
+            {#each [5, 6, 7, 8, 9, 10, 11, 12] as h (h)}<option value={h}>{String(h).padStart(2, '0')}:00</option>{/each}
+          </select>
+          –
+          <select class="w-24" aria-label={t('rem.drinkTo')} value={data.settings.drinkReminder.to} onchange={(e) => setDrinkReminder({ to: Number(e.currentTarget.value) })}>
+            {#each [16, 17, 18, 19, 20, 21, 22, 23] as h (h)}<option value={h}>{String(h).padStart(2, '0')}:00</option>{/each}
+          </select>
+        </span>
       </div>
+      <p class="-mt-2 text-xs text-muted">{t('rem.drinkHint')}</p>
     {/if}
     <label class="flex items-center justify-between gap-4 text-body">
       {t('rem.enabled')}

@@ -28,7 +28,7 @@ Run `bun run check` and `bun run test` before every commit.
 - `src/lib/prognosis.ts`: the traffic light on Today. Five factors (pressure drop today or tomorrow per `isPressureDrop`, hydration yesterday or behind today's pace, last night under 6 h, alcohol yesterday or today, caffeine drop from 10:00, against the average since the first logged drink, at most 14 days) are each ok, bad or unknown; 0 bad is green, 1 yellow, 2 or more red. Unknown factors never count. The same light drives the marker at the top of Today. The evening notification uses `tomorrowRisk` instead: only tomorrow's pressure drop, today's total below three quarters of the goal and alcohol today count, as they stand at the chosen hour. No percentages or estimated chances: the app counts factors and shows the user's own numbers.
 - `src/lib/report.ts`: doctor PDF (jsPDF + jspdf-autotable): header with logo, key figures, calendar, two charts, medication, triggers. The overview must stay on the first A4 page for up to 12 months; after it come possible triggers (`compareDays`, `dayFactors`) and a table of every headache and intake.
 - `src/lib/doctor.svelte.ts`: builds the report from the current data with the app icon as logo, or the CSV for the same period, and shares it. Used by Settings and Insights.
-- `src/lib/reminders.ts`: local notifications. Hydration reminders when behind the goal, drink check-ins at fixed times with drink buttons, "did it help?" after an intake, "still a headache?" every N hours.
+- `src/lib/reminders.ts`: local notifications. Hydration reminders when behind the goal, a drink reminder after N hours without a logged drink inside a daily window, "did it help?" after an intake, "still a headache?" every N hours.
 - `src/lib/backup.ts`: JSON backup and restore, CSV export, `saveFile` (Android share sheet or browser download).
 - `src/lib/gist.ts`, `sync.svelte.ts`: optional backup to a secret GitHub Gist.
 - `src/lib/sleep.ts` and `android/.../ScreenEventsPlugin.java`: sleep estimate from Android's screen on/off events (`UsageStatsManager`, usage access granted by the user). `estimateNight` is pure and tested; `syncNights` recomputes the last 8 nights on app start and return, but never a night the user edited (`source: 'manual'`). Moving the emulator clock rewrites usage event times, so a night cannot be simulated there; test the algorithm with unit tests.
@@ -61,7 +61,7 @@ Run `bun run check` and `bun run test` before every commit.
 
 ### Notifications
 
-- Fixed id ranges: water 100–113, "still a headache?" 200–211, drink check-ins 300–355, evening forecast 400, morning sleep question 500–501, "did it help?" 100000 + intake id. Keep new kinds out of these ranges.
+- Fixed id ranges: water 100–113, "still a headache?" 200–211, drink reminder 300–353, evening forecast 400, morning sleep question 500–501, "did it help?" 100000 + intake id. Keep new kinds out of these ranges.
 - Every scheduling call goes through `serial()` in `reminders.ts`. Without it, an older plan can finish after a newer one and leave stale notifications.
 - Rescheduling is declarative: `+page.svelte` recomputes the plans whenever data or settings change and on return to the app. Add new reminder kinds the same way (pure `plan…` function with tests, `apply…` that cancels its id range and schedules).
 - The manifest declares `USE_EXACT_ALARM`, which Android grants on install for apps outside Google Play. Without it, the plugin opens the "Alarms & reminders" settings screen on its own, or falls back to alarms up to 45 minutes late.
