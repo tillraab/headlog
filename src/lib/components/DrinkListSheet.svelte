@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Plus, Trash2 } from '@lucide/svelte';
   import type { DrinkPreset } from '$lib/db';
-  import { t } from '$lib/i18n.svelte';
+  import { num, t } from '$lib/i18n.svelte';
   import { data, deleteDrinkPreset, saveDrinkPreset, saveSettings, updateDrinkPreset } from '$lib/store.svelte';
   import OrderButtons from './OrderButtons.svelte';
   import Sheet from './Sheet.svelte';
@@ -31,7 +31,7 @@
       {t('set.waterGoal')}
       <select class="w-28" value={data.settings.waterGoalMl} onchange={(e) => saveSettings({ waterGoalMl: Number(e.currentTarget.value) })}>
         {#each [1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3500, 4000] as ml (ml)}
-          <option value={ml}>{(ml / 1000).toLocaleString()} l</option>
+          <option value={ml}>{num(ml / 1000, 0, 2)} l</option>
         {/each}
       </select>
     </label>

@@ -965,6 +965,22 @@ export function t(key: Key, params: Record<string, string | number> = {}): strin
   return text;
 }
 
+const numberFormats = new Map<string, Intl.NumberFormat>();
+
+/**
+ * A number written the way the app language writes it ("1.5" or "1,5"), not the phone's language.
+ * Shows at least `digits` and at most `maxDigits` decimals.
+ */
+export function num(value: number, digits = 0, maxDigits = digits): string {
+  const key = `${i18n.lang}:${digits}:${maxDigits}`;
+  let format = numberFormats.get(key);
+  if (!format) {
+    format = new Intl.NumberFormat(i18n.lang, { minimumFractionDigits: digits, maximumFractionDigits: maxDigits });
+    numberFormats.set(key, format);
+  }
+  return format.format(value);
+}
+
 export function dateLocale() {
   return i18n.lang === 'de' ? deLocale : enGB;
 }

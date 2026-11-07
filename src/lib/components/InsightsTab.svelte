@@ -4,7 +4,7 @@
   import { addDays, format } from 'date-fns';
   import { dayKey, formatDuration, formatLiters, lastDays } from '$lib/days';
   import { openSheet } from '$lib/ui.svelte';
-  import { fmt, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
+  import { fmt, num, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { isPressureDrop, PRESSURE_DROP_HPA } from '$lib/weather';
   import BarChart from './BarChart.svelte';
@@ -73,7 +73,7 @@
         values: series.sleepHours,
         color: 'var(--color-primary)',
         kind: 'bars',
-        format: (v) => `${(Math.round(v * 10) / 10).toLocaleString()} h`,
+        format: (v) => `${num(v, 0, 1)} h`,
         reference: SLEEP_REFERENCE_HOURS
       });
     }
@@ -164,7 +164,7 @@
     <section class="grid grid-cols-3 gap-2">
       {#each [
         { label: t('ins.headacheDays'), value: String(stats.headacheDays), cls: 'text-pain' },
-        { label: t('ins.avgIntensity'), value: stats.avgIntensity === null ? '–' : stats.avgIntensity.toFixed(1), cls: '' },
+        { label: t('ins.avgIntensity'), value: stats.avgIntensity === null ? '–' : num(stats.avgIntensity, 1), cls: '' },
         { label: t('ins.avgDuration'), value: stats.avgDurationMs === null ? '–' : formatDuration(stats.avgDurationMs), cls: '' },
         { label: t('ins.medDays'), value: String(stats.medDays), cls: 'text-med' },
         { label: t('ins.avgWater'), value: stats.avgWaterMl === null ? '–' : formatLiters(stats.avgWaterMl), cls: 'text-water' },

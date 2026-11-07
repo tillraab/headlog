@@ -2,7 +2,7 @@
   import { ChevronDown, ChevronRight } from '@lucide/svelte';
   import { createBackup, isBackup, restoreBackup, saveFile, wipe } from '$lib/backup';
   import { loadDemo } from '$lib/demo';
-  import { fmt, i18n, setLang, t, type Lang } from '$lib/i18n.svelte';
+  import { fmt, i18n, num, setLang, t, type Lang } from '$lib/i18n.svelte';
   import { formatLiters } from '$lib/days';
   import { data, load, saveSettings, translateDrinkNames, updateSleep, updateWeather } from '$lib/store.svelte';
   import { requestReminderPermission } from '$lib/reminders';
@@ -71,7 +71,7 @@
   }
 
   function duration(minutes: number): string {
-    return minutes < 60 ? t('rem.minutes', { n: minutes }) : t('rem.hours', { n: (minutes / 60).toLocaleString(i18n.lang) });
+    return minutes < 60 ? t('rem.minutes', { n: minutes }) : t('rem.hours', { n: num(minutes / 60, 0, 2) });
   }
 
 

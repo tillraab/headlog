@@ -4,7 +4,7 @@
   import { addDays, format, setHours } from 'date-fns';
   import { formatDuration, formatLiters, keyToDate } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
-  import { fmt, t, tagLabel } from '$lib/i18n.svelte';
+  import { fmt, num, t, tagLabel } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { hydrationBefore } from '$lib/analysis';
   import { isPressureDrop, weatherEmoji } from '$lib/weather';
@@ -46,7 +46,7 @@
           {Math.round(weather.pressure)} hPa{weather.pressureDrop >= 1 ? ` (−${Math.round(weather.pressureDrop)})` : ''}
         </span>
         {#if weather.humidity !== null}<span class="text-muted">·</span><span>{weather.humidity} %</span>{/if}
-        {#if weather.precipitation >= 0.5}<span class="text-muted">·</span><span>{weather.precipitation.toFixed(1)} mm</span>{/if}
+        {#if weather.precipitation >= 0.5}<span class="text-muted">·</span><span>{num(weather.precipitation, 1)} mm</span>{/if}
       </p>
     {/if}
 

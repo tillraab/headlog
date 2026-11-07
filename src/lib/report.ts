@@ -4,7 +4,7 @@ import { autoTable } from 'jspdf-autotable';
 import { compareDays, dayFactors, headacheDays, intakeDays, MONTHLY_LIMITS, periodStats, rollingDays, ruleStatus, tenTwenty, type ComparisonKey, type DayFactors } from './analysis';
 import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
 import { dayKey, dayRange, formatDuration, formatLiters, keyToDate } from './days';
-import { fmt, t, tagLabel } from './i18n.svelte';
+import { fmt, num, t, tagLabel } from './i18n.svelte';
 import { PRESSURE_DROP_HPA } from './weather';
 
 type Rgb = [number, number, number];
@@ -104,10 +104,10 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
 
   // Key figures
   let y = 36;
-  const perMonth = (n: number) => ((n / span) * 30).toFixed(1);
+  const perMonth = (n: number) => num((n / span) * 30, 1);
   const tiles: { value: string; label: string; sub?: string; color: Rgb }[] = [
     { value: String(stats.headacheDays), label: t('ins.headacheDays'), sub: t('pdf.perMonth', { n: perMonth(stats.headacheDays) }), color: PAIN },
-    { value: stats.avgIntensity === null ? '–' : stats.avgIntensity.toFixed(1), label: t('ins.avgIntensity'), sub: '1–10', color: INK },
+    { value: stats.avgIntensity === null ? '–' : num(stats.avgIntensity, 1), label: t('ins.avgIntensity'), sub: '1–10', color: INK },
     { value: stats.avgDurationMs === null ? '–' : formatDuration(stats.avgDurationMs), label: t('ins.avgDuration'), color: INK },
     { value: String(stats.medDays), label: t('ins.medDays'), sub: t('pdf.perMonth', { n: perMonth(stats.medDays) }), color: MED },
     { value: `${rule.count}/${rule.limit}`, label: t('pdf.ruleNow'), sub: t(`tenTwenty.${rule.status}`), color: STATUS_COLOR[rule.status] },

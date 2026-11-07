@@ -1,4 +1,5 @@
 import { addDays, differenceInCalendarDays, format, parseISO, startOfDay } from 'date-fns';
+import { num } from './i18n.svelte';
 
 /** Local calendar day as `yyyy-MM-dd`. */
 export function dayKey(time: number | Date): string {
@@ -35,5 +36,5 @@ export function formatDuration(ms: number): string {
 }
 
 export function formatLiters(ml: number): string {
-  return `${(ml / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })} l`;
+  return `${num(ml / 1000, 1, 2)} l`;
 }
