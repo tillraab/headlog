@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Clearing a date or time field in the editor no longer saves an invalid time, which made the entry disappear and broke the CSV export. The field keeps its previous value.
+
 ## [0.22.1] - 2026-11-07
 
 ### Changed

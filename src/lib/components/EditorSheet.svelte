@@ -15,6 +15,14 @@
   );
   let error = $state('');
 
+  /** The time in a datetime field. A cleared or invalid field shows `current` again and keeps it. */
+  function readTime(input: HTMLInputElement, current: number): number {
+    const time = fromLocalInput(input.value);
+    if (time !== null) return time;
+    input.value = toLocalInput(current);
+    return current;
+  }
+
   function close() {
     error = '';
     closeSheet('editor');
@@ -23,6 +31,11 @@
   async function save() {
     const c = editor.current;
     if (!c) return;
+    const times = c.kind === 'episode' ? [c.item.start, c.item.end ?? 0] : c.kind === 'sleep' ? [c.item.start, c.item.end] : [c.item.time];
+    if (!times.every(Number.isFinite)) {
+      error = t('edit.invalidTime');
+      return;
+    }
     if (c.kind === 'episode') {
       if (c.item.end !== null && c.item.end <= c.item.start) {
         error = t('edit.endBeforeStart');
@@ -69,7 +82,7 @@
         {@const ep = current.item}
         <label class="flex flex-col gap-1 text-sm">
           <span class="text-muted">{t('edit.start')}</span>
-          <input type="datetime-local" value={toLocalInput(ep.start)} onchange={(e) => (ep.start = fromLocalInput(e.currentTarget.value))} />
+          <input type="datetime-local" value={toLocalInput(ep.start)} onchange={(e) => (ep.start = readTime(e.currentTarget, ep.start))} />
         </label>
         <label class="flex items-center gap-2 text-sm">
           <input
@@ -83,7 +96,7 @@
         {#if ep.end !== null}
           <label class="flex flex-col gap-1 text-sm">
             <span class="text-muted">{t('edit.end')}</span>
-            <input type="datetime-local" value={toLocalInput(ep.end)} onchange={(e) => (ep.end = fromLocalInput(e.currentTarget.value))} />
+            <input type="datetime-local" value={toLocalInput(ep.end)} onchange={(e) => (ep.end = readTime(e.currentTarget, ep.end ?? ep.start))} />
           </label>
         {/if}
         <div class="flex flex-col gap-2 text-sm">
@@ -121,7 +134,7 @@
         {/if}
         <label class="flex flex-col gap-1 text-sm">
           <span class="text-muted">{t('edit.time')}</span>
-          <input type="datetime-local" value={toLocalInput(intake.time)} onchange={(e) => (intake.time = fromLocalInput(e.currentTarget.value))} />
+          <input type="datetime-local" value={toLocalInput(intake.time)} onchange={(e) => (intake.time = readTime(e.currentTarget, intake.time))} />
         </label>
         <div class="flex flex-col gap-2 text-sm">
           <span class="text-muted">{t('edit.relief')}</span>
@@ -168,7 +181,7 @@
         </label>
         <label class="flex flex-col gap-1 text-sm">
           <span class="text-muted">{t('edit.time')}</span>
-          <input type="datetime-local" value={toLocalInput(drink.time)} onchange={(e) => (drink.time = fromLocalInput(e.currentTarget.value))} />
+          <input type="datetime-local" value={toLocalInput(drink.time)} onchange={(e) => (drink.time = readTime(e.currentTarget, drink.time))} />
         </label>
       {/if}
 

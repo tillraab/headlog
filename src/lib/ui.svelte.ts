@@ -74,6 +74,9 @@ export function toLocalInput(time: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function fromLocalInput(value: string): number {
-  return new Date(value).getTime();
+/** Time from an `<input type="datetime-local">`, or null when the field is empty or invalid. */
+export function fromLocalInput(value: string): number | null {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
 }
