@@ -1,52 +1,13 @@
-import { CAFFEINE, fromPreset } from './drinks';
-import { fromMedication } from './medication';
 import { db, DRINK_NAMES, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type Relief, type WeatherDay } from './db';
 import { DAY, dayKey, HOUR } from './days';
+import { fromPreset } from './drinks';
 import { i18n } from './i18n.svelte';
-import { edit } from './editor.svelte';
-import { defaultNight, syncNights } from './sleep';
-import { syncWeather, type Place } from './weather';
-import { cancelReliefCheck, scheduleReliefCheck, type DrinkReminderSettings } from './reminders';
-import type { Theme } from './ui.svelte';
-
-export interface Settings {
-  waterGoalMl: number;
-  limit: number;
-  theme: Theme;
-  /** Name printed on the doctor report. */
-  reportName: string;
-  /** Water reminders: half the goal by `noon`, the full goal by `evening` (hours of the day). */
-  reminders: { enabled: boolean; noon: number; evening: number };
-  /** Minutes after an intake to ask whether it helped, 0 for off. */
-  reliefCheckMinutes: number;
-  /** Hours between "still a headache?" notifications, 0 for off. */
-  headacheCheckHours: number;
-  /** "What did you drink?" notifications at fixed times. */
-  drinkReminder: DrinkReminderSettings;
-  /** Daily weather for the home town. */
-  weather: { enabled: boolean; place: Place | null };
-  /** Estimate sleep from screen activity. */
-  sleep: { enabled: boolean };
-  /** Morning notification asking whether last night's times are right. */
-  sleepCheck: { enabled: boolean; hour: number };
-  /** Evening notification when a headache is more likely tomorrow. */
-  riskAlert: { enabled: boolean; hour: number };
-}
-
-const DEFAULT_SETTINGS: Settings = {
-  waterGoalMl: 2000,
-  limit: 10,
-  theme: 'system',
-  reportName: '',
-  reminders: { enabled: false, noon: 12, evening: 18 },
-  reliefCheckMinutes: 60,
-  headacheCheckHours: 3,
-  drinkReminder: { enabled: false, from: 8, to: 20, everyHours: 2 },
-  weather: { enabled: false, place: null },
-  sleep: { enabled: false },
-  sleepCheck: { enabled: true, hour: 9 },
-  riskAlert: { enabled: true, hour: 20 }
-};
+import { fromMedication } from './medication';
+import { migrate } from './migrations';
+import { cancelReliefCheck, scheduleReliefCheck } from './reminders';
+import { DEFAULT_SETTINGS, mergeSettings, type Settings } from './settings';
+import { syncNights } from './sleep';
+import { syncWeather, WEATHER_SYNC_KEY } from './weather';
 
 /** All data in memory. A diary stays small, so every write reloads everything. */
 export const data = $state({
@@ -64,37 +25,19 @@ export const data = $state({
 /** Current time, ticking every 20 seconds so durations stay live. */
 export const clock = $state({ now: Date.now() });
 
-/** Gives the default coffee and tea of older installs their caffeine, including drinks already logged. */
-async function addCaffeineDefaults() {
-  if (await db.settings.get('caffeineDefaults')) return;
-  const values: Record<string, number> = { Coffee: CAFFEINE.coffee, Kaffee: CAFFEINE.coffee, Tea: CAFFEINE.tea, Tee: CAFFEINE.tea };
-  await db.transaction('rw', db.drinkPresets, db.drinks, db.settings, async () => {
-    for (const preset of await db.drinkPresets.toArray()) {
-      const mg = values[preset.name];
-      if (!mg || preset.caffeineMg !== undefined) continue;
-      await db.drinkPresets.update(preset.id, { caffeineMg: mg });
-      await db.drinks.filter((d) => d.presetId === preset.id).modify((d) => {
-        if (d.caffeineMg === undefined) d.caffeineMg = mg;
-      });
-    }
-    await db.settings.put({ key: 'caffeineDefaults', value: true });
-  });
-}
-
 export async function load() {
   await seed(db, i18n.lang);
-  await addCaffeineDefaults();
-  const [episodes, intakes, drinks, medications, drinkPresets, settingRows, weather, nights] = await Promise.all([
+  await migrate(db);
+  const [episodes, intakes, drinks, medications, drinkPresets, settingsRow, weather, nights] = await Promise.all([
     db.episodes.orderBy('start').toArray(),
     db.intakes.orderBy('time').toArray(),
     db.drinks.orderBy('time').toArray(),
     db.medications.orderBy('order').toArray(),
     db.drinkPresets.orderBy('order').toArray(),
-    db.settings.toArray(),
+    db.settings.get('settings'),
     db.weather.toArray(),
     db.sleep.toArray()
   ]);
-  const stored = Object.fromEntries(settingRows.map((r) => [r.key, r.value]));
   data.episodes = episodes;
   data.intakes = intakes;
   data.drinks = drinks;
@@ -102,13 +45,7 @@ export async function load() {
   data.drinkPresets = drinkPresets;
   data.weather = new Map(weather.map((w) => [w.day, w]));
   data.sleep = new Map(nights.map((n) => [n.day, n]));
-  const { reliefCheck, drinkCheckins, ...saved } = (stored.settings ?? {}) as Partial<Settings> & {
-    reliefCheck?: boolean;
-    drinkCheckins?: { enabled: boolean };
-  };
-  // Drink check-ins at fixed times became the drink reminder; whoever had them on keeps a reminder.
-  const drinkReminder = !saved.drinkReminder && drinkCheckins?.enabled ? { drinkReminder: { ...DEFAULT_SETTINGS.drinkReminder, enabled: true } } : {};
-  data.settings = { ...DEFAULT_SETTINGS, ...(reliefCheck === false ? { reliefCheckMinutes: 0 } : {}), ...drinkReminder, ...saved };
+  data.settings = mergeSettings(settingsRow?.value);
   data.ready = true;
 }
 
@@ -236,22 +173,14 @@ export async function deleteDrinkPreset(id: number) {
   await load();
 }
 
-const WEATHER_SYNC_KEY = 'headlog.weatherSync';
 const WEATHER_SYNC_HOURS = 3;
 /** Weather is fetched from the first entry on, and at least for this many days back. */
 const WEATHER_BACKFILL_DAYS = 30;
-const WEATHER_METRIC = 'weatherDailyMeanDrop';
 
 /** Fetches missing and recent weather, at most every few hours unless `force`. */
 export async function updateWeather(force = false) {
   const { enabled, place } = data.settings.weather;
   if (!enabled || !place) return;
-  // Weather stored before the daily-mean pressure drop is fetched again once.
-  if (!(await db.settings.get(WEATHER_METRIC))) {
-    await db.weather.clear();
-    await db.settings.put({ key: WEATHER_METRIC, value: true });
-    force = true;
-  }
   const last = Number(localStorage.getItem(WEATHER_SYNC_KEY) ?? 0);
   if (!force && Date.now() - last < WEATHER_SYNC_HOURS * HOUR) return;
   const times = [...data.episodes.map((e) => e.start), ...data.intakes.map((i) => i.time), ...data.drinks.map((d) => d.time)];
@@ -271,12 +200,6 @@ export async function updateSleep() {
 export async function saveNight(night: Night) {
   await db.sleep.put($state.snapshot(night));
   await load();
-}
-
-/** Opens the sleep editor for the night ending on `day`, starting from 23:00–7:00 when nothing is known. */
-export async function openNight(day: string) {
-  await updateSleep();
-  edit({ kind: 'sleep', item: data.sleep.get(day) ?? defaultNight(day) });
 }
 
 /** Keeps the night ending on `day` as estimated, so it is no longer estimated again. */

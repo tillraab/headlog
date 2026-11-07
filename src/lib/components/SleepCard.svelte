@@ -7,7 +7,8 @@
   import { dayKey, formatDuration, hm } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
   import { awakeMs } from '$lib/sleep';
-  import { clock, confirmNight, data, openNight } from '$lib/store.svelte';
+  import { openNight } from '$lib/editor.svelte';
+  import { clock, confirmNight, data } from '$lib/store.svelte';
   import { tap, toast } from '$lib/ui.svelte';
 
   const day = $derived(dayKey(clock.now));

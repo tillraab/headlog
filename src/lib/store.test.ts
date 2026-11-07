@@ -146,3 +146,28 @@ describe('confirmNight', () => {
     expect((await db.sleep.get('2026-03-10'))!.source).toBe('manual');
   });
 });
+
+describe('migrations', () => {
+  it('run once: a second load does not clear the weather again', async () => {
+    await load();
+    const flag = await db.settings.get('weatherDailyMeanDrop');
+    await db.weather.put({ day: '2026-03-10', pressure: 1010, pressureDrop: 0, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 });
+    await load();
+    expect([flag?.value, await db.weather.count()]).toEqual([true, 1]);
+  });
+
+  it('clear weather stored before the daily-mean pressure drop', async () => {
+    await db.settings.delete('weatherDailyMeanDrop');
+    await db.weather.put({ day: '2026-03-10', pressure: 1010, pressureDrop: 0, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 });
+    await load();
+    expect(await db.weather.count()).toBe(0);
+  });
+});
+
+describe('load', () => {
+  it('fills a setting sub-field that the stored settings lack', async () => {
+    await db.settings.put({ key: 'settings', value: { drinkReminder: { enabled: true, from: 9, to: 18 } } });
+    await load();
+    expect(data.settings.drinkReminder.everyHours).toBe(2);
+  });
+});

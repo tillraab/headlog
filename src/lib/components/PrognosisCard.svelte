@@ -5,7 +5,8 @@
   import { awakeMs } from '$lib/sleep';
   import { badFactors, prognosis, prognosisInput, type Status } from '$lib/prognosis';
   import { CAFFEINE_DROP, LOW_HYDRATION, SHORT_SLEEP_HOURS } from '$lib/thresholds';
-  import { clock, data, openNight } from '$lib/store.svelte';
+  import { openNight } from '$lib/editor.svelte';
+  import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import TrafficLight, { LIGHT_COLOR } from './TrafficLight.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';

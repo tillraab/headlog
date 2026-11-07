@@ -6,7 +6,7 @@ import { RELIEFS, type Drink, type Episode, type Night, type Relief, type Weathe
 import { DAY, dayKey, formatDuration, formatLiters, hm, HOUR, MINUTE } from './days';
 import { reliefLabels, t } from './i18n.svelte';
 import { prognosisInput, tomorrowRisk, type TomorrowRisk } from './prognosis';
-import type { Settings } from './store.svelte';
+import type { Settings } from './settings';
 
 export interface ReminderSettings {
   enabled: boolean;

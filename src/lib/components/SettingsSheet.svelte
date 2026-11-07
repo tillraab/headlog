@@ -9,7 +9,8 @@
   import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
   import { openUsageAccessSettings, screenAccess } from '$lib/sleep';
   import { searchPlaces, type Place } from '$lib/weather';
-  import { applyTheme, openSheet, toast, type Theme } from '$lib/ui.svelte';
+  import type { Theme } from '$lib/settings';
+  import { applyTheme, openSheet, toast } from '$lib/ui.svelte';
   import Sheet from './Sheet.svelte';
 
 

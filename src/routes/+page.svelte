@@ -15,7 +15,8 @@
   import VersionsSheet from '$lib/components/VersionsSheet.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
   import { i18n, t } from '$lib/i18n.svelte';
-  import { confirmNight, data, endEpisode, load, openNight, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
+  import { openNight } from '$lib/editor.svelte';
+  import { confirmNight, data, endEpisode, load, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
   import { applyDrinkReminders, applyHeadacheChecks, applyReminders, applyRiskAlert, applySleepChecks, onNotificationAction, planAll } from '$lib/reminders';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';

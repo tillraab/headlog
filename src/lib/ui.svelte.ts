@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import type { Theme } from './settings';
 
 export interface Toast {
   id: number;
@@ -58,8 +59,6 @@ export function closeTopSheet(): boolean {
   sheets.stack = sheets.stack.slice(0, -1);
   return true;
 }
-
-export type Theme = 'system' | 'light' | 'dark';
 
 export function applyTheme(theme: Theme) {
   const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
