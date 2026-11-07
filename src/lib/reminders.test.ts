@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planDrinkReminders, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from './reminders';
+import { planDrinkReminders, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks, RANGES } from './reminders';
 import type { TomorrowRisk } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
@@ -123,5 +123,24 @@ describe('planSleepChecks', () => {
 
   it('plans nothing when switched off', () => {
     expect(planSleepChecks(at('2026-03-10T07:30'), { ...settings, enabled: false }, night('screen'))).toEqual([]);
+  });
+});
+
+describe('id ranges', () => {
+  it('hold every planned reminder of one moment, without duplicate ids', () => {
+    const now = at('2026-03-02T00:30');
+    const plans = {
+      water: planReminders(now, on, 2000, 0),
+      headache: planHeadacheChecks({ id: 1, start: now, end: null }, now, 1),
+      drink: planDrinkReminders(now, { enabled: true, from: 5, to: 23, everyHours: 0.5 }, []),
+      risk: planRiskAlert(now, { enabled: true, hour: 20 }, () => ({ light: 'red', factors: ['weather', 'alcohol'] })),
+      sleep: planSleepChecks(now, { enabled: true, hour: 9 }, new Map())
+    };
+    const outside = Object.entries(plans).flatMap(([kind, plan]) => {
+      const range = RANGES[kind as keyof typeof RANGES];
+      return plan.filter((r) => r.id < range.first || r.id >= range.first + range.count).map((r) => `${kind} ${r.id}`);
+    });
+    const ids = Object.values(plans).flatMap((plan) => plan.map((r) => r.id));
+    expect([outside, new Set(ids).size, ids.length]).toEqual([[], 83, 83]);
   });
 });

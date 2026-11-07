@@ -17,9 +17,38 @@ export interface PlannedReminder {
   at: number;
   title: string;
   body: string;
-  /** Text shown when the notification is expanded. */
-  largeBody?: string;
 }
+
+/** Days ahead the water reminders are planned. */
+const WATER_DAYS = 7;
+const HEADACHE_CHECKS = 12;
+const DRINK_DAYS = 3;
+const DRINK_PER_DAY = 18;
+const SLEEP_DAYS = 2;
+
+/** A block of notification ids that belongs to one kind of reminder. */
+interface IdRange {
+  first: number;
+  count: number;
+}
+
+/**
+ * The fixed id ranges, as listed in CLAUDE.md. Applying a plan cancels its whole range first, so the
+ * ranges must not overlap. "Did it help?" uses `RELIEF_OFFSET` plus the intake id instead.
+ */
+export const RANGES = {
+  water: { first: 100, count: WATER_DAYS * 2 },
+  headache: { first: 200, count: HEADACHE_CHECKS },
+  drink: { first: 300, count: DRINK_DAYS * DRINK_PER_DAY },
+  risk: { first: 400, count: 1 },
+  sleep: { first: 500, count: SLEEP_DAYS }
+} satisfies Record<string, IdRange>;
+
+const RELIEF_OFFSET = 100000;
+
+const RELIEF_TYPE = 'relief';
+const SLEEP_TYPE = 'sleep';
+const HEADACHE_TYPE = 'headache';
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -30,7 +59,38 @@ function serial(task: () => Promise<void>): Promise<void> {
   return next;
 }
 
-const RISK_ID = 400;
+interface ScheduleOptions<T> {
+  /** Buttons on the notification, one of the types in `registerActions`. */
+  actionTypeId?: string;
+  /** Removes the notification once tapped. */
+  autoCancel?: boolean;
+  /** Data the button handler gets back. */
+  extra?: (reminder: T) => Record<string, unknown>;
+}
+
+/**
+ * Replaces the pending notifications of one range with `plan`: cancels the range, asks for the
+ * permission and schedules. Does nothing outside the Android app.
+ */
+function replaceRange<T extends PlannedReminder>(range: IdRange, plan: T[], options: ScheduleOptions<T> = {}) {
+  return serial(async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    await LocalNotifications.cancel({ notifications: Array.from({ length: range.count }, (_, i) => ({ id: range.first + i })) });
+    if (!plan.length || !(await requestReminderPermission())) return;
+    if (options.actionTypeId) await registerActions();
+    await LocalNotifications.schedule({
+      notifications: plan.map((r) => ({
+        id: r.id,
+        title: r.title,
+        body: r.body,
+        ...(options.actionTypeId ? { actionTypeId: options.actionTypeId } : {}),
+        ...(options.autoCancel ? { autoCancel: true } : {}),
+        ...(options.extra ? { extra: options.extra(r) } : {}),
+        schedule: { at: new Date(r.at), allowWhileIdle: true }
+      }))
+    });
+  });
+}
 
 /**
  * The evening warning: tomorrow's outlook as it stands at the chosen hour, if nothing more is logged
@@ -43,22 +103,13 @@ export function planRiskAlert(now: number, settings: { enabled: boolean; hour: n
   const risk = atHour(at);
   if (risk.light === 'green') return [];
   const factors = risk.factors.map((k) => t(`prog.tomorrowFactor.${k}`)).join(', ');
-  return [{ id: RISK_ID, at, title: t(`prog.notify.${risk.light}`), body: t('prog.notifyBody', { factors }) }];
+  return [{ id: RANGES.risk.first, at, title: t(`prog.notify.${risk.light}`), body: t('prog.notifyBody', { factors }) }];
 }
 
+/** Replaces the pending evening warning with the plan. */
 export function applyRiskAlert(plan: PlannedReminder[]) {
-  return serial(async () => {
-    if (!Capacitor.isNativePlatform()) return;
-    await LocalNotifications.cancel({ notifications: [{ id: RISK_ID }] });
-    if (!plan.length || !(await requestReminderPermission())) return;
-    await LocalNotifications.schedule({
-      notifications: plan.map((r) => ({ id: r.id, title: r.title, body: r.body, schedule: { at: new Date(r.at), allowWhileIdle: true } }))
-    });
-  });
+  return replaceRange(RANGES.risk, plan);
 }
-
-const FIRST_ID = 100;
-const DAYS = 7;
 
 /**
  * Reminders for the next days: one at `noon` when less than half the goal is reached, one in the
@@ -68,7 +119,7 @@ const DAYS = 7;
 export function planReminders(now: number, settings: ReminderSettings, goalMl: number, todayMl: number): PlannedReminder[] {
   if (!settings.enabled) return [];
   const plan: PlannedReminder[] = [];
-  for (let d = 0; d < DAYS; d++) {
+  for (let d = 0; d < WATER_DAYS; d++) {
     const day = addDays(startOfDay(now), d);
     const ml = d === 0 ? todayMl : 0;
     const checks = [
@@ -77,7 +128,7 @@ export function planReminders(now: number, settings: ReminderSettings, goalMl: n
     ];
     checks.forEach((c, i) => {
       const at = setHours(day, c.hour).getTime();
-      if (at > now && ml < c.target) plan.push({ id: FIRST_ID + d * 2 + i, at, title: c.title, body: c.body });
+      if (at > now && ml < c.target) plan.push({ id: RANGES.water.first + d * 2 + i, at, title: c.title, body: c.body });
     });
   }
   return plan;
@@ -85,15 +136,7 @@ export function planReminders(now: number, settings: ReminderSettings, goalMl: n
 
 /** Replaces all pending water reminders with the plan. Does nothing outside the Android app. */
 export function applyReminders(plan: PlannedReminder[]) {
-  return serial(async () => {
-    if (!Capacitor.isNativePlatform()) return;
-    const ids = Array.from({ length: DAYS * 2 }, (_, i) => ({ id: FIRST_ID + i }));
-    await LocalNotifications.cancel({ notifications: ids });
-    if (!plan.length) return;
-    await LocalNotifications.schedule({
-      notifications: plan.map((r) => ({ id: r.id, title: r.title, body: r.body, schedule: { at: new Date(r.at), allowWhileIdle: true } }))
-    });
-  });
+  return replaceRange(RANGES.water, plan);
 }
 
 /** Asks for the notification permission. Returns whether reminders can be shown. */
@@ -102,11 +145,6 @@ export async function requestReminderPermission(): Promise<boolean> {
   const status = await LocalNotifications.requestPermissions();
   return status.display === 'granted';
 }
-
-const RELIEF_TYPE = 'relief';
-const SLEEP_TYPE = 'sleep';
-const HEADACHE_TYPE = 'headache';
-
 
 /** Buttons shown on notifications. Registered again before scheduling so the labels follow the language. */
 async function registerActions() {
@@ -133,8 +171,6 @@ async function registerActions() {
     ]
   });
 }
-
-const RELIEF_OFFSET = 100000;
 
 /** Asks about an intake `delayMinutes` later, with No / A bit / Yes buttons. */
 export async function scheduleReliefCheck(intake: { id: number; time: number; name: string }, delayMinutes: number) {
@@ -187,9 +223,6 @@ export function onNotificationAction(answers: NotificationAnswers) {
   return () => void handle.then((h) => h.remove());
 }
 
-const HEADACHE_FIRST_ID = 200;
-const HEADACHE_CHECKS = 12;
-
 /** "Still a headache?" every `everyHours` while an episode is ongoing, the next 12 times. */
 export function planHeadacheChecks(
   episode: { id: number; start: number; end: number | null } | undefined,
@@ -202,7 +235,7 @@ export function planHeadacheChecks(
   return Array.from({ length: HEADACHE_CHECKS }, (_, i) => {
     const at = episode.start + (first + i) * step;
     return {
-      id: HEADACHE_FIRST_ID + i,
+      id: RANGES.headache.first + i,
       at,
       episodeId: episode.id,
       title: t('rem.headacheTitle'),
@@ -213,23 +246,7 @@ export function planHeadacheChecks(
 
 /** Replaces the pending "still a headache?" notifications with the plan. */
 export function applyHeadacheChecks(plan: (PlannedReminder & { episodeId: number })[]) {
-  return serial(async () => {
-    if (!Capacitor.isNativePlatform()) return;
-    await LocalNotifications.cancel({ notifications: Array.from({ length: HEADACHE_CHECKS }, (_, i) => ({ id: HEADACHE_FIRST_ID + i })) });
-    if (!plan.length || !(await requestReminderPermission())) return;
-    await registerActions();
-    await LocalNotifications.schedule({
-      notifications: plan.map((r) => ({
-        id: r.id,
-        title: r.title,
-        body: r.body,
-        actionTypeId: HEADACHE_TYPE,
-        autoCancel: true,
-        extra: { episodeId: r.episodeId },
-        schedule: { at: new Date(r.at), allowWhileIdle: true }
-      }))
-    });
-  });
+  return replaceRange(RANGES.headache, plan, { actionTypeId: HEADACHE_TYPE, autoCancel: true, extra: (r) => ({ episodeId: r.episodeId }) });
 }
 
 export interface DrinkReminderSettings {
@@ -240,10 +257,6 @@ export interface DrinkReminderSettings {
   /** Hours without a logged drink before the reminder comes. */
   everyHours: number;
 }
-
-const DRINK_FIRST_ID = 300;
-const DRINK_DAYS = 3;
-const DRINK_PER_DAY = 18;
 
 /** A logged drink, as far as the drink reminder needs it. */
 export interface LoggedDrink {
@@ -275,7 +288,7 @@ export function planDrinkReminders(now: number, settings: DrinkReminderSettings,
       const body = last
         ? t('rem.drinkBodyLast', { d: formatDuration(at - last.time), drink: `${last.emoji} ${last.name}` })
         : t('rem.drinkBodyNone');
-      plan.push({ id: DRINK_FIRST_ID + d * DRINK_PER_DAY + n, at, title: t('rem.drinkTitle'), body });
+      plan.push({ id: RANGES.drink.first + d * DRINK_PER_DAY + n, at, title: t('rem.drinkTitle'), body });
       n++;
     }
   }
@@ -284,19 +297,8 @@ export function planDrinkReminders(now: number, settings: DrinkReminderSettings,
 
 /** Replaces the pending drink reminders with the plan. A tap opens HeadLog. */
 export function applyDrinkReminders(plan: PlannedReminder[]) {
-  return serial(async () => {
-    if (!Capacitor.isNativePlatform()) return;
-    const ids = Array.from({ length: DRINK_DAYS * DRINK_PER_DAY }, (_, i) => ({ id: DRINK_FIRST_ID + i }));
-    await LocalNotifications.cancel({ notifications: ids });
-    if (!plan.length || !(await requestReminderPermission())) return;
-    await LocalNotifications.schedule({
-      notifications: plan.map((r) => ({ id: r.id, title: r.title, body: r.body, autoCancel: true, schedule: { at: new Date(r.at), allowWhileIdle: true } }))
-    });
-  });
+  return replaceRange(RANGES.drink, plan, { autoCancel: true });
 }
-
-const SLEEP_FIRST_ID = 500;
-const SLEEP_DAYS = 2;
 
 /**
  * "How did you sleep?" this morning and tomorrow morning at `hour`, while the night is not confirmed.
@@ -313,27 +315,11 @@ export function planSleepChecks(now: number, settings: { enabled: boolean; hour:
       night && d === 0
         ? t('rem.sleepBody', { d: formatDuration(night.asleepMs), from: hm(night.start), to: hm(night.end) })
         : t('rem.sleepBodyLater');
-    return [{ id: SLEEP_FIRST_ID + d, at, day, title: t('rem.sleepTitle'), body }];
+    return [{ id: RANGES.sleep.first + d, at, day, title: t('rem.sleepTitle'), body }];
   });
 }
 
 /** Replaces the pending sleep questions with the plan, with Looks right / Correct buttons. */
 export function applySleepChecks(plan: (PlannedReminder & { day: string })[]) {
-  return serial(async () => {
-    if (!Capacitor.isNativePlatform()) return;
-    await LocalNotifications.cancel({ notifications: Array.from({ length: SLEEP_DAYS }, (_, i) => ({ id: SLEEP_FIRST_ID + i })) });
-    if (!plan.length || !(await requestReminderPermission())) return;
-    await registerActions();
-    await LocalNotifications.schedule({
-      notifications: plan.map((r) => ({
-        id: r.id,
-        title: r.title,
-        body: r.body,
-        actionTypeId: SLEEP_TYPE,
-        autoCancel: true,
-        extra: { day: r.day },
-        schedule: { at: new Date(r.at), allowWhileIdle: true }
-      }))
-    });
-  });
+  return replaceRange(RANGES.sleep, plan, { actionTypeId: SLEEP_TYPE, autoCancel: true, extra: (r) => ({ day: r.day }) });
 }
