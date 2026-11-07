@@ -37,7 +37,7 @@ Run `bun run check` and `bun run test` before every commit.
 - `src/lib/gist.ts`, `sync.svelte.ts`: optional backup to a secret GitHub Gist.
 - `src/lib/sleep.ts` and `android/.../ScreenEventsPlugin.java`: sleep estimate from Android's screen on/off events (`UsageStatsManager`, usage access granted by the user). `estimateNight` is pure and tested; `syncNights` recomputes the last 8 nights on app start and return, but never a night the user edited (`source: 'manual'`). Moving the emulator clock rewrites usage event times, so a night cannot be simulated there; test the algorithm with unit tests.
 - `src/lib/weather.ts`: Open-Meteo place search and daily weather. `pressureDrop` is how far the daily mean pressure fell from the day before; `isPressureDrop` (more than 5 hPa) follows Kimoto et al. 2011 and is the only place that decides what a pressure drop is. Keep thresholds that come from studies with the study's own measure. (archive for old days, forecast API for the last two weeks and tomorrow), stored in the `weather` table by day. Not part of backups; it can always be fetched again. `updateWeather()` in the store syncs at most every 3 hours.
-- `src/lib/i18n.svelte.ts`: English and German strings, `t()`, date formatting `fmt()`, numbers in the app language `num()`, tag and relief labels.
+- `src/lib/i18n.svelte.ts`: `t()`, date formatting `fmt()`, numbers in the app language `num()`, tag and relief labels. The strings live in `src/lib/i18n/en.ts` and `de.ts`.
 - `src/lib/ui.svelte.ts`: toasts with undo, haptics, sheet stack, theme, datetime-local helpers.
 - `src/lib/editor.svelte.ts`: which entry the editor sheet shows; `openNight` opens the sleep editor.
 - `src/lib/demo.ts`: 90 days of seeded demo data (Settings → Load demo data).
