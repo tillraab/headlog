@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, average, conflictingOngoing, medicationEffect, monthSummary, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
+import { alcoholDays, average, monthlyCounts, conflictingOngoing, medicationEffect, monthSummary, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
 import { prognosis } from './prognosis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import type { MedCategory } from './medication';
@@ -442,5 +442,20 @@ describe('monthSummary', () => {
   it('averages water over the days up to today, counting days without drinks as 0', () => {
     const data = { episodes: [], intakes: [], drinks: [drink('2026-03-02T08:00', 2000), drink('2026-03-20T08:00', 5000)] };
     expect(monthSummary(data, new Date('2026-03-01'), now).water).toBe(200);
+  });
+});
+
+describe('monthlyCounts', () => {
+  it('counts across the turn of the year', () => {
+    const data = { episodes: [episode('2025-12-31T22:00', '2026-01-01T02:00')], intakes: [intake('2025-12-30T08:00'), intake('2026-01-02T08:00')] };
+    expect(monthlyCounts(data, at('2026-01-15T12:00'), 2).map((m) => [m.month.getMonth(), m.headache, m.med])).toEqual([
+      [11, 1, 1],
+      [0, 1, 1]
+    ]);
+  });
+
+  it('goes back whole months from the 31st', () => {
+    const months = monthlyCounts({ episodes: [], intakes: [] }, at('2026-03-31T12:00'), 3).map((m) => m.month.getMonth());
+    expect(months).toEqual([0, 1, 2]);
   });
 });

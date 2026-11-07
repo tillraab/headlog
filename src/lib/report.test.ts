@@ -3,7 +3,8 @@ import { createBackup } from './backup';
 import { HeadLogDb, type Drink, type Episode, type Intake, type Medication, type Night } from './db';
 import { loadDemo } from './demo';
 import { i18n } from './i18n.svelte';
-import { doctorReport } from './report';
+import { monthlyCounts } from './analysis';
+import { doctorReport, reportData, type ReportInput } from './report';
 
 const now = new Date('2026-03-31T18:00').getTime();
 
@@ -51,5 +52,42 @@ describe('doctorReport', () => {
     i18n.lang = 'de';
     const text = await demoReport();
     expect([text.includes('Kopfschmerztagebuch'), text.includes('Druckabfall')]).toEqual([true, true]);
+  });
+});
+
+describe('reportData', () => {
+  const at = (time: string) => new Date(time).getTime();
+  const episode = (start: string, end: string, id = 1): Episode => ({ id, start: at(start), end: at(end), intensity: 6, tags: [], note: '' });
+  const intake = (time: string, id = 1): Intake => ({ id, time: at(time), medId: 1, name: 'Ibuprofen', dose: '400 mg', category: 'analgesic', relief: null });
+  const input = (episodes: Episode[], intakes: Intake[]): ReportInput => ({
+    episodes,
+    intakes,
+    drinks: [],
+    medications: [],
+    sleep: new Map(),
+    weather: new Map(),
+    limit: 10,
+    waterGoalMl: 2000,
+    name: '',
+    version: '1'
+  });
+
+  it('counts the months like monthlyCounts', () => {
+    const data = input([episode('2026-01-31T09:00', '2026-02-01T10:00'), episode('2025-12-31T09:00', '2025-12-31T12:00', 2)], [intake('2026-03-31T08:00')]);
+    expect(reportData(data, now, 4).monthly).toEqual(monthlyCounts(data, now, 4));
+  });
+
+  it('leaves out intakes outside the period', () => {
+    const data = input([], [intake('2025-12-31T23:00', 1), intake('2026-01-01T08:00', 2)]);
+    expect(reportData(data, now, 3).medications.map((m) => m.intakes)).toEqual([1]);
+  });
+
+  it('puts an intake 2 h before a headache with it, and one 4 h before in its own row', () => {
+    const data = input([episode('2026-03-10T12:00', '2026-03-10T15:00')], [intake('2026-03-10T08:00', 1), intake('2026-03-10T10:00', 2)]);
+    const rows = reportData(data, now, 1).entries.map((r) => [r.episode ? 'headache' : 'no headache', r.intakes.map((i) => i.id)]);
+    expect(rows).toEqual([
+      ['no headache', [1]],
+      ['headache', [2]]
+    ]);
   });
 });
