@@ -12,6 +12,10 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     environment: 'node',
     setupFiles: ['./vitest-setup.ts'],
-    env: { TZ: 'Europe/Berlin' }
+    env: { TZ: 'Europe/Berlin', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' },
+    coverage: {
+      include: ['src/lib/**/*.ts'],
+      exclude: ['src/lib/**/*.test.ts']
+    }
   }
 });

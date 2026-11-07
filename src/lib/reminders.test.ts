@@ -1,9 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
-import { i18n } from './i18n.svelte';
-
-beforeAll(() => {
-  i18n.lang = 'en';
-});
+import { describe, expect, it } from 'vitest';
 import { planDrinkReminders, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from './reminders';
 import type { TomorrowRisk } from './prognosis';
 
