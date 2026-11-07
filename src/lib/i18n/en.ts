@@ -411,6 +411,7 @@ export const en = {
   'set.importConfirm': 'Replace all data with this backup? This cannot be undone.',
   'set.imported': 'Backup restored',
   'set.importFailed': 'This file is not a HeadLog backup.',
+  'set.restoreFailed': 'Restoring the backup failed. Your previous data is unchanged.',
   'set.demo': 'Load demo data',
   'set.demoConfirm': 'Replace all data with 90 days of demo data?',
   'set.wipe': 'Delete all data',

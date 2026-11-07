@@ -3,7 +3,6 @@ import { createBackup } from './backup';
 import { HeadLogDb, type Drink, type Episode, type Intake, type Medication, type Night } from './db';
 import { loadDemo } from './demo';
 import { i18n } from './i18n.svelte';
-import { monthlyCounts } from './analysis';
 import { doctorReport, reportData, type ReportInput } from './report';
 
 const now = new Date('2026-03-31T18:00').getTime();
@@ -72,9 +71,14 @@ describe('reportData', () => {
     version: '1'
   });
 
-  it('counts the months like monthlyCounts', () => {
+  it('counts a headache across a month boundary in both months and leaves out months before the period', () => {
     const data = input([episode('2026-01-31T09:00', '2026-02-01T10:00'), episode('2025-12-31T09:00', '2025-12-31T12:00', 2)], [intake('2026-03-31T08:00')]);
-    expect(reportData(data, now, 4).monthly).toEqual(monthlyCounts(data, now, 4));
+    const counts = reportData(data, now, 3).monthly.map((m) => [m.headache, m.med]);
+    expect(counts).toEqual([
+      [1, 0],
+      [1, 0],
+      [0, 1]
+    ]);
   });
 
   it('leaves out intakes outside the period', () => {

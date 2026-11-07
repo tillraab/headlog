@@ -413,6 +413,7 @@ export const de: Record<keyof typeof en, string> = {
   'set.importConfirm': 'Alle Daten durch dieses Backup ersetzen? Das lässt sich nicht rückgängig machen.',
   'set.imported': 'Backup wiederhergestellt',
   'set.importFailed': 'Diese Datei ist kein HeadLog-Backup.',
+  'set.restoreFailed': 'Das Backup konnte nicht wiederhergestellt werden. Deine bisherigen Daten sind unverändert.',
   'set.demo': 'Demodaten laden',
   'set.demoConfirm': 'Alle Daten durch 90 Tage Demodaten ersetzen?',
   'set.wipe': 'Alle Daten löschen',

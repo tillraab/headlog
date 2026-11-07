@@ -37,7 +37,7 @@
       await restoreBackup(parsed);
       await load();
     } catch {
-      toast(t('set.importFailed'));
+      toast(t('set.restoreFailed'));
       return;
     }
     toast(t('set.imported'));

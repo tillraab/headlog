@@ -149,6 +149,7 @@ describe('confirmNight', () => {
 
 describe('migrations', () => {
   it('run once: a second load does not clear the weather again', async () => {
+    await db.settings.delete('weatherDailyMeanDrop');
     await load();
     const flag = await db.settings.get('weatherDailyMeanDrop');
     await db.weather.put({ day: '2026-03-10', pressure: 1010, pressureDrop: 0, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 });
