@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultNight, estimateNight, manualNight, nightSpan, onPeriods, type ScreenEvent } from './sleep';
+import { awakeMs, defaultNight, estimateNight, manualNight, nightSpan, onPeriods, sleepSegments, typedSleepTime, type ScreenEvent } from './sleep';
 
 const at = (s: string) => new Date(s).getTime();
 const off = (s: string): ScreenEvent => ({ time: at(s), on: false });
@@ -88,5 +88,48 @@ describe('onPeriods', () => {
       { start: at('2026-03-10T03:00'), end: at('2026-03-10T03:20') },
       { start: at('2026-03-10T11:00'), end: at('2026-03-10T12:00') }
     ]);
+  });
+});
+
+describe('sleepSegments', () => {
+  const night = { start: at('2026-03-09T23:00'), end: at('2026-03-10T07:00') };
+
+  it('is the whole night without breaks', () => {
+    expect(sleepSegments({ ...night, breaks: [] })).toEqual([night]);
+  });
+
+  it('leaves out two breaks, in time order', () => {
+    const late = { start: at('2026-03-10T04:00'), end: at('2026-03-10T04:30') };
+    const early = { start: at('2026-03-10T01:00'), end: at('2026-03-10T01:20') };
+    expect(sleepSegments({ ...night, breaks: [late, early] })).toEqual([
+      { start: night.start, end: early.start },
+      { start: early.end, end: late.start },
+      { start: late.end, end: night.end }
+    ]);
+  });
+});
+
+describe('awakeMs', () => {
+  it('adds up the breaks', () => {
+    const breaks = [
+      { start: at('2026-03-10T01:00'), end: at('2026-03-10T01:20') },
+      { start: at('2026-03-10T04:00'), end: at('2026-03-10T04:30') }
+    ];
+    expect(awakeMs({ breaks })).toBe(50 * 60000);
+  });
+});
+
+describe('typedSleepTime', () => {
+  it.each([
+    ['23:30', '2026-03-09T23:30'],
+    ['15:00', '2026-03-09T15:00'],
+    ['06:10', '2026-03-10T06:10'],
+    ['14:59', '2026-03-10T14:59']
+  ])('puts %s on the right day', (value, expected) => {
+    expect(typedSleepTime('2026-03-10', value)).toBe(at(expected));
+  });
+
+  it('is null for an empty field', () => {
+    expect(typedSleepTime('2026-03-10', '')).toBeNull();
   });
 });

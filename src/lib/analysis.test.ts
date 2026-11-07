@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { alcoholDays, conflictingOngoing, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, firstDrinkDay } from './analysis';
 import { prognosis } from './prognosis';
-import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
+import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import type { MedCategory } from './medication';
 import { lastDays } from './days';
 
@@ -11,7 +11,7 @@ function episode(start: string, end: string | null, intensity = 5, tags: string[
   return { id: 1, start: at(start), end: end ? at(end) : null, intensity, tags, note: '' };
 }
 
-function intake(time: string, category: MedCategory = 'analgesic', name = 'Ibuprofen', relief: number | null = null): Intake {
+function intake(time: string, category: MedCategory = 'analgesic', name = 'Ibuprofen', relief: Relief | null = null): Intake {
   return { id: 1, time: at(time), medId: 1, name, dose: '400 mg', category, relief };
 }
 

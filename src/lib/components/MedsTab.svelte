@@ -8,8 +8,8 @@
   import { intakeDays, medicationLimits, monthlyCategoryDays, monthlyLimitedDays, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
   import { medColor } from '$lib/colors';
   import { MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type MedCategory } from '$lib/medication';
-  import { dayKey, keyToDate } from '$lib/days';
-  import { fmt, t } from '$lib/i18n.svelte';
+  import { DAY, dayKey, keyToDate } from '$lib/days';
+  import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
 
   const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
@@ -26,10 +26,9 @@
     return rows;
   });
   const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
-  const reliefLabels = $derived([t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')]);
   /** Intakes and relief ratings per medication over the last 90 days. */
   const effect = $derived.by(() => {
-    const from = clock.now - 90 * 86400000;
+    const from = clock.now - 90 * DAY;
     const byName = new Map<string, { name: string; medId: number; intakes: number; days: Set<string>; relief: [number, number, number]; rated: number }>();
     for (const i of data.intakes) {
       if (i.time < from) continue;
@@ -216,7 +215,7 @@
               <span class="flex-1 text-sm">{intake.name} <span class="text-muted">{intake.dose}</span></span>
               <span class="text-xs text-muted tabular">{fmt(intake.time, 'EEE d. MMM HH:mm')}</span>
               <span class="w-14 text-right text-xs font-medium" style:color={intake.relief === null ? undefined : RELIEF_COLOR[intake.relief]}>
-                {intake.relief === null ? t('meds.rate') : reliefLabels[intake.relief]}
+                {intake.relief === null ? t('meds.rate') : reliefLabels()[intake.relief]}
               </span>
             </button>
           </li>

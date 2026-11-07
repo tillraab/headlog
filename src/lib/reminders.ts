@@ -1,9 +1,9 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { addDays, format, setHours, startOfDay } from 'date-fns';
-import type { Night } from './db';
-import { dayKey, formatDuration, formatLiters } from './days';
-import { t } from './i18n.svelte';
+import { addDays, setHours, startOfDay } from 'date-fns';
+import { RELIEFS, type Night, type Relief } from './db';
+import { dayKey, formatDuration, formatLiters, hm, HOUR, MINUTE } from './days';
+import { reliefLabels, t } from './i18n.svelte';
 import type { TomorrowRisk } from './prognosis';
 
 export interface ReminderSettings {
@@ -114,11 +114,7 @@ async function registerActions() {
     types: [
       {
         id: RELIEF_TYPE,
-        actions: [
-          { id: 'relief-0', title: t('edit.reliefNone') },
-          { id: 'relief-1', title: t('edit.reliefSome') },
-          { id: 'relief-2', title: t('edit.reliefGood') }
-        ]
+        actions: RELIEFS.map((r) => ({ id: `relief-${r}`, title: reliefLabels()[r] }))
       },
       {
         id: HEADACHE_TYPE,
@@ -142,7 +138,7 @@ const RELIEF_OFFSET = 100000;
 
 /** Asks about an intake `delayMinutes` later, with No / A bit / Yes buttons. */
 export async function scheduleReliefCheck(intake: { id: number; time: number; name: string }, delayMinutes: number) {
-  const at = intake.time + delayMinutes * 60000;
+  const at = intake.time + delayMinutes * MINUTE;
   if (!Capacitor.isNativePlatform() || at <= Date.now()) return;
   if (!(await requestReminderPermission())) return;
   await registerActions();
@@ -151,7 +147,7 @@ export async function scheduleReliefCheck(intake: { id: number; time: number; na
       {
         id: RELIEF_OFFSET + intake.id,
         title: t('rem.reliefTitle', { name: intake.name }),
-        body: t('rem.reliefBody', { time: format(intake.time, 'HH:mm') }),
+        body: t('rem.reliefBody', { time: hm(intake.time) }),
         actionTypeId: RELIEF_TYPE,
         autoCancel: true,
         extra: { intakeId: intake.id },
@@ -169,7 +165,7 @@ export async function cancelReliefCheck(intakeId: number) {
 export interface NotificationAnswers {
   /** Any tap on a notification or one of its buttons. */
   opened: () => void;
-  relief: (intakeId: number, relief: number) => void;
+  relief: (intakeId: number, relief: Relief) => void;
   headacheGone: (episodeId: number) => void;
   sleepOk: (day: string) => void;
   sleepFix: (day: string) => void;
@@ -181,8 +177,8 @@ export function onNotificationAction(answers: NotificationAnswers) {
   const handle = LocalNotifications.addListener('localNotificationActionPerformed', ({ actionId, notification }) => {
     answers.opened();
     const extra = notification.extra as { intakeId?: number; episodeId?: number; day?: string } | undefined;
-    const relief = /^relief-(\d)$/.exec(actionId);
-    if (relief && extra?.intakeId !== undefined) answers.relief(extra.intakeId, Number(relief[1]));
+    const relief = /^relief-([012])$/.exec(actionId);
+    if (relief && extra?.intakeId !== undefined) answers.relief(extra.intakeId, RELIEFS[Number(relief[1])]);
     if (actionId === 'headache-gone' && extra?.episodeId !== undefined) answers.headacheGone(extra.episodeId);
     if (actionId === 'sleep-ok' && extra?.day) answers.sleepOk(extra.day);
     if (actionId === 'sleep-fix' && extra?.day) answers.sleepFix(extra.day);
@@ -200,7 +196,7 @@ export function planHeadacheChecks(
   everyHours: number
 ): (PlannedReminder & { episodeId: number })[] {
   if (!episode || episode.end !== null || everyHours <= 0) return [];
-  const step = everyHours * 3600000;
+  const step = everyHours * HOUR;
   const first = Math.max(1, Math.floor((now - episode.start) / step) + 1);
   return Array.from({ length: HEADACHE_CHECKS }, (_, i) => {
     const at = episode.start + (first + i) * step;
@@ -262,7 +258,7 @@ export interface LoggedDrink {
  */
 export function planDrinkReminders(now: number, settings: DrinkReminderSettings, drinks: LoggedDrink[]): PlannedReminder[] {
   if (!settings.enabled || settings.everyHours <= 0 || settings.to <= settings.from) return [];
-  const step = settings.everyHours * 3600000;
+  const step = settings.everyHours * HOUR;
   const plan: PlannedReminder[] = [];
   for (let d = 0; d < DRINK_DAYS; d++) {
     const day = addDays(startOfDay(now), d);
@@ -314,7 +310,7 @@ export function planSleepChecks(now: number, settings: { enabled: boolean; hour:
     if (at <= now || night?.source === 'manual') return [];
     const body =
       night && d === 0
-        ? t('rem.sleepBody', { d: formatDuration(night.asleepMs), from: format(night.start, 'HH:mm'), to: format(night.end, 'HH:mm') })
+        ? t('rem.sleepBody', { d: formatDuration(night.asleepMs), from: hm(night.start), to: hm(night.end) })
         : t('rem.sleepBodyLater');
     return [{ id: SLEEP_FIRST_ID + d, at, day, title: t('rem.sleepTitle'), body }];
   });

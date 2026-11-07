@@ -21,6 +21,7 @@
   import { tomorrowRisk } from '$lib/prognosis';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
+  import { DAY } from '$lib/days';
 
   const tabs = $derived([
     { id: 'today', label: t('tab.today'), icon: House },
@@ -51,7 +52,7 @@
     const todayMl = data.drinks.filter((d) => d.time >= start).reduce((s, d) => s + hydrationMl(d), 0);
     void applyReminders(planReminders(now, data.settings.reminders, data.settings.waterGoalMl, todayMl)).catch(() => {});
     void applyHeadacheChecks(planHeadacheChecks(ongoingEpisode(), now, data.settings.headacheCheckHours)).catch(() => {});
-    const recent = data.drinks.filter((d) => d.time >= start - 7 * 86400000);
+    const recent = data.drinks.filter((d) => d.time >= start - 7 * DAY);
     void applyDrinkReminders(planDrinkReminders(now, data.settings.drinkReminder, recent)).catch(() => {});
     const forecastAt = (time: number) =>
       tomorrowRisk({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, time);

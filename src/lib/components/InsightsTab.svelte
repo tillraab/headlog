@@ -1,8 +1,8 @@
 <script lang="ts">
   import { FileText } from '@lucide/svelte';
   import { alcoholDays, caffeineByDay, compareDays, hydrationStreak, monthlyCounts, periodStats, timeline, type ComparisonKey } from '$lib/analysis';
-  import { addDays, format } from 'date-fns';
-  import { dayKey, formatDuration, formatLiters, lastDays } from '$lib/days';
+  import { addDays } from 'date-fns';
+  import { dayKey, formatDuration, formatLiters, hm, HOUR, lastDays } from '$lib/days';
   import { openSheet } from '$lib/ui.svelte';
   import { fmt, num, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -69,7 +69,7 @@
       result.push({
         key: 'sleep',
         label: t('tl.sleep'),
-        summary: t('tl.sleepSummary', { d: formatDuration(average(sleep)! * 3600000), n: sleep.length }),
+        summary: t('tl.sleepSummary', { d: formatDuration(average(sleep)! * HOUR), n: sleep.length }),
         values: series.sleepHours,
         color: 'var(--color-primary)',
         kind: 'bars',
@@ -99,10 +99,10 @@
     const key = chartKeys[index];
     const lines: string[] = [];
     for (const e of data.episodes.filter((ep) => dayKey(ep.start) === key)) {
-      lines.push(t('tl.detailHeadache', { from: format(e.start, 'HH:mm'), to: e.end ? format(e.end, 'HH:mm') : '…', n: e.intensity }));
+      lines.push(t('tl.detailHeadache', { from: hm(e.start), to: e.end ? hm(e.end) : '…', n: e.intensity }));
     }
     const meds = data.intakes.filter((i) => dayKey(i.time) === key);
-    if (meds.length) lines.push(`💊 ${meds.map((i) => `${i.name} ${format(i.time, 'HH:mm')}`).join(', ')}`);
+    if (meds.length) lines.push(`💊 ${meds.map((i) => `${i.name} ${hm(i.time)}`).join(', ')}`);
     const drop = series.pressureDrop[index];
     if (drop !== null && drop >= 1) lines.push(t('tl.detailDrop', { n: Math.round(drop) }));
     return lines;
@@ -112,7 +112,7 @@
   const percent = (v: number) => `${Math.round(v * 100)} %`;
   const FORMAT: Record<ComparisonKey, (v: number) => string> = {
     hydration: formatLiters,
-    sleep: (v) => formatDuration(v * 3600000),
+    sleep: (v) => formatDuration(v * HOUR),
     caffeine: (v) => `${Math.round(v)} mg`,
     pressure: percent,
     alcohol: percent
@@ -168,7 +168,7 @@
         { label: t('ins.avgDuration'), value: stats.avgDurationMs === null ? '–' : formatDuration(stats.avgDurationMs), cls: '' },
         { label: t('ins.medDays'), value: String(stats.medDays), cls: 'text-med' },
         { label: t('ins.avgWater'), value: stats.avgWaterMl === null ? '–' : formatLiters(stats.avgWaterMl), cls: 'text-water' },
-        { label: t('sleep.avg'), value: sleepAvg === null ? '–' : formatDuration(sleepAvg * 3600000), cls: 'text-primary' }
+        { label: t('sleep.avg'), value: sleepAvg === null ? '–' : formatDuration(sleepAvg * HOUR), cls: 'text-primary' }
       ] as tile (tile.label)}
         <div class="card p-3">
           <p class="text-lg font-semibold tabular {tile.cls}">{tile.value}</p>

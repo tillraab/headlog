@@ -1,7 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { addDays, setHours, startOfDay } from 'date-fns';
 import type { HeadLogDb, Night } from './db';
-import { lastDays } from './days';
+import { HOUR, lastDays, MINUTE } from './days';
 
 export interface ScreenEvent {
   time: number;
@@ -35,7 +35,6 @@ const MIN_NIGHT_HOURS = 3;
 /** The night ending on day D is looked for between D-1 18:00 and D 14:00. */
 const WINDOW_START_HOUR = 18;
 const WINDOW_END_HOUR = 14;
-const MINUTE = 60000;
 
 /** Periods with the screen off, from an off event to the next on event. */
 function offPeriods(events: ScreenEvent[], until: number): { start: number; end: number }[] {
@@ -101,6 +100,35 @@ export async function syncNights(database: HeadLogDb, days = 8, now = Date.now()
   }
 }
 
+/** Time awake during the night's wake breaks. */
+export function awakeMs(night: Pick<Night, 'breaks'>): number {
+  return night.breaks.reduce((sum, b) => sum + b.end - b.start, 0);
+}
+
+/** The asleep stretches of a night: from falling asleep to waking, without its wake breaks. */
+export function sleepSegments(night: Pick<Night, 'start' | 'end' | 'breaks'>): { start: number; end: number }[] {
+  const segments: { start: number; end: number }[] = [];
+  let start = night.start;
+  for (const b of [...night.breaks].sort((a, c) => a.start - c.start)) {
+    segments.push({ start, end: b.start });
+    start = b.end;
+  }
+  segments.push({ start, end: night.end });
+  return segments;
+}
+
+/**
+ * A clock time typed for the night ending on `day`, as `HH:mm`: from 15:00 on it belongs to the
+ * evening before, earlier to the morning of `day`. Null when the value is not a time.
+ */
+export function typedSleepTime(day: string, value: string): number | null {
+  const [h, m] = value.split(':').map(Number);
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return null;
+  const morning = startOfDay(new Date(`${day}T12:00`));
+  const date = h >= 15 ? addDays(morning, -1) : morning;
+  return setHours(date, h).getTime() + m * MINUTE;
+}
+
 /**
  * A night as the user set it: breaks cut to the night, sorted and joined where they overlap, sleep
  * recomputed. Such nights are never estimated again.
@@ -116,8 +144,7 @@ export function manualNight(day: string, start: number, end: number, breaks: { s
     if (last && b.start <= last.end) last.end = Math.max(last.end, b.end);
     else joined.push(b);
   }
-  const awake = joined.reduce((sum, b) => sum + b.end - b.start, 0);
-  return { day, start, end, breaks: joined, asleepMs: Math.max(0, end - start - awake), source: 'manual' };
+  return { day, start, end, breaks: joined, asleepMs: Math.max(0, end - start - awakeMs({ breaks: joined })), source: 'manual' };
 }
 
 /** A starting point for a night without data: 23:00 to 7:00. */
@@ -129,10 +156,9 @@ export function defaultNight(day: string): Night {
 /** The span the sleep editor shows: 20:00 to 12:00, wider when the night reaches beyond it. */
 export function nightSpan(night: Night): { from: number; to: number } {
   const morning = startOfDay(new Date(`${night.day}T12:00`));
-  const hour = 3600000;
   return {
-    from: Math.min(setHours(addDays(morning, -1), 20).getTime(), Math.floor((night.start - hour) / hour) * hour),
-    to: Math.max(setHours(morning, 12).getTime(), Math.ceil((night.end + hour) / hour) * hour)
+    from: Math.min(setHours(addDays(morning, -1), 20).getTime(), Math.floor((night.start - HOUR) / HOUR) * HOUR),
+    to: Math.max(setHours(morning, 12).getTime(), Math.ceil((night.end + HOUR) / HOUR) * HOUR)
   };
 }
 

@@ -3,6 +3,7 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { format } from 'date-fns';
 import { db, type HeadLogDb } from './db';
+import { MINUTE } from './days';
 
 /** Tables every backup has. */
 const TABLES = ['episodes', 'medications', 'intakes', 'drinkPresets', 'drinks', 'settings'] as const;
@@ -58,7 +59,7 @@ export async function createCsv(database: HeadLogDb = db, from = 0): Promise<str
   const rows: [number, string[]][] = [
     ...episodes.map((e): [number, string[]] => [
       e.start,
-      ['headache', fmt(e.start), fmt(e.end), e.end ? String(Math.round((e.end - e.start) / 60000)) : '', String(e.intensity), '', '', e.tags.join(' '), e.note]
+      ['headache', fmt(e.start), fmt(e.end), e.end ? String(Math.round((e.end - e.start) / MINUTE)) : '', String(e.intensity), '', '', e.tags.join(' '), e.note]
     ]),
     ...intakes.map((i): [number, string[]] => [
       i.time,

@@ -2,7 +2,7 @@ import { addDays, endOfMonth, getDay, getHours, startOfMonth } from 'date-fns';
 import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
 import { hydrationMl } from './drinks';
 import { ACUTE_CATEGORIES, MONTHLY_LIMITS, type MedCategory } from './medication';
-import { dayKey, dayRange, keyToDate, lastDays } from './days';
+import { DAY, dayKey, dayRange, HOUR, keyToDate, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
 
@@ -81,15 +81,19 @@ export function hydrationCurve(drinks: Drink[], keys: string[], now: number): { 
     });
 }
 
+/** Days `hydrationBefore` looks back on for what is usual, and how many of them need drinks. */
+const USUAL_HYDRATION_DAYS = 30;
+const MIN_USUAL_HYDRATION_DAYS = 7;
+
 /**
  * Hydration in the `hours` before `time`, and what is usual for that many hours: the average over the
  * 30 days before, scaled to the same length. Usual is null without at least 7 days with drinks.
  */
 export function hydrationBefore(drinks: Drink[], time: number, hours = 72): { ml: number; usual: number | null } {
-  const from = time - hours * 3600000;
+  const from = time - hours * HOUR;
   const ml = drinks.filter((d) => d.time >= from && d.time < time).reduce((sum, d) => sum + hydrationMl(d), 0);
-  const water = waterByDay(drinks.filter((d) => d.time < from && d.time >= from - 30 * 86400000));
-  const usual = water.size >= 7 ? ([...water.values()].reduce((a, b) => a + b, 0) / water.size) * (hours / 24) : null;
+  const water = waterByDay(drinks.filter((d) => d.time < from && d.time >= from - USUAL_HYDRATION_DAYS * DAY));
+  const usual = water.size >= MIN_USUAL_HYDRATION_DAYS ? ([...water.values()].reduce((a, b) => a + b, 0) / water.size) * (hours / 24) : null;
   return { ml, usual };
 }
 
@@ -371,7 +375,7 @@ export function timeline(
   return {
     headache: keys.map((k) => pain.get(k) ?? 0),
     hydration: keys.map((k) => (water.has(k) ? water.get(k)! : first !== null && k >= first && k <= today ? 0 : null)),
-    sleepHours: keys.map((k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / 3600000 : null)),
+    sleepHours: keys.map((k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / HOUR : null)),
     pressure: keys.map((k) => data.weather.get(k)?.pressure ?? null),
     pressureDrop: keys.map((k) => data.weather.get(k)?.pressureDrop ?? null)
   };
@@ -417,7 +421,7 @@ export function compareDays(
 
   const factors: [ComparisonKey, (k: string) => number | null][] = [
     ['hydration', (k) => water.get(before(k)) ?? null],
-    ['sleep', (k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / 3600000 : null)],
+    ['sleep', (k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / HOUR : null)],
     ['caffeine', (k) => (tracksCaffeine && water.has(before(k)) ? (caffeine.get(before(k)) ?? 0) : null)],
     ['pressure', (k) => (data.weather.has(k) ? (isPressureDrop(data.weather.get(k)!.pressureDrop) ? 1 : 0) : null)],
     ['alcohol', (k) => (tracksAlcohol && water.has(before(k)) ? (alcohol.has(before(k)) ? 1 : 0) : null)]
@@ -467,7 +471,7 @@ export function dayFactors(
     if (ml < goalMl * LOW_HYDRATION) factors.hydration = ml;
   }
   const night = data.sleep.get(key);
-  if (night && night.asleepMs < SHORT_SLEEP_HOURS * 3600000) factors.sleep = night.asleepMs / 3600000;
+  if (night && night.asleepMs < SHORT_SLEEP_HOURS * HOUR) factors.sleep = night.asleepMs / HOUR;
   if (alcoholDays(data.drinks).has(before)) factors.alcohol = true;
   const usual = usualCaffeine(caffeine, first, key);
   const today = caffeine.get(key) ?? 0;

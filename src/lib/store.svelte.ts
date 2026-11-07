@@ -1,7 +1,7 @@
 import { CAFFEINE, fromPreset } from './drinks';
 import { fromMedication } from './medication';
-import { db, DRINK_NAMES, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type WeatherDay } from './db';
-import { dayKey } from './days';
+import { db, DRINK_NAMES, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type Relief, type WeatherDay } from './db';
+import { DAY, dayKey, HOUR } from './days';
 import { i18n } from './i18n.svelte';
 import { edit } from './editor.svelte';
 import { defaultNight, syncNights } from './sleep';
@@ -184,7 +184,7 @@ export async function endEpisode(id: number) {
 }
 
 /** Stores an answer given in a notification. */
-export async function setRelief(intakeId: number, relief: number) {
+export async function setRelief(intakeId: number, relief: Relief) {
   await db.intakes.update(intakeId, { relief });
   await load();
 }
@@ -223,6 +223,8 @@ export async function deleteDrinkPreset(id: number) {
 
 const WEATHER_SYNC_KEY = 'headlog.weatherSync';
 const WEATHER_SYNC_HOURS = 3;
+/** Weather is fetched from the first entry on, and at least for this many days back. */
+const WEATHER_BACKFILL_DAYS = 30;
 const WEATHER_METRIC = 'weatherDailyMeanDrop';
 
 /** Fetches missing and recent weather, at most every few hours unless `force`. */
@@ -236,9 +238,9 @@ export async function updateWeather(force = false) {
     force = true;
   }
   const last = Number(localStorage.getItem(WEATHER_SYNC_KEY) ?? 0);
-  if (!force && Date.now() - last < WEATHER_SYNC_HOURS * 3600000) return;
+  if (!force && Date.now() - last < WEATHER_SYNC_HOURS * HOUR) return;
   const times = [...data.episodes.map((e) => e.start), ...data.intakes.map((i) => i.time), ...data.drinks.map((d) => d.time)];
-  const first = dayKey(Math.min(Date.now() - 30 * 86400000, ...times));
+  const first = dayKey(Math.min(Date.now() - WEATHER_BACKFILL_DAYS * DAY, ...times));
   await syncWeather(db, $state.snapshot(place), first);
   localStorage.setItem(WEATHER_SYNC_KEY, String(Date.now()));
   data.weather = new Map((await db.weather.toArray()).map((w) => [w.day, w]));

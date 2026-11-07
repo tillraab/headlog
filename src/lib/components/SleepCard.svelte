@@ -4,16 +4,15 @@
    * then the card goes away. A confirmed night stays editable from the forecast's sleep tile.
    */
   import { Moon } from '@lucide/svelte';
-  import { format } from 'date-fns';
-  import { dayKey, formatDuration } from '$lib/days';
+  import { dayKey, formatDuration, hm } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
+  import { awakeMs } from '$lib/sleep';
   import { clock, confirmNight, data, openNight } from '$lib/store.svelte';
   import { tap, toast } from '$lib/ui.svelte';
 
   const day = $derived(dayKey(clock.now));
   const night = $derived(data.sleep.get(day));
-  const hm = (time: number) => format(time, 'HH:mm');
-  const awake = $derived(night ? night.breaks.reduce((sum, b) => sum + b.end - b.start, 0) : 0);
+  const awake = $derived(night ? awakeMs(night) : 0);
 
   async function confirm() {
     tap();

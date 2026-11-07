@@ -1,16 +1,17 @@
 <script lang="ts">
   import { conflictingOngoing } from '$lib/analysis';
-  import type { Night } from '$lib/db';
+  import { RELIEFS, type Night } from '$lib/db';
   import { fromPreset } from '$lib/drinks';
   import { fromMedication } from '$lib/medication';
   import { editor } from '$lib/editor.svelte';
-  import { t, tagLabel, TAGS } from '$lib/i18n.svelte';
+  import { reliefLabels, t, tagLabel, TAGS } from '$lib/i18n.svelte';
   import { manualNight } from '$lib/sleep';
   import { data, remove, saveDrink, saveEpisode, saveIntake, saveNight } from '$lib/store.svelte';
   import { closeSheet, fromLocalInput, toast, toLocalInput } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import SleepTimeline from './SleepTimeline.svelte';
   import Sheet from './Sheet.svelte';
+  import { MINUTE } from '$lib/days';
 
   const current = $derived(editor.current);
   const title = $derived(
@@ -96,7 +97,7 @@
             type="checkbox"
             class="size-5 accent-primary"
             checked={ep.end === null}
-            onchange={(e) => (ep.end = e.currentTarget.checked ? null : Math.max(Date.now(), ep.start + 60000))}
+            onchange={(e) => (ep.end = e.currentTarget.checked ? null : Math.max(Date.now(), ep.start + MINUTE))}
           />
           {t('edit.ongoing')}
         </label>
@@ -146,10 +147,10 @@
         <div class="flex flex-col gap-2 text-sm">
           <span class="text-muted">{t('edit.relief')}</span>
           <div class="grid grid-cols-3 gap-2">
-            {#each [t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')] as label, i (i)}
+            {#each RELIEFS as r (r)}
               <button
-                class="press rounded-xl py-2.5 {intake.relief === i ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
-                onclick={() => (intake.relief = intake.relief === i ? null : i)}>{label}</button
+                class="press rounded-xl py-2.5 {intake.relief === r ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
+                onclick={() => (intake.relief = intake.relief === r ? null : r)}>{reliefLabels()[r]}</button
               >
             {/each}
           </div>

@@ -27,6 +27,10 @@ export interface Medication {
   limitWindow?: number;
 }
 
+/** How well an intake helped: 0 not at all, 1 a bit, 2 well. */
+export type Relief = 0 | 1 | 2;
+export const RELIEFS: readonly Relief[] = [0, 1, 2];
+
 /** One intake. Name, dose and category are copied so history survives edits to the list. */
 export interface Intake {
   id: number;
@@ -35,8 +39,8 @@ export interface Intake {
   name: string;
   dose: string;
   category: MedCategory;
-  /** Relief rating after the fact: 0 none, 1 some, 2 good. Null when not rated. */
-  relief: number | null;
+  /** Relief rating after the fact. Null when not rated. */
+  relief: Relief | null;
 }
 
 /** What a drink contains besides fluid. Copied from the preset onto every logged drink. */

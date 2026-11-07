@@ -1,7 +1,7 @@
 import { addDays, getHours, getMinutes } from 'date-fns';
 import { alcoholDays, caffeineByDay, firstDrinkDay, usualCaffeine, waterByDay } from './analysis';
 import type { Drink, Night, WeatherDay } from './db';
-import { dayKey, lastDays } from './days';
+import { dayKey, HOUR, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
 
@@ -68,8 +68,8 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
 
   const night = input.sleep.get(today);
   const recent = lastDays(now, 7).map((k) => input.sleep.get(k)).filter((n) => n !== undefined);
-  const average = recent.length ? recent.reduce((s, n) => s + n.asleepMs, 0) / recent.length / 3600000 : null;
-  const sleepStatus: Status = !night ? 'unknown' : night.asleepMs < SHORT_SLEEP_HOURS * 3600000 ? 'bad' : 'ok';
+  const average = recent.length ? recent.reduce((s, n) => s + n.asleepMs, 0) / recent.length / HOUR : null;
+  const sleepStatus: Status = !night ? 'unknown' : night.asleepMs < SHORT_SLEEP_HOURS * HOUR ? 'bad' : 'ok';
 
   const alcohol = alcoholDays(input.drinks);
   const tracksAlcohol = input.drinks.some((d) => d.alcohol);

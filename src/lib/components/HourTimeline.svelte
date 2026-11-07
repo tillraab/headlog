@@ -5,22 +5,22 @@
    * breaks, and air pressure. Tap or drag to see the state at that moment and what happened around it.
    * Labels, summaries and colours come from the daily rows, so both views read the same.
    */
-  import { addDays, format } from 'date-fns';
+  import { addDays } from 'date-fns';
   import type { Snippet } from 'svelte';
   import { hydrationCurve } from '$lib/analysis';
   import { intakeColor } from '$lib/colors';
-  import { formatLiters, keyToDate } from '$lib/days';
+  import { formatLiters, hm, HOUR, keyToDate, MINUTE } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
   import { data } from '$lib/store.svelte';
+  import { sleepSegments } from '$lib/sleep';
   import { isPressureDrop } from '$lib/weather';
   import type { Row } from './TimelineChart.svelte';
 
   let { rows, keys, now }: { rows: Row[]; keys: string[]; now: number } = $props();
 
   const H = 48;
-  const HOUR = 3600000;
   /** Around the selected moment, drinks and medication count as "then". */
-  const NEAR = 30 * 60000;
+  const NEAR = 30 * MINUTE;
   const PACE_FROM = 7;
   const PACE_TO = 22;
 
@@ -38,19 +38,7 @@
   const yWater = (ml: number) => H - 2 - (ml / waterMax) * (H - 6);
 
   /** Asleep stretches: each night from falling asleep to waking, without its wake breaks. */
-  const asleep = $derived.by(() => {
-    const stretches: { start: number; end: number }[] = [];
-    for (const night of data.sleep.values()) {
-      if (night.end <= from || night.start >= to) continue;
-      let start = night.start;
-      for (const b of [...night.breaks].sort((a, c) => a.start - c.start)) {
-        stretches.push({ start, end: b.start });
-        start = b.end;
-      }
-      stretches.push({ start, end: night.end });
-    }
-    return stretches;
-  });
+  const asleep = $derived([...data.sleep.values()].filter((night) => night.end > from && night.start < to).flatMap(sleepSegments));
 
   const pressure = $derived(
     keys.flatMap((key) => {
@@ -80,7 +68,7 @@
     const box = (event.currentTarget as Element).getBoundingClientRect();
     const share = Math.min(Math.max((event.clientX - box.left) / box.width, 0), 1);
     const time = from + share * (to - from);
-    selected = Math.round(time / (5 * 60000)) * 5 * 60000;
+    selected = Math.round(time / (5 * MINUTE)) * 5 * MINUTE;
   }
 
   const lines = $derived.by(() => {
@@ -97,7 +85,6 @@
       { key: 'pressure', value: weather ? String(Math.round(weather.value)) : '–' }
     ] as const;
     const near = (time: number) => Math.abs(time - shown) <= NEAR;
-    const hm = (time: number) => format(time, 'HH:mm');
     const drinks = data.drinks.filter((d) => near(d.time)).sort((a, b) => a.time - b.time);
     const meds = intakes.filter((i) => near(i.time));
     const details = [

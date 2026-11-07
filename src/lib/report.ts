@@ -2,10 +2,10 @@ import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { compareDays, dayFactors, headacheDays, intakeDays, periodStats, rollingDays, ruleStatus, tenTwenty, type ComparisonKey, type DayFactors } from './analysis';
-import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
+import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import { MONTHLY_LIMITS, type MedCategory } from './medication';
-import { dayKey, dayRange, formatDuration, formatLiters, keyToDate } from './days';
-import { fmt, num, t, tagLabel } from './i18n.svelte';
+import { dayKey, dayRange, formatDuration, formatLiters, hm, HOUR, keyToDate } from './days';
+import { fmt, num, reliefLabels, t, tagLabel } from './i18n.svelte';
 import { PRESSURE_DROP_HPA } from './weather';
 
 type Rgb = [number, number, number];
@@ -56,7 +56,7 @@ function factorText(f: DayFactors): string[] {
   const parts: string[] = [];
   if (f.pressure !== undefined) parts.push(t('pdf.f.pressure', { n: Math.round(f.pressure) }));
   if (f.hydration !== undefined) parts.push(t('pdf.f.hydration', { ml: formatLiters(f.hydration) }));
-  if (f.sleep !== undefined) parts.push(t('pdf.f.sleep', { d: formatDuration(f.sleep * 3600000) }));
+  if (f.sleep !== undefined) parts.push(t('pdf.f.sleep', { d: formatDuration(f.sleep * HOUR) }));
   if (f.alcohol) parts.push(t('pdf.f.alcohol'));
   if (f.caffeine !== undefined) parts.push(t('pdf.f.caffeine', { mg: Math.round(f.caffeine) }));
   return parts;
@@ -178,7 +178,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     const percent = (v: number) => `${Math.round(v * 100)} %`;
     const value: Record<ComparisonKey, (v: number) => string> = {
       hydration: formatLiters,
-      sleep: (v) => formatDuration(v * 3600000),
+      sleep: (v) => formatDuration(v * HOUR),
       caffeine: (v) => `${Math.round(v)} mg`,
       pressure: percent,
       alcohol: percent
@@ -240,18 +240,18 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   /** One row per headache with its medication, and one per intake that belongs to no headache. */
   function entryRows(episodes: Episode[], factors: Map<number, DayFactors>) {
     const used = new Set<number>();
-    const reliefText = (r: number | null) => (r === null ? '' : ` (${[t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')][r].toLowerCase()})`);
-    const medLine = (i: Intake) => `${format(i.time, 'HH:mm')} ${i.name} ${i.dose}`.trim() + reliefText(i.relief);
+    const reliefText = (r: Relief | null) => (r === null ? '' : ` (${reliefLabels()[r].toLowerCase()})`);
+    const medLine = (i: Intake) => `${hm(i.time)} ${i.name} ${i.dose}`.trim() + reliefText(i.relief);
     const rows: { time: number; cells: string[] }[] = episodes.map((e) => {
       const end = e.end ?? now;
-      const meds = intakes.filter((i) => i.time >= e.start - 3 * 3600000 && i.time <= end);
+      const meds = intakes.filter((i) => i.time >= e.start - 3 * HOUR && i.time <= end);
       meds.forEach((i) => used.add(i.id));
       const reasons = [...factorText(factors.get(e.id) ?? {}), ...e.tags.map(tagLabel)];
       return {
         time: e.start,
         cells: [
           fmt(e.start, 'EEE d. MMM'),
-          `${format(e.start, 'HH:mm')}–${e.end ? format(e.end, 'HH:mm') : '…'}\n${formatDuration(end - e.start)}`,
+          `${hm(e.start)}–${e.end ? hm(e.end) : '…'}\n${formatDuration(end - e.start)}`,
           String(e.intensity),
           meds.map(medLine).join('\n') || '–',
           reasons.join('\n') || '–',

@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { de as deLocale, enGB } from 'date-fns/locale';
+import type { Relief } from './db';
 
 const en = {
   'tab.today': 'Today',
@@ -1009,6 +1010,11 @@ export function weekdayShort(): string[] {
 export function tagLabel(tag: string): string {
   const key = `tag.${tag}`;
   return key in en ? t(key as Key) : tag;
+}
+
+/** Labels of the relief ratings, indexed by `Relief`. */
+export function reliefLabels(): Record<Relief, string> {
+  return [t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')];
 }
 
 export function intensityLabel(n: number): string {
