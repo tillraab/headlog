@@ -1,14 +1,15 @@
 <script lang="ts">
-  import { hydrationMl } from '$lib/db';
+  import { RELIEFS } from '$lib/db';
+  import { hydrationMl } from '$lib/drinks';
   import { Droplets, Pencil, Pill, Zap } from '@lucide/svelte';
-  import { format, isToday, startOfDay } from 'date-fns';
-  import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty } from '$lib/analysis';
-  import { formatDuration, formatLiters } from '$lib/days';
+  import { isToday, startOfDay } from 'date-fns';
+  import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty, waterOn } from '$lib/analysis';
+  import { DAY, formatDuration, formatLiters, hm, HOUR, MINUTE } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
-  import { fmt, t } from '$lib/i18n.svelte';
-  import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
+  import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
+  import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache, type EntryTable } from '$lib/store.svelte';
   import { celebrate, openSheet, tap, toast } from '$lib/ui.svelte';
-  import { prognosis } from '$lib/prognosis';
+  import { prognosis, prognosisInput } from '$lib/prognosis';
   import PrognosisCard from './PrognosisCard.svelte';
   import { LIGHT_COLOR } from './TrafficLight.svelte';
   import WelcomeCard from './WelcomeCard.svelte';
@@ -18,9 +19,14 @@
 
   let { onOpenTab }: { onOpenTab: (tab: 'meds') => void } = $props();
 
+  /** Today asks "did it help?" for an unrated intake up to this long after it. */
+  const RELIEF_ASK_WINDOW = 12 * HOUR;
+  /** An ongoing headache longer than this asks whether it has ended. */
+  const LONG_HEADACHE = DAY;
+
   const ongoing = $derived(ongoingEpisode());
   const forecast = $derived(
-    prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, clock.now)
+    prognosis(prognosisInput(data), clock.now)
   );
   let forecastOpen = $state(false);
   let forecastCard = $state<HTMLDivElement>();
@@ -38,13 +44,13 @@
   const presets = $derived(data.drinkPresets);
   const todayIntakes = $derived(data.intakes.filter((i) => i.time >= dayStart));
   const todayDrinks = $derived(data.drinks.filter((d) => d.time >= dayStart));
-  const waterMl = $derived(todayDrinks.reduce((sum, d) => sum + hydrationMl(d), 0));
+  const waterMl = $derived(waterOn(data.drinks, clock.now));
   const caffeineMg = $derived(todayDrinks.reduce((sum, d) => sum + (d.caffeineMg ?? 0), 0));
   const alcoholCount = $derived(todayDrinks.filter((d) => d.alcohol).length);
   const waterPct = $derived(Math.min(1, waterMl / data.settings.waterGoalMl));
   const hydration = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
   const unrated = $derived(
-    data.intakes.findLast((i) => i.relief === null && clock.now - i.time > (data.settings.reliefCheckMinutes || 60) * 60000 && clock.now - i.time < 12 * 3600000)
+    data.intakes.findLast((i) => i.relief === null && clock.now - i.time > (data.settings.reliefCheckMinutes || 60) * MINUTE && clock.now - i.time < RELIEF_ASK_WINDOW)
   );
   const todayEpisodes = $derived(data.episodes.filter((e) => (e.end ?? clock.now) >= dayStart));
 
@@ -70,12 +76,12 @@
     toast(t('toast.ended'), () => saveEpisode(before));
   }
 
-  function undoFor(table: 'episodes' | 'intakes' | 'drinks', id: number) {
+  function undoFor(table: EntryTable, id: number) {
     return () => remove(table, id);
   }
 
   function earlier() {
-    edit({ kind: 'episode', item: { start: Date.now() - 30 * 60000, end: null, intensity: 5, tags: [], note: '' } });
+    edit({ kind: 'episode', item: { start: Date.now() - 30 * MINUTE, end: null, intensity: 5, tags: [], note: '' } });
   }
 
   /** Celebrates reaching today's hydration goal, with the streak it extends. */
@@ -83,10 +89,6 @@
     const days = hydrationStreak(data.drinks, data.settings.waterGoalMl, Date.now()).current;
     const milestone = [3, 7, 14, 21, 30, 50, 100].includes(days);
     celebrate(t('streak.goal'), days > 1 ? t(milestone ? 'streak.milestone' : 'streak.days', { n: days }) : t('streak.first'));
-  }
-
-  function hm(time: number) {
-    return format(time, 'HH:mm');
   }
 </script>
 
@@ -225,7 +227,7 @@
   <SleepCard />
 
   {#if ongoing}
-    {@const long = clock.now - ongoing.start > 24 * 3600000}
+    {@const long = clock.now - ongoing.start > LONG_HEADACHE}
     <section class="card overflow-hidden">
       <div class="bg-pain-soft p-4">
         <div class="flex items-center gap-2 text-sm font-medium text-pain">
@@ -271,13 +273,13 @@
         {t('today.reliefAsk', { name: unrated.name, time: hm(unrated.time) })}
       </p>
       <div class="grid grid-cols-3 gap-2">
-        {#each [t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')] as label, i (i)}
+        {#each RELIEFS as r (r)}
           <button
             class="press rounded-xl bg-surface py-2.5 text-sm font-medium"
             onclick={() => {
               tap();
-              void saveIntake({ ...$state.snapshot(unrated), relief: i });
-            }}>{label}</button
+              void saveIntake({ ...$state.snapshot(unrated), relief: r });
+            }}>{reliefLabels()[r]}</button
           >
         {/each}
       </div>

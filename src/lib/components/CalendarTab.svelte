@@ -1,12 +1,12 @@
 <script lang="ts">
   import { ChevronLeft, ChevronRight } from '@lucide/svelte';
   import { addMonths, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
-  import { headacheDays, intakeDays, rollingDays, waterByDay } from '$lib/analysis';
+  import { headacheDays, intakeDays, monthSummary, rollingDays, waterByDay } from '$lib/analysis';
   import { dayKey, dayRange, formatLiters, keyToDate } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
-  import { intakeColor } from '$lib/db';
+  import { intakeColor } from '$lib/colors';
   import DaySheet from './DaySheet.svelte';
   import TimelineChart from './TimelineChart.svelte';
 
@@ -24,12 +24,7 @@
   const keys = $derived(dayRange(month, endOfMonth(month)));
   const offset = $derived((getDay(month) + 6) % 7);
   const today = $derived(dayKey(clock.now));
-  const past = $derived(keys.filter((k) => k <= today));
-  const summary = $derived({
-    headache: past.filter((k) => hDays.has(k)).length,
-    med: past.filter((k) => mDays.get(k)?.some((i) => i.category !== 'preventive')).length,
-    water: past.length ? past.reduce((s, k) => s + (water.get(k) ?? 0), 0) / past.length : 0
-  });
+  const summary = $derived(monthSummary(data, month, clock.now));
 
   const rolling = $derived(rollingDays(new Set(hDays.keys()), clock.now, ROLLING_SPAN));
 
@@ -48,14 +43,14 @@
   <header class="flex items-center justify-between pt-2">
     <h1 class="text-2xl font-semibold capitalize">{fmt(month, 'LLLL yyyy')}</h1>
     <div class="flex gap-1">
-      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (month = addMonths(month, -1))} aria-label="Previous month">
+      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (month = addMonths(month, -1))} aria-label={t('a11y.prevMonth')}>
         <ChevronLeft size={20} />
       </button>
       <button
         class="press grid size-10 place-items-center rounded-full bg-surface-2 disabled:opacity-40"
         disabled={isAfter(addMonths(month, 1), clock.now)}
         onclick={() => (month = addMonths(month, 1))}
-        aria-label="Next month"
+        aria-label={t('a11y.nextMonth')}
       >
         <ChevronRight size={20} />
       </button>

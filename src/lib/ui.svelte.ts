@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import type { Theme } from './settings';
 
 export interface Toast {
   id: number;
@@ -37,14 +38,17 @@ export function tap(style: 'light' | 'medium' | 'heavy' = 'light') {
   void Haptics.impact({ style: map[style] });
 }
 
-/** Open sheets, newest last. The Android back button closes the newest one. */
-export const sheets = $state<{ stack: string[] }>({ stack: [] });
+/** Every sheet of the app, by the id it opens with. */
+export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day';
 
-export function openSheet(id: string) {
+/** Open sheets, newest last. The Android back button closes the newest one. */
+export const sheets = $state<{ stack: SheetId[] }>({ stack: [] });
+
+export function openSheet(id: SheetId) {
   sheets.stack = [...sheets.stack.filter((s) => s !== id), id];
 }
 
-export function closeSheet(id: string) {
+export function closeSheet(id: SheetId) {
   sheets.stack = sheets.stack.filter((s) => s !== id);
 }
 
@@ -59,8 +63,6 @@ export function closeTopSheet(): boolean {
   return true;
 }
 
-export type Theme = 'system' | 'light' | 'dark';
-
 export function applyTheme(theme: Theme) {
   const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('dark', dark);
@@ -74,6 +76,9 @@ export function toLocalInput(time: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function fromLocalInput(value: string): number {
-  return new Date(value).getTime();
+/** Time from an `<input type="datetime-local">`, or null when the field is empty or invalid. */
+export function fromLocalInput(value: string): number | null {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
 }

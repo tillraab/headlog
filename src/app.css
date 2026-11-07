@@ -77,6 +77,11 @@ body {
   }
 }
 
+/** The main button of a card. */
+@utility btn-primary {
+  @apply rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg;
+}
+
 @utility no-scrollbar {
   scrollbar-width: none;
   &::-webkit-scrollbar {

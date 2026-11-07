@@ -65,7 +65,7 @@ export function contentHash(backup: Backup): string {
 }
 
 /** A diary without a single entry. Never uploaded automatically, so it cannot replace a real backup. */
-export function isEmpty(backup: Backup): boolean {
+function isEmpty(backup: Backup): boolean {
   return !backup.tables.episodes.length && !backup.tables.intakes.length && !backup.tables.drinks.length;
 }
 

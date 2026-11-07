@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, waterByDay } from './analysis';
-import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
+import { alcoholDays, average, monthlyCounts, conflictingOngoing, medicationEffect, monthSummary, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
+import { prognosis } from './prognosis';
+import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
+import type { MedCategory } from './medication';
 import { lastDays } from './days';
 
 const at = (s: string) => new Date(s).getTime();
@@ -9,7 +11,7 @@ function episode(start: string, end: string | null, intensity = 5, tags: string[
   return { id: 1, start: at(start), end: end ? at(end) : null, intensity, tags, note: '' };
 }
 
-function intake(time: string, category: MedCategory = 'analgesic', name = 'Ibuprofen', relief: number | null = null): Intake {
+function intake(time: string, category: MedCategory = 'analgesic', name = 'Ibuprofen', relief: Relief | null = null): Intake {
   return { id: 1, time: at(time), medId: 1, name, dose: '400 mg', category, relief };
 }
 
@@ -315,5 +317,145 @@ describe('hydrationCurve', () => {
   it('ends today at now', () => {
     const curve = hydrationCurve([], ['2026-03-02'], at('2026-03-02T12:00'));
     expect(curve[0].points.at(-1)!.time).toBe(at('2026-03-02T12:00'));
+  });
+});
+
+describe('usualCaffeine', () => {
+  /** Logging starts on Oct 7 with 3 × 120 mg a day; Oct 10 has water but no coffee. */
+  const day = (d: number, h: number) => new Date(2026, 9, d, h).getTime();
+  const drinks: Drink[] = [
+    ...[7, 8, 9].flatMap((d) => [8, 11, 14].map((h): Drink => ({ id: 1, time: day(d, h), presetId: null, name: 'Coffee', emoji: '☕', ml: 200, caffeineMg: 120 }))),
+    { id: 2, time: day(10, 8), presetId: null, name: 'Water', emoji: '🥛', ml: 250 }
+  ];
+  const input = { drinks, sleep: new Map(), weather: new Map(), goalMl: 250 };
+
+  it('averages only the days since the first logged drink', () => {
+    expect(usualCaffeine(caffeineByDay(drinks), firstDrinkDay(drinks), '2026-10-10')).toBe(360);
+  });
+
+  it('is null without any caffeine', () => {
+    expect(usualCaffeine(new Map(), '2026-10-01', '2026-10-10')).toBeNull();
+  });
+
+  it('is the amount the forecast judges against', () => {
+    expect(prognosis(input, day(10, 18)).caffeine.usual).toBe(usualCaffeine(caffeineByDay(drinks), firstDrinkDay(drinks), '2026-10-10'));
+  });
+
+  it('makes the forecast and the report agree on a caffeine drop', () => {
+    expect([prognosis(input, day(10, 18)).caffeine.status, dayFactors(input, '2026-10-10', 250).caffeine]).toEqual(['bad', 0]);
+  });
+});
+
+describe('conflictingOngoing', () => {
+  const ongoing = { ...episode('2026-03-02T09:00', null), id: 1 };
+  const ended = { ...episode('2026-03-01T09:00', '2026-03-01T12:00'), id: 2 };
+
+  it('finds no conflict for the ongoing episode itself', () => {
+    expect(conflictingOngoing([ongoing, ended], ongoing)).toBeUndefined();
+  });
+
+  it('finds the other ongoing episode when another one is saved as ongoing', () => {
+    expect(conflictingOngoing([ongoing, ended], { ...ended, end: null })).toBe(ongoing);
+  });
+
+  it('finds the ongoing episode for a new ongoing one', () => {
+    expect(conflictingOngoing([ongoing], { end: null })).toBe(ongoing);
+  });
+
+  it('finds no conflict for an episode saved with an end', () => {
+    expect(conflictingOngoing([ongoing, ended], ended)).toBeUndefined();
+  });
+});
+
+describe('waterOn', () => {
+  it('adds up the drinks of that calendar day and leaves out alcohol', () => {
+    const drinks = [drink('2026-03-01T23:59', 500), drink('2026-03-02T00:00', 250), drink('2026-03-02T23:59', 300), { ...drink('2026-03-02T20:00', 150), alcohol: true }, drink('2026-03-03T00:00', 400)];
+    expect(waterOn(drinks, at('2026-03-02T12:00'))).toBe(550);
+  });
+});
+
+describe('average', () => {
+  it.each([
+    [[], null],
+    [[1, 2, 6], 3]
+  ])('of %j is %s', (values, expected) => {
+    expect(average(values)).toBe(expected);
+  });
+});
+
+describe('medicationEffect', () => {
+  const intakes = [
+    intake('2026-03-02T08:00', 'analgesic', 'Ibuprofen', 2),
+    intake('2026-03-02T18:00', 'analgesic', 'Ibuprofen', null),
+    intake('2026-03-03T08:00', 'analgesic', 'Ibuprofen', 0),
+    { ...intake('2026-03-04T08:00', 'analgesic', 'Ibuprofen', 2), dose: '600 mg' },
+    intake('2026-03-04T09:00', 'triptan', 'Sumatriptan', 1),
+    intake('2026-02-01T08:00', 'analgesic', 'Ibuprofen', 2)
+  ];
+  const from = at('2026-03-01T00:00');
+  const to = at('2026-03-31T23:59');
+
+  it('counts intakes, days and ratings per name, leaving out unrated intakes and other periods', () => {
+    const [ibu] = medicationEffect(intakes, from, to, (i) => i.name);
+    expect([ibu.name, ibu.intakes, ibu.days, ibu.relief, ibu.rated]).toEqual(['Ibuprofen', 4, 3, [1, 0, 2], 3]);
+  });
+
+  it('keeps doses apart when grouped by name and dose', () => {
+    const rows = medicationEffect(intakes, from, to, (i) => `${i.name} ${i.dose}`);
+    expect(rows.map((r) => [r.name, r.dose, r.intakes])).toEqual([
+      ['Ibuprofen', '400 mg', 3],
+      ['Ibuprofen', '600 mg', 1],
+      ['Sumatriptan', '400 mg', 1]
+    ]);
+  });
+});
+
+describe('overuseRows', () => {
+  const month = new Date('2026-03-15');
+
+  it('has no row for several classes when only one class was used', () => {
+    expect(overuseRows([intake('2026-03-02T08:00', 'analgesic'), intake('2026-03-03T08:00', 'analgesic')], month)).toEqual([{ key: 'analgesic', days: 2, limit: 15 }]);
+  });
+
+  it('adds one row for several classes once two classes were used', () => {
+    const rows = overuseRows([intake('2026-03-02T08:00', 'analgesic'), intake('2026-03-02T09:00', 'triptan'), intake('2026-03-04T08:00', 'triptan')], month);
+    expect(rows).toEqual([
+      { key: 'analgesic', days: 1, limit: 15 },
+      { key: 'triptan', days: 2, limit: 10 },
+      { key: 'multiple', days: 2, limit: 10 }
+    ]);
+  });
+
+  it('leaves out preventive medication and antiemetics', () => {
+    expect(overuseRows([intake('2026-03-02T08:00', 'preventive'), intake('2026-03-02T09:00', 'antiemetic')], month)).toEqual([]);
+  });
+});
+
+describe('monthSummary', () => {
+  const now = at('2026-03-10T12:00');
+
+  it('does not count a day with only an antiemetic as a medication day', () => {
+    const data = { episodes: [], drinks: [], intakes: [intake('2026-03-02T08:00', 'antiemetic'), intake('2026-03-03T08:00', 'analgesic')] };
+    expect(monthSummary(data, new Date('2026-03-01'), now).med).toBe(1);
+  });
+
+  it('averages water over the days up to today, counting days without drinks as 0', () => {
+    const data = { episodes: [], intakes: [], drinks: [drink('2026-03-02T08:00', 2000), drink('2026-03-20T08:00', 5000)] };
+    expect(monthSummary(data, new Date('2026-03-01'), now).water).toBe(200);
+  });
+});
+
+describe('monthlyCounts', () => {
+  it('counts across the turn of the year', () => {
+    const data = { episodes: [episode('2025-12-31T22:00', '2026-01-01T02:00')], intakes: [intake('2025-12-30T08:00'), intake('2026-01-02T08:00')] };
+    expect(monthlyCounts(data, at('2026-01-15T12:00'), 2).map((m) => [m.month.getMonth(), m.headache, m.med])).toEqual([
+      [11, 1, 1],
+      [0, 1, 1]
+    ]);
+  });
+
+  it('goes back whole months from the 31st', () => {
+    const months = monthlyCounts({ episodes: [], intakes: [] }, at('2026-03-31T12:00'), 3).map((m) => m.month.getMonth());
+    expect(months).toEqual([0, 1, 2]);
   });
 });

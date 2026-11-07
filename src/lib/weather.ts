@@ -18,6 +18,9 @@ export function isPressureDrop(drop: number): boolean {
   return drop > PRESSURE_DROP_HPA;
 }
 
+/** localStorage key holding the time of the last weather sync. */
+export const WEATHER_SYNC_KEY = 'headlog.weatherSync';
+
 /** The archive lags a few days behind; newer days come from the forecast API. */
 const ARCHIVE_DELAY_DAYS = 6;
 const RECENT_DAYS = 14;

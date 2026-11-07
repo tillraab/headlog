@@ -1,7 +1,7 @@
 import { addDays, getHours, getMinutes } from 'date-fns';
-import { alcoholDays, caffeineByDay, firstDrinkDay, waterByDay } from './analysis';
+import { alcoholDays, average, caffeineByDay, firstDrinkDay, usualCaffeine, waterByDay } from './analysis';
 import type { Drink, Night, WeatherDay } from './db';
-import { dayKey, lastDays } from './days';
+import { dayKey, HOUR, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
 
@@ -32,6 +32,11 @@ export interface Prognosis {
   sleep: { status: Status; night?: Night; average: number | null };
   alcohol: { status: Status; yesterday: boolean; today: boolean };
   caffeine: { status: Status; today: number; usual: number | null; tooEarly: boolean };
+}
+
+/** The forecast's input from the app data. */
+export function prognosisInput(data: Omit<PrognosisInput, 'goalMl'> & { settings: { waterGoalMl: number } }): PrognosisInput {
+  return { drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl };
 }
 
 /** Fluid that should have been reached by `now` to meet the goal by the evening. */
@@ -68,19 +73,16 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
 
   const night = input.sleep.get(today);
   const recent = lastDays(now, 7).map((k) => input.sleep.get(k)).filter((n) => n !== undefined);
-  const average = recent.length ? recent.reduce((s, n) => s + n.asleepMs, 0) / recent.length / 3600000 : null;
-  const sleepStatus: Status = !night ? 'unknown' : night.asleepMs < SHORT_SLEEP_HOURS * 3600000 ? 'bad' : 'ok';
+  const recentMs = average(recent.map((n) => n.asleepMs));
+  const sleepAverage = recentMs === null ? null : recentMs / HOUR;
+  const sleepStatus: Status = !night ? 'unknown' : night.asleepMs < SHORT_SLEEP_HOURS * HOUR ? 'bad' : 'ok';
 
   const alcohol = alcoholDays(input.drinks);
   const tracksAlcohol = input.drinks.some((d) => d.alcohol);
   const alcoholStatus: Status = !tracksAlcohol ? 'unknown' : alcohol.has(yesterday) || alcohol.has(today) ? 'bad' : 'ok';
 
   const caffeine = caffeineByDay(input.drinks);
-  // The usual amount counts only days since the first logged drink, at most the last 14.
-  const history = lastDays(addDays(now, -1), 14)
-    .filter((k) => first !== null && k >= first)
-    .map((k) => caffeine.get(k) ?? 0);
-  const usual = caffeine.size && history.length ? history.reduce((a, b) => a + b, 0) / history.length : null;
+  const usual = usualCaffeine(caffeine, first, today);
   const caffeineToday = caffeine.get(today) ?? 0;
   const caffeineStatus: Status =
     usual === null || usual < MIN_USUAL_CAFFEINE || getHours(now) < CAFFEINE_FROM_HOUR ? 'unknown' : caffeineToday < usual * CAFFEINE_DROP ? 'bad' : 'ok';
@@ -92,7 +94,7 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
     bad,
     weather: { status: weatherStatus, today: todayWeather, tomorrow: tomorrowWeather, drop },
     hydration: { status: hydrationStatus, today: todayMl, yesterday: yesterdayMl, expected, goal: input.goalMl, behind: behindToday, lowYesterday },
-    sleep: { status: sleepStatus, night, average },
+    sleep: { status: sleepStatus, night, average: sleepAverage },
     alcohol: { status: alcoholStatus, yesterday: alcohol.has(yesterday), today: alcohol.has(today) },
     caffeine: { status: caffeineStatus, today: caffeineToday, usual, tooEarly: getHours(now) < CAFFEINE_FROM_HOUR }
   };

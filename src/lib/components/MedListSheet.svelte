@@ -1,13 +1,13 @@
 <script lang="ts">
   import { Plus, Trash2 } from '@lucide/svelte';
-  import { guessCategory, MED_COLORS, type MedCategory, type Medication } from '$lib/db';
+  import { MED_COLORS } from '$lib/colors';
+  import type { Medication } from '$lib/db';
+  import { CATEGORIES, guessCategory, type MedCategory } from '$lib/medication';
   import { toast } from '$lib/ui.svelte';
   import { t } from '$lib/i18n.svelte';
   import { data, deleteMedication, saveMedication, updateMedication } from '$lib/store.svelte';
   import OrderButtons from './OrderButtons.svelte';
   import Sheet from './Sheet.svelte';
-
-  const CATEGORIES: MedCategory[] = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'antiemetic', 'preventive', 'other'];
 
   let openMed = $state<number | null>(null);
 

@@ -5,16 +5,15 @@
    * magnified bar around it, where its edges can be dragged. Grey ticks below show when the screen was
    * on, the source of the estimate.
    */
-  import { addDays, format, setHours, startOfDay } from 'date-fns';
+  import { format, startOfDay } from 'date-fns';
   import type { Night } from '$lib/db';
-  import { formatDuration } from '$lib/days';
+  import { formatDuration, hm, HOUR, MINUTE } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
-  import { nightSpan, onPeriods, screenEvents } from '$lib/sleep';
+  import { awakeMs, nightSpan, onPeriods, screenEvents, sleepSegments, typedSleepTime } from '$lib/sleep';
   import { tap } from '$lib/ui.svelte';
 
   let { night = $bindable() }: { night: Night } = $props();
 
-  const MINUTE = 60000;
   const SNAP = 5 * MINUTE;
   /** Shortest sleep before or after a break, and shortest break. */
   const MIN_GAP = 5 * MINUTE;
@@ -46,19 +45,9 @@
   type Handle = 'start' | 'end' | 'breakStart' | 'breakEnd';
   let dragging = $state<{ handle: Handle; track: Element; within: Span } | null>(null);
 
-  const awake = $derived(night.breaks.reduce((sum, b) => sum + b.end - b.start, 0));
+  const awake = $derived(awakeMs(night));
   const asleep = $derived(Math.max(0, night.end - night.start - awake));
-  /** The sleep stretches between the breaks. */
-  const segments = $derived.by(() => {
-    const list: { start: number; end: number }[] = [];
-    let start = night.start;
-    for (const b of night.breaks) {
-      list.push({ start, end: b.start });
-      start = b.end;
-    }
-    list.push({ start, end: night.end });
-    return list;
-  });
+  const segments = $derived(sleepSegments(night));
 
   function timeAt(clientX: number, track: Element, within: Span): number {
     const box = track.getBoundingClientRect();
@@ -133,16 +122,6 @@
     select(null);
   }
 
-  /** Typed times: evening hours belong to the day before, morning hours to the day itself. */
-  function typed(value: string): number | null {
-    const [h, m] = value.split(':').map(Number);
-    if (Number.isNaN(h) || Number.isNaN(m)) return null;
-    const morning = startOfDay(new Date(`${night.day}T12:00`));
-    const day = h >= 15 ? addDays(morning, -1) : morning;
-    return setHours(day, h).getTime() + m * MINUTE;
-  }
-
-  const hm = (time: number) => format(time, 'HH:mm');
   const sel = $derived(selected !== null ? night.breaks[selected] : undefined);
 </script>
 
@@ -159,7 +138,7 @@
         class="mt-0.5 w-full px-2 text-lg font-semibold text-fg tabular"
         value={hm(night.start)}
         onchange={(e) => {
-          const time = typed(e.currentTarget.value);
+          const time = typedSleepTime(night.day, e.currentTarget.value);
           if (time !== null) move('start', time);
         }}
       />
@@ -171,7 +150,7 @@
         class="mt-0.5 w-full px-2 text-right text-lg font-semibold text-fg tabular"
         value={hm(night.end)}
         onchange={(e) => {
-          const time = typed(e.currentTarget.value);
+          const time = typedSleepTime(night.day, e.currentTarget.value);
           if (time !== null) move('end', time);
         }}
       />
@@ -235,7 +214,7 @@
         <div class="absolute inset-y-0 rounded-full bg-muted/60" style:left="{pct(on.start)}%" style:width="max(2px, {pct(on.end) - pct(on.start)}%)"></div>
       {/each}
     </div>
-    {@render axis(span, 2 * 3600000, 'H')}
+    {@render axis(span, 2 * HOUR, 'H')}
 
     {#if night.breaks.length}
       <div class="mt-2 flex flex-wrap gap-2">

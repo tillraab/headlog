@@ -1,6 +1,8 @@
-import { addDays, endOfMonth, getDay, getHours, startOfMonth } from 'date-fns';
-import { ACUTE_CATEGORIES, hydrationMl, type Drink, type Episode, type Intake, type MedCategory, type Medication, type Night, type WeatherDay } from './db';
-import { dayKey, dayRange, keyToDate, lastDays } from './days';
+import { addDays, endOfMonth, getDay, getHours, startOfDay, startOfMonth } from 'date-fns';
+import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
+import { hydrationMl } from './drinks';
+import { ACUTE_CATEGORIES, MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type MedCategory } from './medication';
+import { DAY, dayKey, dayRange, HOUR, keyToDate, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
 
@@ -13,6 +15,15 @@ export function headacheDays(episodes: Episode[], now: number): Map<string, numb
     }
   }
   return days;
+}
+
+/**
+ * The other ongoing episode that saving `episode` as ongoing would conflict with. Only one headache
+ * can be ongoing at a time; an ended episode never conflicts.
+ */
+export function conflictingOngoing(episodes: Episode[], episode: { id?: number; end: number | null }): Episode | undefined {
+  if (episode.end !== null) return undefined;
+  return episodes.find((e) => e.end === null && e.id !== episode.id);
 }
 
 /** Intakes grouped by day. With `acuteOnly`, preventive medication is left out. */
@@ -43,6 +54,13 @@ export function waterByDay(drinks: Drink[]): Map<string, number> {
   return days;
 }
 
+/** Fluid that counts toward the goal on the calendar day of `day`. */
+export function waterOn(drinks: Drink[], day: number | Date): number {
+  const from = startOfDay(day).getTime();
+  const to = addDays(from, 1).getTime();
+  return drinks.filter((d) => d.time >= from && d.time < to).reduce((sum, d) => sum + hydrationMl(d), 0);
+}
+
 /**
  * Hydration adding up through each day in `keys`, as steps: a point before and after each drink,
  * starting at 0 at midnight and ending at the next midnight or at `now`. Days after `now` are left out.
@@ -70,15 +88,20 @@ export function hydrationCurve(drinks: Drink[], keys: string[], now: number): { 
     });
 }
 
+/** Days `hydrationBefore` looks back on for what is usual, and how many of them need drinks. */
+const USUAL_HYDRATION_DAYS = 30;
+const MIN_USUAL_HYDRATION_DAYS = 7;
+
 /**
  * Hydration in the `hours` before `time`, and what is usual for that many hours: the average over the
  * 30 days before, scaled to the same length. Usual is null without at least 7 days with drinks.
  */
 export function hydrationBefore(drinks: Drink[], time: number, hours = 72): { ml: number; usual: number | null } {
-  const from = time - hours * 3600000;
+  const from = time - hours * HOUR;
   const ml = drinks.filter((d) => d.time >= from && d.time < time).reduce((sum, d) => sum + hydrationMl(d), 0);
-  const water = waterByDay(drinks.filter((d) => d.time < from && d.time >= from - 30 * 86400000));
-  const usual = water.size >= 7 ? ([...water.values()].reduce((a, b) => a + b, 0) / water.size) * (hours / 24) : null;
+  const water = waterByDay(drinks.filter((d) => d.time < from && d.time >= from - USUAL_HYDRATION_DAYS * DAY));
+  const mean = water.size >= MIN_USUAL_HYDRATION_DAYS ? average([...water.values()]) : null;
+  const usual = mean === null ? null : mean * (hours / 24);
   return { ml, usual };
 }
 
@@ -91,6 +114,22 @@ export function caffeineByDay(drinks: Drink[]): Map<string, number> {
     days.set(key, (days.get(key) ?? 0) + d.caffeineMg);
   }
   return days;
+}
+
+/** Days the usual caffeine amount looks back on. */
+const USUAL_CAFFEINE_DAYS = 14;
+
+/**
+ * The usual daily caffeine before `day`: the average over the 14 days before it, counting only days
+ * since the first logged drink, since days before it are unknown. Null without any caffeine logged or
+ * without a known day. The forecast and the report both judge a caffeine drop against this.
+ */
+export function usualCaffeine(caffeine: Map<string, number>, firstDrink: string | null, day: string): number | null {
+  if (!caffeine.size || firstDrink === null) return null;
+  const history = lastDays(addDays(keyToDate(day), -1), USUAL_CAFFEINE_DAYS)
+    .filter((k) => k >= firstDrink)
+    .map((k) => caffeine.get(k) ?? 0);
+  return average(history);
 }
 
 /** Days with at least one alcoholic drink. */
@@ -194,21 +233,6 @@ export function rollingDays(days: Set<string>, today: number | Date, span: numbe
   return result;
 }
 
-/**
- * Days per month from which ICHD-3 (8.2, medication-overuse headache) speaks of overuse, when it
- * goes on for more than 3 months: 15 for simple pain relievers, 10 for the others.
- */
-export const MONTHLY_LIMITS: Partial<Record<MedCategory, number>> = {
-  analgesic: 15,
-  triptan: 10,
-  ergotamine: 10,
-  combination: 10,
-  opioid: 10
-};
-
-/** ICHD-3 8.2.6: several of these classes together on 10 or more days a month also count as overuse. */
-export const MULTIPLE_CLASSES_LIMIT = 10;
-
 /** Days in the month of `month` with medication from any class that has an overuse limit. */
 export function monthlyLimitedDays(intakes: Intake[], month: Date): number {
   const from = startOfMonth(month).getTime();
@@ -230,6 +254,78 @@ export function monthlyCategoryDays(intakes: Intake[], month: Date): Map<MedCate
   return new Map([...sets].map(([c, s]) => [c, s.size]));
 }
 
+/** A class with an overuse limit and its days this month, or `multiple` for several classes together. */
+export interface OveruseRow {
+  key: MedCategory | 'multiple';
+  days: number;
+  limit: number;
+}
+
+/**
+ * The ICHD-3 overuse rows for the calendar month of `month`: one per class with a limit that was
+ * used, plus the rule for several classes together once two or more were used.
+ */
+export function overuseRows(intakes: Intake[], month: Date): OveruseRow[] {
+  const days = monthlyCategoryDays(intakes, month);
+  const rows: OveruseRow[] = (Object.keys(MONTHLY_LIMITS) as MedCategory[])
+    .filter((c) => days.has(c))
+    .map((c) => ({ key: c, days: days.get(c)!, limit: MONTHLY_LIMITS[c]! }));
+  if (rows.length > 1) rows.push({ key: 'multiple', days: monthlyLimitedDays(intakes, month), limit: MULTIPLE_CLASSES_LIMIT });
+  return rows;
+}
+
+export interface MedicationEffect {
+  name: string;
+  dose: string;
+  category: MedCategory;
+  /** The list entry of the first intake in the group. */
+  medId: number;
+  intakes: number;
+  days: number;
+  /** Rated intakes per relief, indexed by `Relief`. */
+  relief: [number, number, number];
+  rated: number;
+}
+
+/**
+ * Intakes, days and relief ratings per medication for intakes from `from` to `to`, most taken first.
+ * `keyOf` decides what counts as one medication: the Meds tab groups by name, so a dose change stays
+ * one entry, while the doctor report groups by name and dose, since the dose matters there.
+ */
+export function medicationEffect(intakes: Intake[], from: number, to: number, keyOf: (intake: Intake) => string): MedicationEffect[] {
+  const groups = new Map<string, MedicationEffect & { dayKeys: Set<string> }>();
+  for (const i of intakes) {
+    if (i.time < from || i.time > to) continue;
+    const key = keyOf(i);
+    const g = groups.get(key) ?? { name: i.name, dose: i.dose, category: i.category, medId: i.medId, intakes: 0, days: 0, relief: [0, 0, 0], rated: 0, dayKeys: new Set<string>() };
+    g.intakes++;
+    g.dayKeys.add(dayKey(i.time));
+    if (i.relief !== null) {
+      g.relief[i.relief]++;
+      g.rated++;
+    }
+    groups.set(key, g);
+  }
+  return [...groups.values()].map(({ dayKeys, ...g }) => ({ ...g, days: dayKeys.size })).sort((a, b) => b.intakes - a.intakes);
+}
+
+/**
+ * The calendar's month summary up to `now`: headache days, days with acute medication and the
+ * average water per day. Days after `now` are left out.
+ */
+export function monthSummary(data: { episodes: Episode[]; intakes: Intake[]; drinks: Drink[] }, month: Date, now: number) {
+  const today = dayKey(now);
+  const past = dayRange(startOfMonth(month), endOfMonth(month)).filter((k) => k <= today);
+  const hDays = headacheDays(data.episodes, now);
+  const mDays = intakeDays(data.intakes);
+  const water = waterByDay(data.drinks);
+  return {
+    headache: past.filter((k) => hDays.has(k)).length,
+    med: past.filter((k) => mDays.has(k)).length,
+    water: average(past.map((k) => water.get(k) ?? 0)) ?? 0
+  };
+}
+
 export interface PeriodStats {
   days: number;
   headacheDays: number;
@@ -243,7 +339,6 @@ export interface PeriodStats {
   /** Episodes started per 3-hour block of the day. */
   timeOfDay: number[];
   avgWaterMl: number | null;
-  meds: { name: string; intakes: number; days: number; avgRelief: number | null }[];
   tags: { tag: string; count: number }[];
   /** Days since the last headache day, or null without any. */
   clearStreak: number | null;
@@ -274,14 +369,6 @@ export function periodStats(
   }
 
   const waterDays = keys.filter((k) => water.has(k));
-  const medMap = new Map<string, { intakes: number; days: Set<string>; relief: number[] }>();
-  for (const i of intakes) {
-    const m = medMap.get(i.name) ?? { intakes: 0, days: new Set<string>(), relief: [] };
-    m.intakes++;
-    m.days.add(dayKey(i.time));
-    if (i.relief !== null) m.relief.push(i.relief);
-    medMap.set(i.name, m);
-  }
 
   const tagMap = new Map<string, number>();
   for (const e of episodes) for (const t of e.tags) tagMap.set(t, (tagMap.get(t) ?? 0) + 1);
@@ -293,21 +380,13 @@ export function periodStats(
     days: span,
     headacheDays: keys.filter((k) => hDays.has(k)).length,
     episodes: episodes.length,
-    avgDurationMs: done.length ? avg(done.map((e) => e.end! - e.start)) : null,
-    avgIntensity: episodes.length ? avg(episodes.map((e) => e.intensity)) : null,
+    avgDurationMs: average(done.map((e) => e.end! - e.start)),
+    avgIntensity: average(episodes.map((e) => e.intensity)),
     medDays: mDays.size,
     intakes: intakes.length,
     weekday,
     timeOfDay,
-    avgWaterMl: waterDays.length ? avg(waterDays.map((k) => water.get(k)!)) : null,
-    meds: [...medMap]
-      .map(([name, m]) => ({
-        name,
-        intakes: m.intakes,
-        days: m.days.size,
-        avgRelief: m.relief.length ? avg(m.relief) : null
-      }))
-      .sort((a, b) => b.intakes - a.intakes),
+    avgWaterMl: average(waterDays.map((k) => water.get(k)!)),
     tags: [...tagMap].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count),
     clearStreak: lastHeadache
       ? Math.max(0, dayRange(keyToDate(lastHeadache), today).length - 1)
@@ -341,8 +420,9 @@ function addMonthsSafe(time: number, months: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + months, 1);
 }
 
-function avg(values: number[]): number {
-  return values.reduce((a, b) => a + b, 0) / values.length;
+/** The mean of `values`, or null for none. */
+export function average(values: number[]): number | null {
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
 
 /** One value per day of `keys` for the timeline charts. Null where nothing is known; days after today only have the weather forecast. */
@@ -358,7 +438,7 @@ export function timeline(
   return {
     headache: keys.map((k) => pain.get(k) ?? 0),
     hydration: keys.map((k) => (water.has(k) ? water.get(k)! : first !== null && k >= first && k <= today ? 0 : null)),
-    sleepHours: keys.map((k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / 3600000 : null)),
+    sleepHours: keys.map((k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / HOUR : null)),
     pressure: keys.map((k) => data.weather.get(k)?.pressure ?? null),
     pressureDrop: keys.map((k) => data.weather.get(k)?.pressureDrop ?? null)
   };
@@ -377,7 +457,7 @@ export interface Comparison {
 }
 
 /** Each factor needs at least this many days on both sides to be shown. */
-export const MIN_COMPARISON_DAYS = 3;
+const MIN_COMPARISON_DAYS = 3;
 
 /**
  * Compares the days a headache started with days without headache: hydration, caffeine and
@@ -404,7 +484,7 @@ export function compareDays(
 
   const factors: [ComparisonKey, (k: string) => number | null][] = [
     ['hydration', (k) => water.get(before(k)) ?? null],
-    ['sleep', (k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / 3600000 : null)],
+    ['sleep', (k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / HOUR : null)],
     ['caffeine', (k) => (tracksCaffeine && water.has(before(k)) ? (caffeine.get(before(k)) ?? 0) : null)],
     ['pressure', (k) => (data.weather.has(k) ? (isPressureDrop(data.weather.get(k)!.pressureDrop) ? 1 : 0) : null)],
     ['alcohol', (k) => (tracksAlcohol && water.has(before(k)) ? (alcohol.has(before(k)) ? 1 : 0) : null)]
@@ -414,7 +494,7 @@ export function compareDays(
     const h = startDays.map(value).filter((v): v is number => v !== null);
     const c = clearDays.map(value).filter((v): v is number => v !== null);
     if (h.length < MIN_COMPARISON_DAYS || c.length < MIN_COMPARISON_DAYS) return [];
-    return [{ key, headache: avg(h), clear: avg(c), nHeadache: h.length, nClear: c.length }];
+    return [{ key, headache: average(h)!, clear: average(c)!, nHeadache: h.length, nClear: c.length }];
   });
 }
 
@@ -454,11 +534,10 @@ export function dayFactors(
     if (ml < goalMl * LOW_HYDRATION) factors.hydration = ml;
   }
   const night = data.sleep.get(key);
-  if (night && night.asleepMs < SHORT_SLEEP_HOURS * 3600000) factors.sleep = night.asleepMs / 3600000;
+  if (night && night.asleepMs < SHORT_SLEEP_HOURS * HOUR) factors.sleep = night.asleepMs / HOUR;
   if (alcoholDays(data.drinks).has(before)) factors.alcohol = true;
-  const history = lastDays(keyToDate(before), 14).map((k) => caffeine.get(k) ?? 0);
-  const usual = history.reduce((a, b) => a + b, 0) / history.length;
+  const usual = usualCaffeine(caffeine, first, key);
   const today = caffeine.get(key) ?? 0;
-  if (caffeine.size && usual >= MIN_USUAL_CAFFEINE && today < usual * CAFFEINE_DROP) factors.caffeine = today;
+  if (usual !== null && usual >= MIN_USUAL_CAFFEINE && today < usual * CAFFEINE_DROP) factors.caffeine = today;
   return factors;
 }

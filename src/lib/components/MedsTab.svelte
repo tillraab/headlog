@@ -5,49 +5,26 @@
   import { edit } from '$lib/editor.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import TimelineChart from './TimelineChart.svelte';
-  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, monthlyLimitedDays, MULTIPLE_CLASSES_LIMIT, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
-  import type { MedCategory } from '$lib/db';
-  import { dayKey, keyToDate } from '$lib/days';
-  import { fmt, t } from '$lib/i18n.svelte';
+  import { intakeDays, medicationEffect, medicationLimits, overuseRows, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
+  import { medColor } from '$lib/colors';
+  import { DAY, keyToDate } from '$lib/days';
+  import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
 
+  /** Days the effect of each medication looks back on. */
+  const EFFECT_WINDOW_DAYS = 90;
   const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   const medDays = $derived(new Set(intakeDays(data.intakes).keys()));
   const rule = $derived(tenTwenty(medDays, clock.now, data.settings.limit));
   const rolling = $derived(rollingDays(medDays, clock.now, 90));
-  const monthly = $derived(monthlyCategoryDays(data.intakes, new Date(clock.now)));
-  /** One row per class with an overuse limit used this month, plus the rule for several classes together. */
-  const overuseRows = $derived.by(() => {
-    const rows = (Object.keys(MONTHLY_LIMITS) as MedCategory[])
-      .filter((c) => monthly.has(c))
-      .map((c) => ({ label: t(`cat.${c}`), days: monthly.get(c)!, limit: MONTHLY_LIMITS[c]! }));
-    if (rows.length > 1) rows.push({ label: t('overuse.multiple'), days: monthlyLimitedDays(data.intakes, new Date(clock.now)), limit: MULTIPLE_CLASSES_LIMIT });
-    return rows;
-  });
+  const overuse = $derived(overuseRows(data.intakes, new Date(clock.now)));
   const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
-  const reliefLabels = $derived([t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')]);
-  /** Intakes and relief ratings per medication over the last 90 days. */
-  const effect = $derived.by(() => {
-    const from = clock.now - 90 * 86400000;
-    const byName = new Map<string, { name: string; intakes: number; days: Set<string>; relief: [number, number, number]; rated: number }>();
-    for (const i of data.intakes) {
-      if (i.time < from) continue;
-      const m = byName.get(i.name) ?? { name: i.name, intakes: 0, days: new Set<string>(), relief: [0, 0, 0], rated: 0 };
-      m.intakes++;
-      m.days.add(dayKey(i.time));
-      if (i.relief !== null) {
-        m.relief[i.relief]++;
-        m.rated++;
-      }
-      byName.set(i.name, m);
-    }
-    return [...byName.values()].map((m) => ({ ...m, days: m.days.size })).sort((a, b) => b.intakes - a.intakes);
-  });
+  /** Intakes and relief ratings per medication name over the last 90 days. */
+  const effect = $derived(medicationEffect(data.intakes, clock.now - EFFECT_WINDOW_DAYS * DAY, clock.now, (i) => i.name));
   const recent = $derived([...data.intakes].sort((a, b) => b.time - a.time).slice(0, 8));
   const personal = $derived(medicationLimits(data.intakes, data.medications, clock.now));
   const tone = $derived(STATUS_COLOR[rule.status]);
   const label = $derived({ ok: t('tenTwenty.ok'), caution: t('tenTwenty.caution'), over: t('tenTwenty.over') }[rule.status]);
-  const colorOf = (name: string) => data.medications.find((m) => m.name === name)?.color ?? 'var(--color-med)';
 
   const R = 70;
   const C = 2 * Math.PI * R;
@@ -64,7 +41,7 @@
       <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => openSheet('medList')} aria-label={t('set.meds')}>
         <Pencil size={18} />
       </button>
-      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (showInfo = !showInfo)} aria-label="Info">
+      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (showInfo = !showInfo)} aria-label={t('a11y.info')}>
         <Info size={20} />
       </button>
     </div>
@@ -183,7 +160,7 @@
         {#each effect as m (m.name)}
           <li class="flex flex-col gap-1 text-sm">
             <div class="flex items-center gap-3">
-              <span class="size-3 rounded-full" style:background-color={colorOf(m.name)}></span>
+              <span class="size-3 rounded-full" style:background-color={medColor(m, data.medications)}></span>
               <span class="flex-1 font-medium">{m.name}</span>
               <span class="text-xs text-muted tabular">{t('tenTwenty.intakes', { n: m.intakes, d: m.days })}</span>
             </div>
@@ -212,11 +189,11 @@
         {#each recent as intake (intake.id)}
           <li>
             <button class="press flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface-2" onclick={() => edit({ kind: 'intake', item: intake })}>
-              <span class="size-3 shrink-0 rounded-full" style:background-color={colorOf(intake.name)}></span>
+              <span class="size-3 shrink-0 rounded-full" style:background-color={medColor(intake, data.medications)}></span>
               <span class="flex-1 text-sm">{intake.name} <span class="text-muted">{intake.dose}</span></span>
               <span class="text-xs text-muted tabular">{fmt(intake.time, 'EEE d. MMM HH:mm')}</span>
               <span class="w-14 text-right text-xs font-medium" style:color={intake.relief === null ? undefined : RELIEF_COLOR[intake.relief]}>
-                {intake.relief === null ? t('meds.rate') : reliefLabels[intake.relief]}
+                {intake.relief === null ? t('meds.rate') : reliefLabels()[intake.relief]}
               </span>
             </button>
           </li>
@@ -229,10 +206,10 @@
     <h2 class="text-sm font-semibold">{t('overuse.title')} · {fmt(clock.now, 'LLLL')}</h2>
     <p class="mb-3 text-xs text-muted">{t('overuse.hint')}</p>
     <ul class="flex flex-col gap-3">
-      {#each overuseRows as row (row.label)}
+      {#each overuse as row (row.key)}
         <li class="flex flex-col gap-1 text-sm">
           <div class="flex justify-between">
-            <span>{row.label}</span>
+            <span>{row.key === 'multiple' ? t('overuse.multiple') : t(`cat.${row.key}`)}</span>
             <span class="tabular">{row.days} / {row.limit} {t('overuse.days')}</span>
           </div>
           <div class="h-2 overflow-hidden rounded-full bg-surface-2">

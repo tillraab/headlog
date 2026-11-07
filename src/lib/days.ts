@@ -1,4 +1,15 @@
 import { addDays, differenceInCalendarDays, format, parseISO, startOfDay } from 'date-fns';
+import { num } from './i18n.svelte';
+
+export const MINUTE = 60_000;
+export const HOUR = 60 * MINUTE;
+/** 24 hours. Calendar days can be 23 or 25 hours long; use `addDays` to step from day to day. */
+export const DAY = 24 * HOUR;
+
+/** Local clock time as `HH:mm`. */
+export function hm(time: number | Date): string {
+  return format(time, 'HH:mm');
+}
 
 /** Local calendar day as `yyyy-MM-dd`. */
 export function dayKey(time: number | Date): string {
@@ -23,8 +34,13 @@ export function lastDays(end: number | Date, count: number): string[] {
   return dayRange(addDays(end, -(count - 1)), end);
 }
 
+/** An hour of the day as a clock time, e.g. `08:00`. */
+export function hourLabel(hour: number): string {
+  return `${String(hour).padStart(2, '0')}:00`;
+}
+
 export function formatDuration(ms: number): string {
-  const minutes = Math.max(0, Math.round(ms / 60000));
+  const minutes = Math.max(0, Math.round(ms / MINUTE));
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   if (h >= 24) {
@@ -35,5 +51,5 @@ export function formatDuration(ms: number): string {
 }
 
 export function formatLiters(ml: number): string {
-  return `${(ml / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })} l`;
+  return `${num(ml / 1000, 1, 2)} l`;
 }

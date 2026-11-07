@@ -1,11 +1,12 @@
 <script lang="ts">
   import { ChevronDown, Pencil } from '@lucide/svelte';
-  import { format } from 'date-fns';
-  import { dayKey, formatDuration, formatLiters } from '$lib/days';
+  import { dayKey, formatDuration, formatLiters, hm, HOUR } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
-  import { badFactors, prognosis, type Status } from '$lib/prognosis';
+  import { awakeMs } from '$lib/sleep';
+  import { badFactors, prognosis, prognosisInput, type Status } from '$lib/prognosis';
   import { CAFFEINE_DROP, LOW_HYDRATION, SHORT_SLEEP_HOURS } from '$lib/thresholds';
-  import { clock, data, openNight } from '$lib/store.svelte';
+  import { openNight } from '$lib/editor.svelte';
+  import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import TrafficLight, { LIGHT_COLOR } from './TrafficLight.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
@@ -13,13 +14,12 @@
   let { open = $bindable(false) }: { open?: boolean } = $props();
 
   const p = $derived(
-    prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, clock.now)
+    prognosis(prognosisInput(data), clock.now)
   );
 
   const toggle = () => (open = !open);
 
   const STATUS: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
-  const hm = (time: number) => format(time, 'HH:mm');
 
   function hydrationWhy(): string {
     const h = p.hydration;
@@ -154,9 +154,9 @@
           ? [
               t('prog.sleepNight', { d: formatDuration(p.sleep.night.asleepMs), from: hm(p.sleep.night.start), to: hm(p.sleep.night.end) }),
               p.sleep.night.breaks.length
-                ? `${t('sleep.breaks', { n: p.sleep.night.breaks.length, d: formatDuration(p.sleep.night.breaks.reduce((sum, b) => sum + b.end - b.start, 0)) })}: ${p.sleep.night.breaks.map((b) => `${hm(b.start)}–${hm(b.end)}`).join(', ')}`
+                ? `${t('sleep.breaks', { n: p.sleep.night.breaks.length, d: formatDuration(awakeMs(p.sleep.night)) })}: ${p.sleep.night.breaks.map((b) => `${hm(b.start)}–${hm(b.end)}`).join(', ')}`
                 : '',
-              p.sleep.average !== null ? t('prog.sleepAvg', { d: formatDuration(p.sleep.average * 3600000) }) : ''
+              p.sleep.average !== null ? t('prog.sleepAvg', { d: formatDuration(p.sleep.average * HOUR) }) : ''
             ]
           : [],
         !p.sleep.night

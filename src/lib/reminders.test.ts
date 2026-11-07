@@ -1,10 +1,5 @@
-import { beforeAll, describe, expect, it } from 'vitest';
-import { i18n } from './i18n.svelte';
-
-beforeAll(() => {
-  i18n.lang = 'en';
-});
-import { planDrinkReminders, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from './reminders';
+import { describe, expect, it } from 'vitest';
+import { planDrinkReminders, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks, planAll, RANGES, type ReminderData } from './reminders';
 import type { TomorrowRisk } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
@@ -32,6 +27,11 @@ describe('planReminders', () => {
   it('leaves out times that have passed', () => {
     const plan = planReminders(at('2026-03-02T13:00'), on, 2000, 0);
     expect(new Date(plan[0].at).getHours()).toBe(18);
+  });
+
+  it('reminds at noon local time on the day summer time starts', () => {
+    const [noon] = planReminders(at('2026-03-29T08:00'), on, 2000, 0);
+    expect(noon.at).toBe(at('2026-03-29T12:00'));
   });
 
   it('gives every reminder its own id', () => {
@@ -85,6 +85,20 @@ describe('planDrinkReminders', () => {
     expect(plan.filter((r) => r.at < at('2026-03-03T00:00')).map((r) => new Date(r.at).getHours())).toEqual([20]);
   });
 
+  it('stops at 18 reminders a day', () => {
+    const today = planDrinkReminders(at('2026-03-02T04:00'), { ...on, from: 5, to: 23, everyHours: 0.5 }, []).filter((r) => r.at < at('2026-03-03T00:00'));
+    expect(today).toHaveLength(18);
+  });
+
+  it('plans nothing when the window ends before it starts', () => {
+    expect(planDrinkReminders(at('2026-03-02T07:00'), { ...on, from: 20, to: 8 }, [])).toEqual([]);
+  });
+
+  it('counts from the window start when the last drink came before it', () => {
+    const [next] = planDrinkReminders(at('2026-03-02T07:30'), on, [drink('2026-03-02T07:00')]);
+    expect(next.at).toBe(at('2026-03-02T10:00'));
+  });
+
   it('plans today and the next two days with distinct ids', () => {
     const plan = planDrinkReminders(at('2026-03-02T07:00'), { ...on, everyHours: 1 }, []);
     expect([plan.length, new Set(plan.map((r) => r.id)).size]).toEqual([36, 36]);
@@ -128,5 +142,65 @@ describe('planSleepChecks', () => {
 
   it('plans nothing when switched off', () => {
     expect(planSleepChecks(at('2026-03-10T07:30'), { ...settings, enabled: false }, night('screen'))).toEqual([]);
+  });
+});
+
+describe('id ranges', () => {
+  it('hold every planned reminder of one moment, without duplicate ids', () => {
+    const now = at('2026-03-02T00:30');
+    const plans = {
+      water: planReminders(now, on, 2000, 0),
+      headache: planHeadacheChecks({ id: 1, start: now, end: null }, now, 1),
+      drink: planDrinkReminders(now, { enabled: true, from: 5, to: 23, everyHours: 0.5 }, []),
+      risk: planRiskAlert(now, { enabled: true, hour: 20 }, () => ({ light: 'red', factors: ['weather', 'alcohol'] })),
+      sleep: planSleepChecks(now, { enabled: true, hour: 9 }, new Map())
+    };
+    const outside = Object.entries(plans).flatMap(([kind, plan]) => {
+      const range = RANGES[kind as keyof typeof RANGES];
+      return plan.filter((r) => r.id < range.first || r.id >= range.first + range.count).map((r) => `${kind} ${r.id}`);
+    });
+    const ids = Object.values(plans).flatMap((plan) => plan.map((r) => r.id));
+    expect([outside, new Set(ids).size, ids.length]).toEqual([[], 83, 83]);
+  });
+});
+
+describe('planAll', () => {
+  const now = at('2026-03-10T07:30');
+  const night = { day: '2026-03-10', start: at('2026-03-09T23:00'), end: at('2026-03-10T07:00'), asleepMs: 8 * 3600000, breaks: [], source: 'screen' as const };
+  const data = (settings: Partial<ReminderData['settings']> = {}, drinks: ReminderData['drinks'] = []): ReminderData => ({
+    episodes: [],
+    drinks,
+    sleep: new Map([[night.day, night]]),
+    weather: new Map(),
+    settings: {
+      reminders: { enabled: true, noon: 12, evening: 18 },
+      waterGoalMl: 2000,
+      headacheCheckHours: 3,
+      drinkReminder: { enabled: true, from: 8, to: 20, everyHours: 2 },
+      riskAlert: { enabled: true, hour: 20 },
+      sleep: { enabled: true },
+      sleepCheck: { enabled: true, hour: 9 },
+      ...settings
+    }
+  });
+
+  it('asks about sleep only while sleep estimates are on', () => {
+    expect([planAll(data(), now).sleep.length, planAll(data({ sleep: { enabled: false } }), now).sleep.length]).toEqual([2, 0]);
+  });
+
+  it("counts today's water for the water reminders", () => {
+    const drinks = [{ id: 1, time: at('2026-03-10T07:00'), presetId: 1, name: 'Bottle', emoji: '🍶', ml: 1000 }];
+    const today = planAll(data({}, drinks), now).water.filter((r) => r.at < at('2026-03-11T00:00'));
+    expect(today.map((r) => new Date(r.at).getHours())).toEqual([18]);
+  });
+
+  it("counts the drink reminder from today's last drink", () => {
+    const drinks = [{ id: 1, time: at('2026-03-10T07:15'), presetId: 1, name: 'Tea', emoji: '🍵', ml: 300 }];
+    expect(planAll(data({}, drinks), now).drink[0].at).toBe(at('2026-03-10T10:00'));
+  });
+
+  it('asks about a headache only while one is ongoing', () => {
+    const ongoing = { ...data(), episodes: [{ id: 3, start: at('2026-03-10T06:00'), end: null, intensity: 5, tags: [], note: '' }] };
+    expect([planAll(data(), now).headache.length, planAll(ongoing, now).headache[0].episodeId]).toEqual([0, 3]);
   });
 });

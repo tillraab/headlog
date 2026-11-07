@@ -4,16 +4,16 @@
    * then the card goes away. A confirmed night stays editable from the forecast's sleep tile.
    */
   import { Moon } from '@lucide/svelte';
-  import { format } from 'date-fns';
-  import { dayKey, formatDuration } from '$lib/days';
+  import { dayKey, formatDuration, hm } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
-  import { clock, confirmNight, data, openNight } from '$lib/store.svelte';
+  import { awakeMs } from '$lib/sleep';
+  import { openNight } from '$lib/editor.svelte';
+  import { clock, confirmNight, data } from '$lib/store.svelte';
   import { tap, toast } from '$lib/ui.svelte';
 
   const day = $derived(dayKey(clock.now));
   const night = $derived(data.sleep.get(day));
-  const hm = (time: number) => format(time, 'HH:mm');
-  const awake = $derived(night ? night.breaks.reduce((sum, b) => sum + b.end - b.start, 0) : 0);
+  const awake = $derived(night ? awakeMs(night) : 0);
 
   async function confirm() {
     tap();
@@ -46,6 +46,6 @@
   <section class="card flex items-center gap-3 p-4">
     <span class="grid size-10 shrink-0 place-items-center rounded-full bg-surface-2 text-muted"><Moon size={20} /></span>
     <p class="flex-1 text-sm text-muted">{t('sleep.card.none')}</p>
-    <button class="press rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg" onclick={() => openNight(day)}>{t('sleep.card.add')}</button>
+    <button class="press btn-primary" onclick={() => openNight(day)}>{t('sleep.card.add')}</button>
   </section>
 {/if}

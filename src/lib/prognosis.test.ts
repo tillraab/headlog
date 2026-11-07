@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Drink, Night, WeatherDay } from './db';
-import { expectedByNow, prognosis, tomorrowRisk, type PrognosisInput } from './prognosis';
+import { badFactors, expectedByNow, prognosis, tomorrowRisk, type PrognosisInput } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
 const now = at('2026-03-10T14:30');
@@ -91,8 +91,44 @@ describe('prognosis', () => {
   });
 });
 
+describe('prognosis at the thresholds', () => {
+  it('counts a pressure drop today', () => {
+    expect(prognosis(input({ weather: new Map([['2026-03-10', weather('2026-03-10', 8)]]) }), now).weather.status).toBe('bad');
+  });
+
+  it.each([
+    ['a night of exactly 6 h', input({ sleep: new Map([['2026-03-10', night(6)]]) }), 'sleep'],
+    ['yesterday at exactly three quarters of the goal', input({ drinks: [drink('2026-03-09T12:00', 1500), drink('2026-03-10T09:00', 1200)] }), 'hydration'],
+    ['a pressure drop of exactly 5 hPa', input({ weather: new Map([['2026-03-10', weather('2026-03-10', 5)]]) }), 'weather']
+  ] as const)('is fine with %s', (_, data, factor) => {
+    expect(prognosis(data, now)[factor].status).toBe('ok');
+  });
+
+  it('lists the unfavourable factors in a fixed order', () => {
+    const p = prognosis(
+      input({
+        drinks: [drink('2026-03-09T12:00', 800), drink('2026-03-09T20:00', 150, { alcohol: true }), drink('2026-03-10T09:00', 300)],
+        sleep: new Map([['2026-03-10', night(4.5)]]),
+        weather: new Map([['2026-03-11', weather('2026-03-11', 8)]])
+      }),
+      now
+    );
+    expect(badFactors(p)).toEqual(['weather', 'hydration', 'sleep', 'alcohol']);
+  });
+
+  it('counts alcohol yesterday, which tomorrowRisk leaves out', () => {
+    const data = input({ drinks: [drink('2026-03-09T12:00', 2200), drink('2026-03-09T20:00', 150, { alcohol: true }), drink('2026-03-10T09:00', 1800)] });
+    expect([prognosis(data, now).alcohol.status, tomorrowRisk(data, at('2026-03-10T20:00')).factors]).toEqual(['bad', []]);
+  });
+});
+
 describe('tomorrowRisk', () => {
   const evening = at('2026-03-10T20:00');
+
+  it('leaves out drinks logged after the hour it looks from', () => {
+    const r = tomorrowRisk(input({ drinks: [drink('2026-03-10T09:00', 1000), drink('2026-03-10T21:00', 1000)] }), evening);
+    expect(r.factors).toEqual(['hydration']);
+  });
 
   it('ignores a short night and counts only what matters tomorrow', () => {
     const r = tomorrowRisk(input({ sleep: new Map([['2026-03-10', night(4)]]), drinks: [drink('2026-03-10T09:00', 1800)] }), evening);

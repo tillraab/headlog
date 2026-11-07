@@ -1,10 +1,29 @@
-import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
+import { addMonths, endOfMonth, startOfMonth } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
-import { compareDays, dayFactors, headacheDays, intakeDays, MONTHLY_LIMITS, periodStats, rollingDays, ruleStatus, tenTwenty, type ComparisonKey, type DayFactors } from './analysis';
-import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
-import { dayKey, dayRange, formatDuration, formatLiters, keyToDate } from './days';
-import { fmt, t, tagLabel } from './i18n.svelte';
+import {
+  compareDays,
+  dayFactors,
+  headacheDays,
+  intakeDays,
+  medicationEffect,
+  monthlyCounts,
+  periodStats,
+  rollingDays,
+  ruleStatus,
+  tenTwenty,
+  type Comparison,
+  type ComparisonKey,
+  type DayFactors,
+  type MedicationEffect,
+  type PeriodStats,
+  type TenTwenty
+} from './analysis';
+import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
+import { formatComparison } from './format';
+import { MONTHLY_LIMITS, type MedCategory } from './medication';
+import { dayKey, dayRange, formatDuration, formatLiters, hm, HOUR, keyToDate } from './days';
+import { fmt, num, reliefLabels, t, tagLabel } from './i18n.svelte';
 import { PRESSURE_DROP_HPA } from './weather';
 
 type Rgb = [number, number, number];
@@ -55,10 +74,105 @@ function factorText(f: DayFactors): string[] {
   const parts: string[] = [];
   if (f.pressure !== undefined) parts.push(t('pdf.f.pressure', { n: Math.round(f.pressure) }));
   if (f.hydration !== undefined) parts.push(t('pdf.f.hydration', { ml: formatLiters(f.hydration) }));
-  if (f.sleep !== undefined) parts.push(t('pdf.f.sleep', { d: formatDuration(f.sleep * 3600000) }));
+  if (f.sleep !== undefined) parts.push(t('pdf.f.sleep', { d: formatDuration(f.sleep * HOUR) }));
   if (f.alcohol) parts.push(t('pdf.f.alcohol'));
   if (f.caffeine !== undefined) parts.push(t('pdf.f.caffeine', { mg: Math.round(f.caffeine) }));
   return parts;
+}
+
+/** An intake up to this long before a headache started belongs to that headache. */
+const INTAKE_BEFORE_EPISODE_MS = 3 * HOUR;
+
+/**
+ * Each headache with the intakes that belong to it: taken from 3 hours before it started until it
+ * ended (or `now`). An intake can belong to two headaches close together. `unmatched` are the
+ * intakes that belong to none.
+ */
+function matchIntakes(episodes: Episode[], intakes: Intake[], now: number): { matched: { episode: Episode; intakes: Intake[] }[]; unmatched: Intake[] } {
+  const used = new Set<number>();
+  const matched = episodes.map((episode) => {
+    const own = intakes.filter((i) => i.time >= episode.start - INTAKE_BEFORE_EPISODE_MS && i.time <= (episode.end ?? now));
+    own.forEach((i) => used.add(i.id));
+    return { episode, intakes: own };
+  });
+  return { matched, unmatched: intakes.filter((i) => !used.has(i.id)) };
+}
+
+/** One row of the table of entries: a headache with its intakes, or an intake without a headache. */
+export interface EntryRow {
+  time: number;
+  episode?: Episode;
+  intakes: Intake[];
+  factors: DayFactors;
+}
+
+/** One row of the possible triggers: how a factor compares, and with how many headaches it came. */
+export interface TriggerRow {
+  key: ComparisonKey;
+  comparison?: Comparison;
+  /** Headaches in the period that came with this factor. */
+  withFactor: number;
+}
+
+export interface ReportData {
+  /** First day of the period: the start of the first month. */
+  from: Date;
+  /** Days in the period, today included. */
+  span: number;
+  stats: PeriodStats;
+  /** The 10/20 rule as it stands at `now`. */
+  rule: TenTwenty;
+  /** Peak intensity per headache day, and the days with acute medication, over all data. */
+  headacheDays: Map<string, number>;
+  medDays: Set<string>;
+  monthly: { month: Date; headache: number; med: number }[];
+  /** Medication used in the period, grouped by name and dose, with its list entry for the personal limit. */
+  medications: (MedicationEffect & { med?: Medication })[];
+  triggers: TriggerRow[];
+  /** Headaches that started in the period. */
+  episodes: number;
+  entries: EntryRow[];
+}
+
+/** The trigger rows in the order the report lists them; the comparison and the day factor share their key. */
+const TRIGGERS: (ComparisonKey & keyof DayFactors)[] = ['pressure', 'hydration', 'sleep', 'alcohol', 'caffeine'];
+
+/** Everything the doctor report shows, without the drawing. Covers the `months` calendar months up to `now`. */
+export function reportData(input: ReportInput, now: number, months: number): ReportData {
+  const from = startOfMonth(addMonths(now, -(months - 1)));
+  const fromMs = from.getTime();
+  const span = dayRange(from, now).length;
+  const intakes = input.intakes.filter((i) => i.time >= fromMs && i.time <= now);
+  const medDays = new Set(intakeDays(input.intakes).keys());
+  const episodes = input.episodes.filter((e) => e.start >= fromMs && e.start <= now).sort((a, b) => a.start - b.start);
+  const factorsOn = (time: number) => dayFactors(input, dayKey(time), input.waterGoalMl);
+  const factors = new Map(episodes.map((e) => [e.id, factorsOn(e.start)]));
+  const comparisons = new Map(compareDays(input, dayRange(from, now), now).map((c) => [c.key, c]));
+  const { matched, unmatched } = matchIntakes(episodes, intakes, now);
+
+  return {
+    from,
+    span,
+    stats: periodStats(input, now, span),
+    rule: tenTwenty(medDays, now, input.limit),
+    headacheDays: headacheDays(input.episodes, now),
+    medDays,
+    monthly: monthlyCounts(input, now, months),
+    medications: medicationEffect(intakes, fromMs, now, (i) => `${i.name} ${i.dose}`.trim()).map((m) => ({
+      ...m,
+      med: input.medications.find((x) => x.id === m.medId)
+    })),
+    triggers: TRIGGERS.map((key) => ({
+      key,
+      comparison: comparisons.get(key),
+      withFactor: [...factors.values()].filter((f) => f[key] !== undefined).length
+    })),
+    episodes: episodes.length,
+    entries: [
+      ...matched.map(({ episode, intakes: own }) => ({ time: episode.start, episode, intakes: own, factors: factors.get(episode.id)! })),
+      ...unmatched.map((i) => ({ time: i.time, intakes: [i], factors: factorsOn(i.time) }))
+    ].sort((a, b) => a.time - b.time)
+  };
 }
 
 /** Doctor report: an overview page, then possible triggers and a table of every headache and intake. Covers the `months` calendar months up to and including the one with `now`. */
@@ -68,16 +182,10 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   const H = doc.internal.pageSize.getHeight();
   const M = 12;
   const inner = W - 2 * M;
-  const from = startOfMonth(addMonths(now, -(months - 1)));
-  const fromMs = from.getTime();
-  const span = dayRange(from, now).length;
   const footerY = H - 12;
 
-  const intakes = input.intakes.filter((i) => i.time >= fromMs && i.time <= now);
-  const stats = periodStats(input, now, span);
-  const hDays = headacheDays(input.episodes, now);
-  const medDaySet = new Set(intakeDays(input.intakes).keys());
-  const rule = tenTwenty(medDaySet, now, input.limit);
+  const report = reportData(input, now, months);
+  const { from, span, stats, rule, headacheDays: hDays, medDays: medDaySet } = report;
 
   const text = (s: string | string[], x: number, y: number, size: number, color: Rgb = INK, bold = false, align: 'left' | 'right' | 'center' = 'left') => {
     doc.setFont('helvetica', bold ? 'bold' : 'normal');
@@ -104,10 +212,10 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
 
   // Key figures
   let y = 36;
-  const perMonth = (n: number) => ((n / span) * 30).toFixed(1);
+  const perMonth = (n: number) => num((n / span) * 30, 1);
   const tiles: { value: string; label: string; sub?: string; color: Rgb }[] = [
     { value: String(stats.headacheDays), label: t('ins.headacheDays'), sub: t('pdf.perMonth', { n: perMonth(stats.headacheDays) }), color: PAIN },
-    { value: stats.avgIntensity === null ? '–' : stats.avgIntensity.toFixed(1), label: t('ins.avgIntensity'), sub: '1–10', color: INK },
+    { value: stats.avgIntensity === null ? '–' : num(stats.avgIntensity, 1), label: t('ins.avgIntensity'), sub: '1–10', color: INK },
     { value: stats.avgDurationMs === null ? '–' : formatDuration(stats.avgDurationMs), label: t('ins.avgDuration'), color: INK },
     { value: String(stats.medDays), label: t('ins.medDays'), sub: t('pdf.perMonth', { n: perMonth(stats.medDays) }), color: MED },
     { value: `${rule.count}/${rule.limit}`, label: t('pdf.ruleNow'), sub: t(`tenTwenty.${rule.status}`), color: STATUS_COLOR[rule.status] },
@@ -169,26 +277,6 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     text(doc.splitTextToSize(t('pdf.reasonsHint'), inner) as string[], M, top, 7.5, MUTED);
     top += 9;
 
-    const periodKeys = dayRange(from, now);
-    const episodes = input.episodes.filter((e) => e.start >= fromMs && e.start <= now).sort((a, b) => a.start - b.start);
-    const factors = new Map(episodes.map((e) => [e.id, dayFactors(input, dayKey(e.start), input.waterGoalMl)]));
-    const comparisons = new Map(compareDays(input, periodKeys, now).map((c) => [c.key, c]));
-    const share = (key: keyof DayFactors) => [...factors.values()].filter((f) => f[key] !== undefined).length;
-    const percent = (v: number) => `${Math.round(v * 100)} %`;
-    const value: Record<ComparisonKey, (v: number) => string> = {
-      hydration: formatLiters,
-      sleep: (v) => formatDuration(v * 3600000),
-      caffeine: (v) => `${Math.round(v)} mg`,
-      pressure: percent,
-      alcohol: percent
-    };
-    const rows: [ComparisonKey, keyof DayFactors][] = [
-      ['pressure', 'pressure'],
-      ['hydration', 'hydration'],
-      ['sleep', 'sleep'],
-      ['alcohol', 'alcohol'],
-      ['caffeine', 'caffeine']
-    ];
     let tableEnd = top;
     autoTable(doc, {
       startY: top,
@@ -197,15 +285,12 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
         tableEnd = d.cursor?.y ?? tableEnd;
       },
       head: [[t('pdf.factor'), t('pdf.onHeadacheDays'), t('pdf.onOtherDays'), t('pdf.withFactor')]],
-      body: rows.map(([cmp, f]) => {
-        const c = comparisons.get(cmp);
-        return [
-          t(`pdf.factor.${cmp}`, { n: PRESSURE_DROP_HPA }),
-          c ? `${value[cmp](c.headache)} (${c.nHeadache})` : '–',
-          c ? `${value[cmp](c.clear)} (${c.nClear})` : '–',
-          episodes.length ? t('pdf.ofHeadaches', { n: share(f), total: episodes.length }) : '–'
-        ];
-      }),
+      body: report.triggers.map(({ key, comparison: c, withFactor }) => [
+        t(`pdf.factor.${key}`, { n: PRESSURE_DROP_HPA }),
+        c ? `${formatComparison(key, c.headache)} (${c.nHeadache})` : '–',
+        c ? `${formatComparison(key, c.clear)} (${c.nClear})` : '–',
+        report.episodes ? t('pdf.ofHeadaches', { n: withFactor, total: report.episodes }) : '–'
+      ]),
       theme: 'plain',
       styles: { fontSize: 8, cellPadding: { top: 1.6, bottom: 1.6, left: 1.5, right: 1.5 }, textColor: INK },
       headStyles: { fontSize: 7, textColor: MUTED, fontStyle: 'bold' },
@@ -225,7 +310,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     autoTable(doc, {
       startY: entriesTop + 6,
       head: [[t('pdf.date'), t('pdf.time'), t('pdf.intensity'), t('pdf.medication'), t('pdf.possible'), t('edit.note')]],
-      body: entryRows(episodes, factors),
+      body: report.entries.map(entryCells),
       margin: { left: M, right: M, bottom: 18 },
       rowPageBreak: 'avoid',
       theme: 'striped',
@@ -236,35 +321,21 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     });
   }
 
-  /** One row per headache with its medication, and one per intake that belongs to no headache. */
-  function entryRows(episodes: Episode[], factors: Map<number, DayFactors>) {
-    const used = new Set<number>();
-    const reliefText = (r: number | null) => (r === null ? '' : ` (${[t('edit.reliefNone'), t('edit.reliefSome'), t('edit.reliefGood')][r].toLowerCase()})`);
-    const medLine = (i: Intake) => `${format(i.time, 'HH:mm')} ${i.name} ${i.dose}`.trim() + reliefText(i.relief);
-    const rows: { time: number; cells: string[] }[] = episodes.map((e) => {
-      const end = e.end ?? now;
-      const meds = intakes.filter((i) => i.time >= e.start - 3 * 3600000 && i.time <= end);
-      meds.forEach((i) => used.add(i.id));
-      const reasons = [...factorText(factors.get(e.id) ?? {}), ...e.tags.map(tagLabel)];
-      return {
-        time: e.start,
-        cells: [
-          fmt(e.start, 'EEE d. MMM'),
-          `${format(e.start, 'HH:mm')}–${e.end ? format(e.end, 'HH:mm') : '…'}\n${formatDuration(end - e.start)}`,
-          String(e.intensity),
-          meds.map(medLine).join('\n') || '–',
-          reasons.join('\n') || '–',
-          e.note
-        ]
-      };
-    });
-    for (const i of intakes.filter((x) => !used.has(x.id))) {
-      rows.push({
-        time: i.time,
-        cells: [fmt(i.time, 'EEE d. MMM'), t('pdf.noHeadache'), '–', medLine(i), factorText(dayFactors(input, dayKey(i.time), input.waterGoalMl)).join('\n') || '–', '']
-      });
-    }
-    return rows.sort((a, b) => a.time - b.time).map((r) => r.cells);
+  /** The cells of one row of the table of entries. */
+  function entryCells(row: EntryRow): string[] {
+    const reliefText = (r: Relief | null) => (r === null ? '' : ` (${reliefLabels()[r].toLowerCase()})`);
+    const medLine = (i: Intake) => `${hm(i.time)} ${i.name} ${i.dose}`.trim() + reliefText(i.relief);
+    const e = row.episode;
+    if (!e) return [fmt(row.time, 'EEE d. MMM'), t('pdf.noHeadache'), '–', medLine(row.intakes[0]), factorText(row.factors).join('\n') || '–', ''];
+    const reasons = [...factorText(row.factors), ...e.tags.map(tagLabel)];
+    return [
+      fmt(e.start, 'EEE d. MMM'),
+      `${hm(e.start)}–${e.end ? hm(e.end) : '…'}\n${formatDuration((e.end ?? now) - e.start)}`,
+      String(e.intensity),
+      row.intakes.map(medLine).join('\n') || '–',
+      reasons.join('\n') || '–',
+      e.note
+    ];
   }
 
   /** One row per month, one cell per day, shaded by headache intensity, with a dot on medication days. Returns the bottom. */
@@ -331,15 +402,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
       doc.roundedRect(lx - 3.2, top + 3.9, 2.4, 2.4, 0.4, 0.4, 'F');
       lx -= 7;
     }
-    const data = Array.from({ length: months }, (_, i) => {
-      const m = addMonths(from, i);
-      const prefix = format(m, 'yyyy-MM');
-      return {
-        label: fmt(m, 'MMM'),
-        headache: [...hDays.keys()].filter((k) => k.startsWith(prefix)).length,
-        med: [...medDaySet].filter((k) => k.startsWith(prefix)).length
-      };
-    });
+    const data = report.monthly.map((m) => ({ label: fmt(m.month, 'MMM'), headache: m.headache, med: m.med }));
     const box = { top: top + 12, bottom: top + h - 8, left: x + 9, right: x + w - 4 };
     const max = Math.max(5, ...data.map((d) => Math.max(d.headache, d.med)));
     axis(box, max);
@@ -403,18 +466,9 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
 
   /** Medication used in the period with days, intakes, how often it helped and the personal limit. */
   function medicationPanel(top: number, w: number, h: number) {
-    const meds = new Map<string, { category: MedCategory; med?: Medication; n: number; days: Set<string>; relief: number[] }>();
-    for (const i of intakes) {
-      const key = `${i.name} ${i.dose}`.trim();
-      const m = meds.get(key) ?? { category: i.category, med: input.medications.find((x) => x.id === i.medId), n: 0, days: new Set<string>(), relief: [] };
-      m.n++;
-      m.days.add(dayKey(i.time));
-      if (i.relief !== null) m.relief.push(i.relief);
-      meds.set(key, m);
-    }
-    const rows = [...meds].sort((a, b) => b[1].n - a[1].n);
+    const rows = report.medications;
     const shown = rows.slice(0, 7);
-    const helped = (r: number[]) => (r.length ? `${Math.round((r.filter((x) => x === 2).length / r.length) * 100)} %` : '–');
+    const helped = (m: MedicationEffect) => (m.rated ? `${Math.round((m.relief[2] / m.rated) * 100)} %` : '–');
 
     panel(M, top, w, h);
     heading(t('pdf.medication'), M + 4, top + 6);
@@ -424,12 +478,12 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
       tableWidth: w - 6,
       head: [[t('pdf.medication'), t('set.category'), t('pdf.days'), t('pdf.intakes'), t('pdf.helped'), t('set.limitDays')]],
       body: shown.length
-        ? shown.map(([name, m]) => [
-            name,
+        ? shown.map((m) => [
+            `${m.name} ${m.dose}`.trim(),
             t(`cat.${m.category}`),
-            String(m.days.size),
-            String(m.n),
-            helped(m.relief),
+            String(m.days),
+            String(m.intakes),
+            helped(m),
             m.med?.limitDays ? `${m.med.limitDays}/${m.med.limitWindow ?? 30}` : '–'
           ])
         : [[{ content: t('pdf.none'), colSpan: 6 }]],

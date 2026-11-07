@@ -10,3 +10,4 @@ vite.config.ts.timestamp-*
 *.keystore
 *.jks
 scratch
+coverage

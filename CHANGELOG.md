@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Clearing a date or time field in the editor no longer saves an invalid time, which made the entry disappear and broke the CSV export. The field keeps its previous value.
+- The doctor report now judges a caffeine drop by the same rule as the forecast: the usual amount only counts days since the first logged drink.
+- Only one headache can be ongoing at a time. Saving a second ongoing headache in the editor shows a message instead.
+- A backup file that cannot be restored now shows "Restoring the backup failed. Your previous data is unchanged." instead of failing silently.
+- Numbers use the decimal mark of the app language, not of the phone's language, e.g. "1,5 l" in German on an English phone.
+- Screen readers read the close, month, explanation and order buttons in the app language.
+- An answer to "did it help?" is no longer stored on a different intake when the intake was restored from a backup or its time changed. Changing an intake's time moves the question with it.
+- Turning on water reminders now asks for the notification permission, like every other reminder.
+- The calendar's month summary no longer counts days with only medicine against nausea as medication days.
+
 ## [0.22.1] - 2026-11-07
 
 ### Changed

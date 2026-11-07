@@ -1,12 +1,15 @@
 <script lang="ts">
-  import { ACUTE_CATEGORIES, fromPreset, hydrationMl, intakeColor } from '$lib/db';
+  import { intakeColor } from '$lib/colors';
+  import { fromPreset } from '$lib/drinks';
+  import { ACUTE_CATEGORIES, fromMedication } from '$lib/medication';
   import { Droplets, Pill, Plus, Zap } from '@lucide/svelte';
-  import { addDays, format, setHours } from 'date-fns';
-  import { formatDuration, formatLiters, keyToDate } from '$lib/days';
+  import { addDays, setHours } from 'date-fns';
+  import { formatDuration, formatLiters, hm, keyToDate } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
-  import { fmt, t, tagLabel } from '$lib/i18n.svelte';
+  import { fmt, num, t, tagLabel } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
-  import { hydrationBefore } from '$lib/analysis';
+  import { hydrationBefore, waterOn } from '$lib/analysis';
+  import { awakeMs } from '$lib/sleep';
   import { isPressureDrop, weatherEmoji } from '$lib/weather';
   import Sheet from './Sheet.svelte';
 
@@ -17,7 +20,7 @@
   const episodes = $derived(data.episodes.filter((e) => e.start < to && (e.end ?? clock.now) >= from));
   const intakes = $derived(data.intakes.filter((i) => i.time >= from && i.time < to));
   const drinks = $derived(data.drinks.filter((d) => d.time >= from && d.time < to));
-  const water = $derived(drinks.reduce((s, d) => s + hydrationMl(d), 0));
+  const water = $derived(waterOn(data.drinks, from));
   const weather = $derived(data.weather.get(day));
   const night = $derived(data.sleep.get(day));
   const noon = $derived(Math.min(setHours(keyToDate(day), 12).getTime(), clock.now));
@@ -25,7 +28,7 @@
   function addMed() {
     const med = data.medications[0];
     if (!med) return;
-    edit({ kind: 'intake', item: { time: noon, medId: med.id, name: med.name, dose: med.dose, category: med.category, relief: null } });
+    edit({ kind: 'intake', item: { time: noon, ...fromMedication(med), relief: null } });
   }
 
   function addDrink() {
@@ -46,7 +49,7 @@
           {Math.round(weather.pressure)} hPa{weather.pressureDrop >= 1 ? ` (−${Math.round(weather.pressureDrop)})` : ''}
         </span>
         {#if weather.humidity !== null}<span class="text-muted">·</span><span>{weather.humidity} %</span>{/if}
-        {#if weather.precipitation >= 0.5}<span class="text-muted">·</span><span>{weather.precipitation.toFixed(1)} mm</span>{/if}
+        {#if weather.precipitation >= 0.5}<span class="text-muted">·</span><span>{num(weather.precipitation, 1)} mm</span>{/if}
       </p>
     {/if}
 
@@ -54,8 +57,8 @@
       <button class="press flex items-center gap-3 rounded-2xl bg-surface-2 px-3 py-2 text-left text-sm tabular" onclick={() => edit({ kind: 'sleep', item: night })}>
         <span class="text-lg">😴</span>
         <span class="font-semibold">{formatDuration(night.asleepMs)}</span>
-        <span class="text-muted">{format(night.start, 'HH:mm')}–{format(night.end, 'HH:mm')}</span>
-        {#if night.breaks.length}<span class="text-muted">· {t('sleep.breaks', { n: night.breaks.length, d: formatDuration(night.breaks.reduce((sum, b) => sum + b.end - b.start, 0)) })}</span>{/if}
+        <span class="text-muted">{hm(night.start)}–{hm(night.end)}</span>
+        {#if night.breaks.length}<span class="text-muted">· {t('sleep.breaks', { n: night.breaks.length, d: formatDuration(awakeMs(night)) })}</span>{/if}
       </button>
     {/if}
 
@@ -70,7 +73,7 @@
         <span class="flex flex-col text-sm">
           <span class="font-semibold">{t('today.headache')} · {ep.intensity}/10</span>
           <span class="text-muted tabular">
-            {format(ep.start, 'HH:mm')}–{ep.end ? format(ep.end, 'HH:mm') : '…'}
+            {hm(ep.start)}–{ep.end ? hm(ep.end) : '…'}
             · {formatDuration((ep.end ?? clock.now) - ep.start)}
           </span>
           {#if ep.tags.length}
@@ -96,7 +99,7 @@
             {ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')}
           </span>
         </span>
-        <span class="text-sm text-muted tabular">{format(intake.time, 'HH:mm')}</span>
+        <span class="text-sm text-muted tabular">{hm(intake.time)}</span>
       </button>
     {/each}
 
@@ -106,7 +109,7 @@
         <div class="flex flex-wrap gap-1.5">
           {#each drinks as drink (drink.id)}
             <button class="press rounded-full bg-surface px-2.5 py-1 text-xs tabular" onclick={() => edit({ kind: 'drink', item: drink })}>
-              {drink.emoji} {format(drink.time, 'HH:mm')}
+              {drink.emoji} {hm(drink.time)}
             </button>
           {/each}
         </div>

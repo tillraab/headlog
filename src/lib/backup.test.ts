@@ -24,6 +24,12 @@ describe('backup', () => {
   it.each([null, {}, { app: 'headlog', version: 2, tables: {} }, { app: 'other' }])('rejects %j', (value) => {
     expect(isBackup(value)).toBe(false);
   });
+
+  it.each(['drinks', 'settings'] as const)('rejects a backup without %s', async (table) => {
+    const backup = await createBackup(db);
+    delete (backup.tables as Partial<typeof backup.tables>)[table];
+    expect(isBackup(backup)).toBe(false);
+  });
 });
 
 describe('seed', () => {
@@ -52,11 +58,19 @@ describe('createCsv', () => {
   });
 });
 
+describe('createCsv with special characters', () => {
+  it('quotes a note with a quote, a semicolon and a line break, and leaves an ongoing headache open', async () => {
+    await db.episodes.add({ start: new Date('2026-03-02T09:00').getTime(), end: null, intensity: 4, tags: [], note: 'said "ouch"; then\nslept' });
+    const csv = await createCsv(db, 0, new Date('2026-03-02T12:00').getTime());
+    expect(csv.split('\n').slice(1, 3)).toEqual(['headache,2026-03-02 09:00,,,4,,,,"said ""ouch""; then', 'slept"']);
+  });
+});
+
 describe('createCsv with a start', () => {
   it('leaves out entries before the start', async () => {
     await db.intakes.add({ time: new Date('2026-01-10T10:00').getTime(), medId: 1, name: 'Old', dose: '', category: 'analgesic', relief: null });
     await db.intakes.add({ time: new Date('2026-03-10T10:00').getTime(), medId: 1, name: 'New', dose: '', category: 'analgesic', relief: null });
-    const csv = await createCsv(db, new Date('2026-03-01').getTime());
+    const csv = await createCsv(db, new Date('2026-03-01').getTime(), new Date('2026-03-31').getTime());
     expect([csv.includes('New'), csv.includes('Old')]).toEqual([true, false]);
   });
 });
@@ -70,12 +84,26 @@ describe('loadDemo', () => {
   });
 });
 
+describe('restoreBackup', () => {
+  it('keeps the previous data when a row cannot be added', async () => {
+    await db.episodes.add({ start: 1, end: 2, intensity: 5, tags: [], note: 'kept' });
+    const backup = await createBackup(db);
+    backup.tables.episodes = [
+      { id: 1, start: 1, end: 2, intensity: 5, tags: [], note: '' },
+      { id: 1, start: 3, end: 4, intensity: 5, tags: [], note: '' }
+    ];
+    await restoreBackup(backup, db).catch(() => {});
+    expect((await db.episodes.toArray()).map((e) => e.note)).toEqual(['kept']);
+  });
+});
+
 describe('older backups', () => {
-  it('restore without the sleep table', async () => {
+  it('restore without the sleep table, which replaces the nights with none', async () => {
     const backup = await createBackup(db);
     delete backup.tables.sleep;
+    await db.sleep.put({ day: '2026-03-10', start: 1, end: 2, asleepMs: 1, breaks: [], source: 'manual' });
     await restoreBackup(backup, db);
-    expect(await db.sleep.count()).toBe(0);
+    expect([isBackup(backup), await db.sleep.count()]).toEqual([true, 0]);
   });
 });
 

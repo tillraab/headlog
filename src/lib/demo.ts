@@ -1,7 +1,10 @@
 import { addDays, addMinutes, startOfDay } from 'date-fns';
 import { wipe } from './backup';
-import { db, fromPreset, seed, type Drink, type DrinkPreset, type Episode, type HeadLogDb, type Intake, type Night, type WeatherDay } from './db';
-import { dayKey } from './days';
+import { fromPreset } from './drinks';
+import { fromMedication } from './medication';
+import { awakeMs } from './sleep';
+import { db, RELIEFS, seed, type Drink, type DrinkPreset, type Episode, type HeadLogDb, type Intake, type Night, type WeatherDay } from './db';
+import { dayKey, HOUR, MINUTE } from './days';
 
 /** Seeded pseudo-random numbers, so the demo looks the same each time. */
 function random(seedValue: number) {
@@ -78,9 +81,9 @@ export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lan
     const shortNight = isToday || rnd() < 0.25;
     const asleep = addMinutes(day, -90 + Math.floor(rnd() * 120)).getTime();
     const hours = shortNight ? 4.6 + rnd() * 1.1 : 6.8 + rnd() * 1.6;
-    const wake = Math.min(asleep + hours * 3600000, today);
-    const breaks = isToday || rnd() < 0.2 ? [{ start: asleep + 3 * 3600000, end: asleep + 3 * 3600000 + (10 + Math.floor(rnd() * 30)) * 60000 }] : [];
-    const awake = breaks.reduce((sum, b) => sum + b.end - b.start, 0);
+    const wake = Math.min(asleep + hours * HOUR, today);
+    const breaks = isToday || rnd() < 0.2 ? [{ start: asleep + 3 * HOUR, end: asleep + 3 * HOUR + (10 + Math.floor(rnd() * 30)) * MINUTE }] : [];
+    const awake = awakeMs({ breaks });
     if (wake > asleep + awake) nights.push({ day: key, start: asleep, end: wake, asleepMs: wake - asleep - awake, breaks, source: isToday ? 'screen' : 'manual' });
 
     // Drinks: the four days before today reach the goal for a streak; today is still under way.
@@ -103,21 +106,21 @@ export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lan
 
     const start = at(8 * 60 + Math.floor(rnd() * 12 * 60));
     const intensity = 2 + Math.floor(rnd() * 8);
-    const end = start + (60 + Math.floor(rnd() * 8 * 60)) * 60000;
+    const end = start + (60 + Math.floor(rnd() * 8 * 60)) * MINUTE;
     const tags = tagPool.filter(() => rnd() < 0.2);
     const note = rnd() < 0.15 ? NOTES[lang][Math.floor(rnd() * NOTES[lang].length)] : '';
     episodes.push({ start, end, intensity, tags, note });
     if (intensity >= 4 && rnd() < 0.8) {
       const med = intensity >= 7 ? triptan : meds[Math.floor(rnd() * 2)];
-      intakes.push({ time: start + Math.floor(rnd() * 90) * 60000, medId: med.id, name: med.name, dose: med.dose, category: med.category, relief: Math.floor(rnd() * 3) });
+      intakes.push({ time: start + Math.floor(rnd() * 90) * MINUTE, ...fromMedication(med), relief: RELIEFS[Math.floor(rnd() * 3)] });
     }
   }
 
   // An intake two hours ago, not rated yet, so Today asks whether it helped.
-  const recent = today - 2 * 3600000;
+  const recent = today - 2 * HOUR;
   if (dayKey(recent) === dayKey(today)) {
     const med = meds[0];
-    intakes.push({ time: recent, medId: med.id, name: med.name, dose: med.dose, category: med.category, relief: null });
+    intakes.push({ time: recent, ...fromMedication(med), relief: null });
   }
 
   await database.episodes.bulkAdd(episodes);

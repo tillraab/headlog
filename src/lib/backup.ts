@@ -3,6 +3,7 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { format } from 'date-fns';
 import { db, type HeadLogDb } from './db';
+import { MINUTE } from './days';
 
 /** Tables every backup has. */
 const TABLES = ['episodes', 'medications', 'intakes', 'drinkPresets', 'drinks', 'settings'] as const;
@@ -50,15 +51,18 @@ function csvCell(value: unknown): string {
   return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-/** One row per headache and per intake from `from` on, sorted by time. Readable by Excel and doctors. */
-export async function createCsv(database: HeadLogDb = db, from = 0): Promise<string> {
-  const episodes = (await database.episodes.toArray()).filter((e) => (e.end ?? Date.now()) >= from);
+/**
+ * One row per headache and per intake from `from` on, sorted by time. Readable by Excel and doctors.
+ * Ongoing headaches count as lasting until `now`.
+ */
+export async function createCsv(database: HeadLogDb = db, from = 0, now = Date.now()): Promise<string> {
+  const episodes = (await database.episodes.toArray()).filter((e) => (e.end ?? now) >= from);
   const intakes = (await database.intakes.toArray()).filter((i) => i.time >= from);
   const fmt = (t: number | null) => (t === null ? '' : format(t, 'yyyy-MM-dd HH:mm'));
   const rows: [number, string[]][] = [
     ...episodes.map((e): [number, string[]] => [
       e.start,
-      ['headache', fmt(e.start), fmt(e.end), e.end ? String(Math.round((e.end - e.start) / 60000)) : '', String(e.intensity), '', '', e.tags.join(' '), e.note]
+      ['headache', fmt(e.start), fmt(e.end), e.end ? String(Math.round((e.end - e.start) / MINUTE)) : '', String(e.intensity), '', '', e.tags.join(' '), e.note]
     ]),
     ...intakes.map((i): [number, string[]] => [
       i.time,
