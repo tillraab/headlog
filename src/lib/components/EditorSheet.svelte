@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { conflictingOngoing } from '$lib/analysis';
   import { fromPreset, type Night } from '$lib/db';
   import { editor } from '$lib/editor.svelte';
   import { t, tagLabel, TAGS } from '$lib/i18n.svelte';
@@ -39,6 +40,10 @@
     if (c.kind === 'episode') {
       if (c.item.end !== null && c.item.end <= c.item.start) {
         error = t('edit.endBeforeStart');
+        return;
+      }
+      if (conflictingOngoing(data.episodes, c.item)) {
+        error = t('edit.otherOngoing');
         return;
       }
       await saveEpisode(c.item);

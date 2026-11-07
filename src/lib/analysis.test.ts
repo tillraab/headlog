@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, firstDrinkDay } from './analysis';
+import { alcoholDays, conflictingOngoing, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, firstDrinkDay } from './analysis';
 import { prognosis } from './prognosis';
 import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
 import { lastDays } from './days';
@@ -342,5 +342,26 @@ describe('usualCaffeine', () => {
 
   it('makes the forecast and the report agree on a caffeine drop', () => {
     expect([prognosis(input, day(10, 18)).caffeine.status, dayFactors(input, '2026-10-10', 250).caffeine]).toEqual(['bad', 0]);
+  });
+});
+
+describe('conflictingOngoing', () => {
+  const ongoing = { ...episode('2026-03-02T09:00', null), id: 1 };
+  const ended = { ...episode('2026-03-01T09:00', '2026-03-01T12:00'), id: 2 };
+
+  it('finds no conflict for the ongoing episode itself', () => {
+    expect(conflictingOngoing([ongoing, ended], ongoing)).toBeUndefined();
+  });
+
+  it('finds the other ongoing episode when another one is saved as ongoing', () => {
+    expect(conflictingOngoing([ongoing, ended], { ...ended, end: null })).toBe(ongoing);
+  });
+
+  it('finds the ongoing episode for a new ongoing one', () => {
+    expect(conflictingOngoing([ongoing], { end: null })).toBe(ongoing);
+  });
+
+  it('finds no conflict for an episode saved with an end', () => {
+    expect(conflictingOngoing([ongoing, ended], ended)).toBeUndefined();
   });
 });

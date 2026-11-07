@@ -15,6 +15,15 @@ export function headacheDays(episodes: Episode[], now: number): Map<string, numb
   return days;
 }
 
+/**
+ * The other ongoing episode that saving `episode` as ongoing would conflict with. Only one headache
+ * can be ongoing at a time; an ended episode never conflicts.
+ */
+export function conflictingOngoing(episodes: Episode[], episode: { id?: number; end: number | null }): Episode | undefined {
+  if (episode.end !== null) return undefined;
+  return episodes.find((e) => e.end === null && e.id !== episode.id);
+}
+
 /** Intakes grouped by day. With `acuteOnly`, preventive medication is left out. */
 export function intakeDays(intakes: Intake[], acuteOnly = true): Map<string, Intake[]> {
   const days = new Map<string, Intake[]>();
