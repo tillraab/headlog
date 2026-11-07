@@ -1,5 +1,7 @@
 import { addDays, endOfMonth, getDay, getHours, startOfMonth } from 'date-fns';
-import { ACUTE_CATEGORIES, hydrationMl, type Drink, type Episode, type Intake, type MedCategory, type Medication, type Night, type WeatherDay } from './db';
+import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
+import { hydrationMl } from './drinks';
+import { ACUTE_CATEGORIES, MONTHLY_LIMITS, type MedCategory } from './medication';
 import { dayKey, dayRange, keyToDate, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
@@ -218,21 +220,6 @@ export function rollingDays(days: Set<string>, today: number | Date, span: numbe
   }
   return result;
 }
-
-/**
- * Days per month from which ICHD-3 (8.2, medication-overuse headache) speaks of overuse, when it
- * goes on for more than 3 months: 15 for simple pain relievers, 10 for the others.
- */
-export const MONTHLY_LIMITS: Partial<Record<MedCategory, number>> = {
-  analgesic: 15,
-  triptan: 10,
-  ergotamine: 10,
-  combination: 10,
-  opioid: 10
-};
-
-/** ICHD-3 8.2.6: several of these classes together on 10 or more days a month also count as overuse. */
-export const MULTIPLE_CLASSES_LIMIT = 10;
 
 /** Days in the month of `month` with medication from any class that has an overuse limit. */
 export function monthlyLimitedDays(intakes: Intake[], month: Date): number {

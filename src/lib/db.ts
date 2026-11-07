@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
-
-export type MedCategory = 'analgesic' | 'triptan' | 'ergotamine' | 'combination' | 'opioid' | 'antiemetic' | 'preventive' | 'other';
+import { MED_COLORS } from './colors';
+import { CAFFEINE } from './drinks';
+import type { MedCategory } from './medication';
 
 /** A headache episode. `end` is null while the headache is ongoing. */
 export interface Episode {
@@ -126,61 +127,11 @@ export class HeadLogDb extends Dexie {
   }
 }
 
-/**
- * Acute headache medication: counts toward the 10/20 rule. Preventive medication and medicine
- * against nausea do not; "other" counts, to stay on the safe side.
- */
-export const ACUTE_CATEGORIES: readonly MedCategory[] = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'other'];
-
-/** Colour of an intake's medication; grey when it does not count for the 10/20 rule. */
-export function intakeColor(intake: Pick<Intake, 'medId' | 'name' | 'category'>, medications: Medication[]): string {
-  if (!ACUTE_CATEGORIES.includes(intake.category)) return 'var(--color-muted)';
-  const med = medications.find((m) => m.id === intake.medId) ?? medications.find((m) => m.name === intake.name);
-  return med?.color ?? 'var(--color-med)';
-}
-
-/** Common active ingredients and brands per category, lower case, for recognising a medication by its name. */
-const KNOWN: Partial<Record<MedCategory, string[]>> = {
-  triptan: ['triptan', 'imigran', 'maxalt', 'ascotop', 'relpax', 'naramig', 'allegro', 'formigran', 'dolortriptan'],
-  ergotamine: ['ergotamin', 'ergotamine', 'dihydroergotamin', 'migrexa'],
-  combination: ['thomapyrin', 'neuralgin', 'dolomo', 'titralgan', 'excedrin', 'spalt plus', 'ratiopyrin', 'migräne-kranit'],
-  opioid: ['tramadol', 'tilidin', 'codein', 'tapentadol', 'oxycodon', 'morphin', 'hydromorphon', 'tramal', 'valoron'],
-  antiemetic: ['metoclopramid', 'mcp', 'domperidon', 'motilium', 'vomex', 'dimenhydrinat', 'ondansetron'],
-  preventive: ['topiramat', 'propranolol', 'metoprolol', 'amitriptylin', 'flunarizin', 'valproat', 'candesartan', 'botox', 'erenumab', 'aimovig', 'fremanezumab', 'ajovy', 'galcanezumab', 'emgality', 'eptinezumab', 'vyepti', 'magnesium'],
-  analgesic: ['ibuprofen', 'paracetamol', 'acetaminophen', 'aspirin', 'acetylsalicyl', 'ass ', 'naproxen', 'diclofenac', 'metamizol', 'novalgin', 'dexketoprofen', 'ketoprofen', 'celecoxib', 'etoricoxib', 'nurofen', 'dolormin', 'voltaren', 'aleve', 'ben-u-ron', 'phenazon']
-};
-
-/** The category a medication name points to, or null when it is not known. */
-export function guessCategory(name: string): MedCategory | null {
-  const n = ` ${name.toLowerCase()} `;
-  // Two or more pain relievers in one name, e.g. "ASS + Paracetamol + Coffein", make a combination.
-  if ((KNOWN.analgesic ?? []).filter((w) => n.includes(w)).length >= 2) return 'combination';
-  for (const [category, words] of Object.entries(KNOWN) as [MedCategory, string[]][]) {
-    if (words.some((w) => n.includes(w))) return category;
-  }
-  return null;
-}
-
-export const MED_COLORS = ['#f59e0b', '#ef4444', '#8b5cf6', '#10b981', '#3b82f6', '#ec4899', '#14b8a6', '#64748b'];
-
 export const DEFAULT_MEDICATIONS: Omit<Medication, 'id'>[] = [
   { name: 'Ibuprofen', dose: '400 mg', category: 'analgesic', color: MED_COLORS[0], order: 0 },
   { name: 'Paracetamol', dose: '500 mg', category: 'analgesic', color: MED_COLORS[4], order: 1 },
   { name: 'Sumatriptan', dose: '50 mg', category: 'triptan', color: MED_COLORS[2], order: 2 }
 ];
-
-/** Typical caffeine per default serving: 200 ml filter coffee, 300 ml black tea. */
-export const CAFFEINE = { coffee: 80, tea: 40 };
-
-/** Fluid that counts toward the hydration goal. */
-export function hydrationMl(drink: { ml: number; alcohol?: boolean }): number {
-  return drink.alcohol ? 0 : drink.ml;
-}
-
-/** The parts of a preset copied onto a logged drink. */
-export function fromPreset(preset: DrinkPreset) {
-  return { presetId: preset.id, name: preset.name, emoji: preset.emoji, ml: preset.ml, caffeineMg: preset.caffeineMg, alcohol: preset.alcohol };
-}
 
 export const DRINK_NAMES = { en: ['Glass', 'Bottle', 'Coffee', 'Tea'], de: ['Glas', 'Flasche', 'Kaffee', 'Tee'] };
 

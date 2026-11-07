@@ -5,8 +5,9 @@
   import { edit } from '$lib/editor.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import TimelineChart from './TimelineChart.svelte';
-  import { intakeDays, medicationLimits, MONTHLY_LIMITS, monthlyCategoryDays, monthlyLimitedDays, MULTIPLE_CLASSES_LIMIT, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
-  import type { MedCategory } from '$lib/db';
+  import { intakeDays, medicationLimits, monthlyCategoryDays, monthlyLimitedDays, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
+  import { medColor } from '$lib/colors';
+  import { MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type MedCategory } from '$lib/medication';
   import { dayKey, keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -29,10 +30,10 @@
   /** Intakes and relief ratings per medication over the last 90 days. */
   const effect = $derived.by(() => {
     const from = clock.now - 90 * 86400000;
-    const byName = new Map<string, { name: string; intakes: number; days: Set<string>; relief: [number, number, number]; rated: number }>();
+    const byName = new Map<string, { name: string; medId: number; intakes: number; days: Set<string>; relief: [number, number, number]; rated: number }>();
     for (const i of data.intakes) {
       if (i.time < from) continue;
-      const m = byName.get(i.name) ?? { name: i.name, intakes: 0, days: new Set<string>(), relief: [0, 0, 0], rated: 0 };
+      const m = byName.get(i.name) ?? { name: i.name, medId: i.medId, intakes: 0, days: new Set<string>(), relief: [0, 0, 0], rated: 0 };
       m.intakes++;
       m.days.add(dayKey(i.time));
       if (i.relief !== null) {
@@ -47,7 +48,6 @@
   const personal = $derived(medicationLimits(data.intakes, data.medications, clock.now));
   const tone = $derived(STATUS_COLOR[rule.status]);
   const label = $derived({ ok: t('tenTwenty.ok'), caution: t('tenTwenty.caution'), over: t('tenTwenty.over') }[rule.status]);
-  const colorOf = (name: string) => data.medications.find((m) => m.name === name)?.color ?? 'var(--color-med)';
 
   const R = 70;
   const C = 2 * Math.PI * R;
@@ -183,7 +183,7 @@
         {#each effect as m (m.name)}
           <li class="flex flex-col gap-1 text-sm">
             <div class="flex items-center gap-3">
-              <span class="size-3 rounded-full" style:background-color={colorOf(m.name)}></span>
+              <span class="size-3 rounded-full" style:background-color={medColor(m, data.medications)}></span>
               <span class="flex-1 font-medium">{m.name}</span>
               <span class="text-xs text-muted tabular">{t('tenTwenty.intakes', { n: m.intakes, d: m.days })}</span>
             </div>
@@ -212,7 +212,7 @@
         {#each recent as intake (intake.id)}
           <li>
             <button class="press flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface-2" onclick={() => edit({ kind: 'intake', item: intake })}>
-              <span class="size-3 shrink-0 rounded-full" style:background-color={colorOf(intake.name)}></span>
+              <span class="size-3 shrink-0 rounded-full" style:background-color={medColor(intake, data.medications)}></span>
               <span class="flex-1 text-sm">{intake.name} <span class="text-muted">{intake.dose}</span></span>
               <span class="text-xs text-muted tabular">{fmt(intake.time, 'EEE d. MMM HH:mm')}</span>
               <span class="w-14 text-right text-xs font-medium" style:color={intake.relief === null ? undefined : RELIEF_COLOR[intake.relief]}>

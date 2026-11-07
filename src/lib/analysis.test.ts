@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { alcoholDays, conflictingOngoing, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, firstDrinkDay } from './analysis';
 import { prognosis } from './prognosis';
-import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
+import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
+import type { MedCategory } from './medication';
 import { lastDays } from './days';
 
 const at = (s: string) => new Date(s).getTime();

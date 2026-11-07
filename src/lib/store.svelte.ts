@@ -1,4 +1,6 @@
-import { CAFFEINE, db, DRINK_NAMES, fromPreset, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type WeatherDay } from './db';
+import { CAFFEINE, fromPreset } from './drinks';
+import { fromMedication } from './medication';
+import { db, DRINK_NAMES, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type WeatherDay } from './db';
 import { dayKey } from './days';
 import { i18n } from './i18n.svelte';
 import { edit } from './editor.svelte';
@@ -147,14 +149,7 @@ export async function saveDrink(drink: Draft<Drink>) {
 }
 
 export async function logIntake(med: Medication, time = Date.now()): Promise<number> {
-  const id = await db.intakes.add({
-    time,
-    medId: med.id,
-    name: med.name,
-    dose: med.dose,
-    category: med.category,
-    relief: null
-  });
+  const id = await db.intakes.add({ time, ...fromMedication(med), relief: null });
   const delay = data.settings.reliefCheckMinutes;
   if (delay > 0) void scheduleReliefCheck({ id, time, name: med.name }, delay).catch(() => {});
   await load();

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { conflictingOngoing } from '$lib/analysis';
-  import { fromPreset, type Night } from '$lib/db';
+  import type { Night } from '$lib/db';
+  import { fromPreset } from '$lib/drinks';
+  import { fromMedication } from '$lib/medication';
   import { editor } from '$lib/editor.svelte';
   import { t, tagLabel, TAGS } from '$lib/i18n.svelte';
   import { manualNight } from '$lib/sleep';
@@ -49,7 +51,7 @@
       await saveEpisode(c.item);
     } else if (c.kind === 'intake') {
       const med = data.medications.find((m) => m.id === c.item.medId);
-      if (med && c.item.id === undefined) Object.assign(c.item, { name: med.name, dose: med.dose, category: med.category });
+      if (med && c.item.id === undefined) Object.assign(c.item, fromMedication(med));
       await saveIntake(c.item);
     } else if (c.kind === 'sleep') {
       if (c.item.end <= c.item.start) {

@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { ACUTE_CATEGORIES, fromPreset, hydrationMl, intakeColor } from '$lib/db';
+  import { intakeColor } from '$lib/colors';
+  import { fromPreset, hydrationMl } from '$lib/drinks';
+  import { ACUTE_CATEGORIES, fromMedication } from '$lib/medication';
   import { Droplets, Pill, Plus, Zap } from '@lucide/svelte';
   import { addDays, format, setHours } from 'date-fns';
   import { formatDuration, formatLiters, keyToDate } from '$lib/days';
@@ -25,7 +27,7 @@
   function addMed() {
     const med = data.medications[0];
     if (!med) return;
-    edit({ kind: 'intake', item: { time: noon, medId: med.id, name: med.name, dose: med.dose, category: med.category, relief: null } });
+    edit({ kind: 'intake', item: { time: noon, ...fromMedication(med), relief: null } });
   }
 
   function addDrink() {

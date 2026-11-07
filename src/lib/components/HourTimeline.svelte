@@ -8,7 +8,7 @@
   import { addDays, format } from 'date-fns';
   import type { Snippet } from 'svelte';
   import { hydrationCurve } from '$lib/analysis';
-  import { intakeColor } from '$lib/db';
+  import { intakeColor } from '$lib/colors';
   import { formatLiters, keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
   import { data } from '$lib/store.svelte';

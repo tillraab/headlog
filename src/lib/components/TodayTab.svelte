@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { hydrationMl } from '$lib/db';
+  import { hydrationMl } from '$lib/drinks';
   import { Droplets, Pencil, Pill, Zap } from '@lucide/svelte';
   import { format, isToday, startOfDay } from 'date-fns';
   import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty } from '$lib/analysis';

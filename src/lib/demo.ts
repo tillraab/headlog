@@ -1,6 +1,8 @@
 import { addDays, addMinutes, startOfDay } from 'date-fns';
 import { wipe } from './backup';
-import { db, fromPreset, seed, type Drink, type DrinkPreset, type Episode, type HeadLogDb, type Intake, type Night, type WeatherDay } from './db';
+import { fromPreset } from './drinks';
+import { fromMedication } from './medication';
+import { db, seed, type Drink, type DrinkPreset, type Episode, type HeadLogDb, type Intake, type Night, type WeatherDay } from './db';
 import { dayKey } from './days';
 
 /** Seeded pseudo-random numbers, so the demo looks the same each time. */
@@ -109,7 +111,7 @@ export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lan
     episodes.push({ start, end, intensity, tags, note });
     if (intensity >= 4 && rnd() < 0.8) {
       const med = intensity >= 7 ? triptan : meds[Math.floor(rnd() * 2)];
-      intakes.push({ time: start + Math.floor(rnd() * 90) * 60000, medId: med.id, name: med.name, dose: med.dose, category: med.category, relief: Math.floor(rnd() * 3) });
+      intakes.push({ time: start + Math.floor(rnd() * 90) * 60000, ...fromMedication(med), relief: Math.floor(rnd() * 3) });
     }
   }
 
@@ -117,7 +119,7 @@ export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lan
   const recent = today - 2 * 3600000;
   if (dayKey(recent) === dayKey(today)) {
     const med = meds[0];
-    intakes.push({ time: recent, medId: med.id, name: med.name, dose: med.dose, category: med.category, relief: null });
+    intakes.push({ time: recent, ...fromMedication(med), relief: null });
   }
 
   await database.episodes.bulkAdd(episodes);

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { hydrationMl } from '$lib/db';
+  import { hydrationMl } from '$lib/drinks';
   import { App } from '@capacitor/app';
   import { Capacitor } from '@capacitor/core';
   import { CalendarDays, ChartColumn, House, Pill, Settings } from '@lucide/svelte';

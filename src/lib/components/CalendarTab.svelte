@@ -6,7 +6,7 @@
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
-  import { intakeColor } from '$lib/db';
+  import { intakeColor } from '$lib/colors';
   import DaySheet from './DaySheet.svelte';
   import TimelineChart from './TimelineChart.svelte';
 

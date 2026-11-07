@@ -1,8 +1,9 @@
 import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
-import { compareDays, dayFactors, headacheDays, intakeDays, MONTHLY_LIMITS, periodStats, rollingDays, ruleStatus, tenTwenty, type ComparisonKey, type DayFactors } from './analysis';
-import type { Drink, Episode, Intake, MedCategory, Medication, Night, WeatherDay } from './db';
+import { compareDays, dayFactors, headacheDays, intakeDays, periodStats, rollingDays, ruleStatus, tenTwenty, type ComparisonKey, type DayFactors } from './analysis';
+import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
+import { MONTHLY_LIMITS, type MedCategory } from './medication';
 import { dayKey, dayRange, formatDuration, formatLiters, keyToDate } from './days';
 import { fmt, num, t, tagLabel } from './i18n.svelte';
 import { PRESSURE_DROP_HPA } from './weather';
