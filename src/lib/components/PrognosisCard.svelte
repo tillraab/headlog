@@ -3,7 +3,7 @@
   import { dayKey, formatDuration, formatLiters, hm, HOUR } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
   import { awakeMs } from '$lib/sleep';
-  import { badFactors, prognosis, type Status } from '$lib/prognosis';
+  import { badFactors, prognosis, prognosisInput, type Status } from '$lib/prognosis';
   import { CAFFEINE_DROP, LOW_HYDRATION, SHORT_SLEEP_HOURS } from '$lib/thresholds';
   import { clock, data, openNight } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
@@ -13,7 +13,7 @@
   let { open = $bindable(false) }: { open?: boolean } = $props();
 
   const p = $derived(
-    prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, clock.now)
+    prognosis(prognosisInput(data), clock.now)
   );
 
   const toggle = () => (open = !open);

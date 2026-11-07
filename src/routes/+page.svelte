@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { hydrationMl } from '$lib/drinks';
   import { App } from '@capacitor/app';
   import { Capacitor } from '@capacitor/core';
   import { CalendarDays, ChartColumn, House, Pill, Settings } from '@lucide/svelte';
@@ -16,12 +15,10 @@
   import VersionsSheet from '$lib/components/VersionsSheet.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
   import { i18n, t } from '$lib/i18n.svelte';
-  import { confirmNight, data, endEpisode, load, ongoingEpisode, openNight, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
-  import { applyDrinkReminders, applyHeadacheChecks, applyReminders, applyRiskAlert, applySleepChecks, onNotificationAction, planDrinkReminders, planHeadacheChecks, planReminders, planRiskAlert, planSleepChecks } from '$lib/reminders';
-  import { tomorrowRisk } from '$lib/prognosis';
+  import { confirmNight, data, endEpisode, load, openNight, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
+  import { applyDrinkReminders, applyHeadacheChecks, applyReminders, applyRiskAlert, applySleepChecks, onNotificationAction, planAll } from '$lib/reminders';
   import { syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
-  import { DAY } from '$lib/days';
 
   const tabs = $derived([
     { id: 'today', label: t('tab.today'), icon: House },
@@ -47,18 +44,12 @@
   /** Reschedules reminders after every change and on return to the app. */
   function reschedule() {
     if (!data.ready) return;
-    const now = Date.now();
-    const start = new Date(now).setHours(0, 0, 0, 0);
-    const todayMl = data.drinks.filter((d) => d.time >= start).reduce((s, d) => s + hydrationMl(d), 0);
-    void applyReminders(planReminders(now, data.settings.reminders, data.settings.waterGoalMl, todayMl)).catch(() => {});
-    void applyHeadacheChecks(planHeadacheChecks(ongoingEpisode(), now, data.settings.headacheCheckHours)).catch(() => {});
-    const recent = data.drinks.filter((d) => d.time >= start - 7 * DAY);
-    void applyDrinkReminders(planDrinkReminders(now, data.settings.drinkReminder, recent)).catch(() => {});
-    const forecastAt = (time: number) =>
-      tomorrowRisk({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, time);
-    void applyRiskAlert(planRiskAlert(now, data.settings.riskAlert, forecastAt)).catch(() => {});
-    const sleepCheck = { ...data.settings.sleepCheck, enabled: data.settings.sleep.enabled && data.settings.sleepCheck.enabled };
-    void applySleepChecks(planSleepChecks(now, sleepCheck, data.sleep)).catch(() => {});
+    const plans = planAll(data, Date.now());
+    void applyReminders(plans.water).catch(() => {});
+    void applyHeadacheChecks(plans.headache).catch(() => {});
+    void applyDrinkReminders(plans.drink).catch(() => {});
+    void applyRiskAlert(plans.risk).catch(() => {});
+    void applySleepChecks(plans.sleep).catch(() => {});
   }
 
   $effect(reschedule);

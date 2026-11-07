@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, conflictingOngoing, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, firstDrinkDay } from './analysis';
+import { alcoholDays, conflictingOngoing, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
 import { prognosis } from './prognosis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import type { MedCategory } from './medication';
@@ -364,5 +364,12 @@ describe('conflictingOngoing', () => {
 
   it('finds no conflict for an episode saved with an end', () => {
     expect(conflictingOngoing([ongoing, ended], ended)).toBeUndefined();
+  });
+});
+
+describe('waterOn', () => {
+  it('adds up the drinks of that calendar day and leaves out alcohol', () => {
+    const drinks = [drink('2026-03-01T23:59', 500), drink('2026-03-02T00:00', 250), drink('2026-03-02T23:59', 300), { ...drink('2026-03-02T20:00', 150), alcohol: true }, drink('2026-03-03T00:00', 400)];
+    expect(waterOn(drinks, at('2026-03-02T12:00'))).toBe(550);
   });
 });

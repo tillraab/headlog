@@ -3,13 +3,13 @@
   import { hydrationMl } from '$lib/drinks';
   import { Droplets, Pencil, Pill, Zap } from '@lucide/svelte';
   import { isToday, startOfDay } from 'date-fns';
-  import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty } from '$lib/analysis';
+  import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty, waterOn } from '$lib/analysis';
   import { DAY, formatDuration, formatLiters, hm, HOUR, MINUTE } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
   import { celebrate, openSheet, tap, toast } from '$lib/ui.svelte';
-  import { prognosis } from '$lib/prognosis';
+  import { prognosis, prognosisInput } from '$lib/prognosis';
   import PrognosisCard from './PrognosisCard.svelte';
   import { LIGHT_COLOR } from './TrafficLight.svelte';
   import WelcomeCard from './WelcomeCard.svelte';
@@ -26,7 +26,7 @@
 
   const ongoing = $derived(ongoingEpisode());
   const forecast = $derived(
-    prognosis({ drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl }, clock.now)
+    prognosis(prognosisInput(data), clock.now)
   );
   let forecastOpen = $state(false);
   let forecastCard = $state<HTMLDivElement>();
@@ -44,7 +44,7 @@
   const presets = $derived(data.drinkPresets);
   const todayIntakes = $derived(data.intakes.filter((i) => i.time >= dayStart));
   const todayDrinks = $derived(data.drinks.filter((d) => d.time >= dayStart));
-  const waterMl = $derived(todayDrinks.reduce((sum, d) => sum + hydrationMl(d), 0));
+  const waterMl = $derived(waterOn(data.drinks, clock.now));
   const caffeineMg = $derived(todayDrinks.reduce((sum, d) => sum + (d.caffeineMg ?? 0), 0));
   const alcoholCount = $derived(todayDrinks.filter((d) => d.alcohol).length);
   const waterPct = $derived(Math.min(1, waterMl / data.settings.waterGoalMl));

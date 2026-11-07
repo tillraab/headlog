@@ -1,6 +1,6 @@
 <script lang="ts">
   import { intakeColor } from '$lib/colors';
-  import { fromPreset, hydrationMl } from '$lib/drinks';
+  import { fromPreset } from '$lib/drinks';
   import { ACUTE_CATEGORIES, fromMedication } from '$lib/medication';
   import { Droplets, Pill, Plus, Zap } from '@lucide/svelte';
   import { addDays, setHours } from 'date-fns';
@@ -8,7 +8,7 @@
   import { edit } from '$lib/editor.svelte';
   import { fmt, num, t, tagLabel } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
-  import { hydrationBefore } from '$lib/analysis';
+  import { hydrationBefore, waterOn } from '$lib/analysis';
   import { awakeMs } from '$lib/sleep';
   import { isPressureDrop, weatherEmoji } from '$lib/weather';
   import Sheet from './Sheet.svelte';
@@ -20,7 +20,7 @@
   const episodes = $derived(data.episodes.filter((e) => e.start < to && (e.end ?? clock.now) >= from));
   const intakes = $derived(data.intakes.filter((i) => i.time >= from && i.time < to));
   const drinks = $derived(data.drinks.filter((d) => d.time >= from && d.time < to));
-  const water = $derived(drinks.reduce((s, d) => s + hydrationMl(d), 0));
+  const water = $derived(waterOn(data.drinks, from));
   const weather = $derived(data.weather.get(day));
   const night = $derived(data.sleep.get(day));
   const noon = $derived(Math.min(setHours(keyToDate(day), 12).getTime(), clock.now));

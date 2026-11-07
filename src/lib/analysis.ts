@@ -1,4 +1,4 @@
-import { addDays, endOfMonth, getDay, getHours, startOfMonth } from 'date-fns';
+import { addDays, endOfMonth, getDay, getHours, startOfDay, startOfMonth } from 'date-fns';
 import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
 import { hydrationMl } from './drinks';
 import { ACUTE_CATEGORIES, MONTHLY_LIMITS, type MedCategory } from './medication';
@@ -52,6 +52,13 @@ export function waterByDay(drinks: Drink[]): Map<string, number> {
     days.set(key, (days.get(key) ?? 0) + hydrationMl(d));
   }
   return days;
+}
+
+/** Fluid that counts toward the goal on the calendar day of `day`. */
+export function waterOn(drinks: Drink[], day: number | Date): number {
+  const from = startOfDay(day).getTime();
+  const to = addDays(from, 1).getTime();
+  return drinks.filter((d) => d.time >= from && d.time < to).reduce((sum, d) => sum + hydrationMl(d), 0);
 }
 
 /**

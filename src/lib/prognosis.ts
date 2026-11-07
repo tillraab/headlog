@@ -34,6 +34,11 @@ export interface Prognosis {
   caffeine: { status: Status; today: number; usual: number | null; tooEarly: boolean };
 }
 
+/** The forecast's input from the app data. */
+export function prognosisInput(data: Omit<PrognosisInput, 'goalMl'> & { settings: { waterGoalMl: number } }): PrognosisInput {
+  return { drinks: data.drinks, sleep: data.sleep, weather: data.weather, goalMl: data.settings.waterGoalMl };
+}
+
 /** Fluid that should have been reached by `now` to meet the goal by the evening. */
 export function expectedByNow(goalMl: number, now: number): number {
   const hours = getHours(now) + getMinutes(now) / 60;

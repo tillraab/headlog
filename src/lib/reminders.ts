@@ -1,10 +1,12 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { addDays, setHours, startOfDay } from 'date-fns';
-import { RELIEFS, type Night, type Relief } from './db';
-import { dayKey, formatDuration, formatLiters, hm, HOUR, MINUTE } from './days';
+import { waterOn } from './analysis';
+import { RELIEFS, type Drink, type Episode, type Night, type Relief, type WeatherDay } from './db';
+import { DAY, dayKey, formatDuration, formatLiters, hm, HOUR, MINUTE } from './days';
 import { reliefLabels, t } from './i18n.svelte';
-import type { TomorrowRisk } from './prognosis';
+import { prognosisInput, tomorrowRisk, type TomorrowRisk } from './prognosis';
+import type { Settings } from './store.svelte';
 
 export interface ReminderSettings {
   enabled: boolean;
@@ -137,6 +139,32 @@ export function planReminders(now: number, settings: ReminderSettings, goalMl: n
 /** Replaces all pending water reminders with the plan. Does nothing outside the Android app. */
 export function applyReminders(plan: PlannedReminder[]) {
   return replaceRange(RANGES.water, plan);
+}
+
+/** Drinks this far back are enough for the drink reminder, which only looks at today's. */
+const RECENT_DRINK_DAYS = 7;
+
+/** What `planAll` reads from the app data. */
+export interface ReminderData {
+  episodes: Episode[];
+  drinks: Drink[];
+  sleep: Map<string, Night>;
+  weather: Map<string, WeatherDay>;
+  settings: Pick<Settings, 'reminders' | 'waterGoalMl' | 'headacheCheckHours' | 'drinkReminder' | 'riskAlert' | 'sleep' | 'sleepCheck'>;
+}
+
+/** The plans of all reminder kinds at `now`, from the app data. The morning sleep question needs sleep estimates on. */
+export function planAll(data: ReminderData, now: number) {
+  const { settings } = data;
+  const recent = data.drinks.filter((d) => d.time >= startOfDay(now).getTime() - RECENT_DRINK_DAYS * DAY);
+  const forecastAt = (time: number) => tomorrowRisk(prognosisInput(data), time);
+  return {
+    water: planReminders(now, settings.reminders, settings.waterGoalMl, waterOn(data.drinks, now)),
+    headache: planHeadacheChecks(data.episodes.find((e) => e.end === null), now, settings.headacheCheckHours),
+    drink: planDrinkReminders(now, settings.drinkReminder, recent),
+    risk: planRiskAlert(now, settings.riskAlert, forecastAt),
+    sleep: planSleepChecks(now, { ...settings.sleepCheck, enabled: settings.sleep.enabled && settings.sleepCheck.enabled }, data.sleep)
+  };
 }
 
 /** Asks for the notification permission. Returns whether reminders can be shown. */
