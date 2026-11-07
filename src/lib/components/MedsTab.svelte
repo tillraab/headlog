@@ -5,44 +5,22 @@
   import { edit } from '$lib/editor.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import TimelineChart from './TimelineChart.svelte';
-  import { intakeDays, medicationLimits, monthlyCategoryDays, monthlyLimitedDays, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
+  import { intakeDays, medicationEffect, medicationLimits, overuseRows, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
   import { medColor } from '$lib/colors';
-  import { MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type MedCategory } from '$lib/medication';
-  import { DAY, dayKey, keyToDate } from '$lib/days';
+  import { DAY, keyToDate } from '$lib/days';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
 
+  /** Days the effect of each medication looks back on. */
+  const EFFECT_WINDOW_DAYS = 90;
   const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   const medDays = $derived(new Set(intakeDays(data.intakes).keys()));
   const rule = $derived(tenTwenty(medDays, clock.now, data.settings.limit));
   const rolling = $derived(rollingDays(medDays, clock.now, 90));
-  const monthly = $derived(monthlyCategoryDays(data.intakes, new Date(clock.now)));
-  /** One row per class with an overuse limit used this month, plus the rule for several classes together. */
-  const overuseRows = $derived.by(() => {
-    const rows = (Object.keys(MONTHLY_LIMITS) as MedCategory[])
-      .filter((c) => monthly.has(c))
-      .map((c) => ({ label: t(`cat.${c}`), days: monthly.get(c)!, limit: MONTHLY_LIMITS[c]! }));
-    if (rows.length > 1) rows.push({ label: t('overuse.multiple'), days: monthlyLimitedDays(data.intakes, new Date(clock.now)), limit: MULTIPLE_CLASSES_LIMIT });
-    return rows;
-  });
+  const overuse = $derived(overuseRows(data.intakes, new Date(clock.now)));
   const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
-  /** Intakes and relief ratings per medication over the last 90 days. */
-  const effect = $derived.by(() => {
-    const from = clock.now - 90 * DAY;
-    const byName = new Map<string, { name: string; medId: number; intakes: number; days: Set<string>; relief: [number, number, number]; rated: number }>();
-    for (const i of data.intakes) {
-      if (i.time < from) continue;
-      const m = byName.get(i.name) ?? { name: i.name, medId: i.medId, intakes: 0, days: new Set<string>(), relief: [0, 0, 0], rated: 0 };
-      m.intakes++;
-      m.days.add(dayKey(i.time));
-      if (i.relief !== null) {
-        m.relief[i.relief]++;
-        m.rated++;
-      }
-      byName.set(i.name, m);
-    }
-    return [...byName.values()].map((m) => ({ ...m, days: m.days.size })).sort((a, b) => b.intakes - a.intakes);
-  });
+  /** Intakes and relief ratings per medication name over the last 90 days. */
+  const effect = $derived(medicationEffect(data.intakes, clock.now - EFFECT_WINDOW_DAYS * DAY, clock.now, (i) => i.name));
   const recent = $derived([...data.intakes].sort((a, b) => b.time - a.time).slice(0, 8));
   const personal = $derived(medicationLimits(data.intakes, data.medications, clock.now));
   const tone = $derived(STATUS_COLOR[rule.status]);
@@ -228,10 +206,10 @@
     <h2 class="text-sm font-semibold">{t('overuse.title')} · {fmt(clock.now, 'LLLL')}</h2>
     <p class="mb-3 text-xs text-muted">{t('overuse.hint')}</p>
     <ul class="flex flex-col gap-3">
-      {#each overuseRows as row (row.label)}
+      {#each overuse as row (row.key)}
         <li class="flex flex-col gap-1 text-sm">
           <div class="flex justify-between">
-            <span>{row.label}</span>
+            <span>{row.key === 'multiple' ? t('overuse.multiple') : t(`cat.${row.key}`)}</span>
             <span class="tabular">{row.days} / {row.limit} {t('overuse.days')}</span>
           </div>
           <div class="h-2 overflow-hidden rounded-full bg-surface-2">

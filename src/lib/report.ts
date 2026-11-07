@@ -3,6 +3,7 @@ import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { compareDays, dayFactors, headacheDays, intakeDays, periodStats, rollingDays, ruleStatus, tenTwenty, type ComparisonKey, type DayFactors } from './analysis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
+import { formatComparison } from './format';
 import { MONTHLY_LIMITS, type MedCategory } from './medication';
 import { dayKey, dayRange, formatDuration, formatLiters, hm, HOUR, keyToDate } from './days';
 import { fmt, num, reliefLabels, t, tagLabel } from './i18n.svelte';
@@ -175,14 +176,6 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     const factors = new Map(episodes.map((e) => [e.id, dayFactors(input, dayKey(e.start), input.waterGoalMl)]));
     const comparisons = new Map(compareDays(input, periodKeys, now).map((c) => [c.key, c]));
     const share = (key: keyof DayFactors) => [...factors.values()].filter((f) => f[key] !== undefined).length;
-    const percent = (v: number) => `${Math.round(v * 100)} %`;
-    const value: Record<ComparisonKey, (v: number) => string> = {
-      hydration: formatLiters,
-      sleep: (v) => formatDuration(v * HOUR),
-      caffeine: (v) => `${Math.round(v)} mg`,
-      pressure: percent,
-      alcohol: percent
-    };
     const rows: [ComparisonKey, keyof DayFactors][] = [
       ['pressure', 'pressure'],
       ['hydration', 'hydration'],
@@ -202,8 +195,8 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
         const c = comparisons.get(cmp);
         return [
           t(`pdf.factor.${cmp}`, { n: PRESSURE_DROP_HPA }),
-          c ? `${value[cmp](c.headache)} (${c.nHeadache})` : '–',
-          c ? `${value[cmp](c.clear)} (${c.nClear})` : '–',
+          c ? `${formatComparison(cmp, c.headache)} (${c.nHeadache})` : '–',
+          c ? `${formatComparison(cmp, c.clear)} (${c.nClear})` : '–',
           episodes.length ? t('pdf.ofHeadaches', { n: share(f), total: episodes.length }) : '–'
         ];
       }),

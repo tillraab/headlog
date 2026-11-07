@@ -12,6 +12,7 @@
 - Screen readers read the close, month, explanation and order buttons in the app language.
 - An answer to "did it help?" is no longer stored on a different intake when the intake was restored from a backup or its time changed. Changing an intake's time moves the question with it.
 - Turning on water reminders now asks for the notification permission, like every other reminder.
+- The calendar's month summary no longer counts days with only medicine against nausea as medication days.
 
 ## [0.22.1] - 2026-11-07
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ChevronLeft, ChevronRight } from '@lucide/svelte';
   import { addMonths, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
-  import { headacheDays, intakeDays, rollingDays, waterByDay } from '$lib/analysis';
+  import { headacheDays, intakeDays, monthSummary, rollingDays, waterByDay } from '$lib/analysis';
   import { dayKey, dayRange, formatLiters, keyToDate } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -24,12 +24,7 @@
   const keys = $derived(dayRange(month, endOfMonth(month)));
   const offset = $derived((getDay(month) + 6) % 7);
   const today = $derived(dayKey(clock.now));
-  const past = $derived(keys.filter((k) => k <= today));
-  const summary = $derived({
-    headache: past.filter((k) => hDays.has(k)).length,
-    med: past.filter((k) => mDays.get(k)?.some((i) => i.category !== 'preventive')).length,
-    water: past.length ? past.reduce((s, k) => s + (water.get(k) ?? 0), 0) / past.length : 0
-  });
+  const summary = $derived(monthSummary(data, month, clock.now));
 
   const rolling = $derived(rollingDays(new Set(hDays.keys()), clock.now, ROLLING_SPAN));
 

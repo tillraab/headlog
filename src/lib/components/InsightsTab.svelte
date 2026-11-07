@@ -1,8 +1,9 @@
 <script lang="ts">
   import { FileText } from '@lucide/svelte';
-  import { alcoholDays, caffeineByDay, compareDays, hydrationStreak, monthlyCounts, periodStats, timeline, type ComparisonKey } from '$lib/analysis';
+  import { alcoholDays, average, caffeineByDay, compareDays, hydrationStreak, monthlyCounts, periodStats, timeline } from '$lib/analysis';
+  import { entryDetailLines, formatComparison } from '$lib/format';
   import { addDays } from 'date-fns';
-  import { dayKey, formatDuration, formatLiters, hm, HOUR, lastDays } from '$lib/days';
+  import { dayKey, formatDuration, formatLiters, HOUR, lastDays } from '$lib/days';
   import { openSheet } from '$lib/ui.svelte';
   import { fmt, num, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -33,7 +34,6 @@
   const maxTag = $derived(Math.max(1, ...stats.tags.map((x) => x.count)));
 
   const known = (values: (number | null)[]) => values.filter((v): v is number => v !== null);
-  const average = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : null);
   const sleepAvg = $derived(average(known(series.sleepHours)));
   const caffeine = $derived.by(() => {
     const byDay = caffeineByDay(data.drinks);
@@ -97,33 +97,23 @@
   /** Extra lines for the selected day: headaches with times, medication, the pressure drop. */
   function dayDetails(index: number): string[] {
     const key = chartKeys[index];
-    const lines: string[] = [];
-    for (const e of data.episodes.filter((ep) => dayKey(ep.start) === key)) {
-      lines.push(t('tl.detailHeadache', { from: hm(e.start), to: e.end ? hm(e.end) : '…', n: e.intensity }));
-    }
-    const meds = data.intakes.filter((i) => dayKey(i.time) === key);
-    if (meds.length) lines.push(`💊 ${meds.map((i) => `${i.name} ${hm(i.time)}`).join(', ')}`);
+    const lines = entryDetailLines({
+      episodes: data.episodes.filter((e) => dayKey(e.start) === key),
+      intakes: data.intakes.filter((i) => dayKey(i.time) === key)
+    });
     const drop = series.pressureDrop[index];
     if (drop !== null && drop >= 1) lines.push(t('tl.detailDrop', { n: Math.round(drop) }));
     return lines;
   }
 
   const comparisons = $derived(compareDays(data, keys, clock.now));
-  const percent = (v: number) => `${Math.round(v * 100)} %`;
-  const FORMAT: Record<ComparisonKey, (v: number) => string> = {
-    hydration: formatLiters,
-    sleep: (v) => formatDuration(v * HOUR),
-    caffeine: (v) => `${Math.round(v)} mg`,
-    pressure: percent,
-    alcohol: percent
-  };
   const pairs = $derived(
     comparisons.map(
       (c): Pair => ({
         label: t(`cmp.${c.key}`, { n: PRESSURE_DROP_HPA }),
         headache: c.headache,
         clear: c.clear,
-        format: FORMAT[c.key],
+        format: (v) => formatComparison(c.key, v),
         note: t('cmp.note', { h: c.nHeadache, c: c.nClear })
       })
     )

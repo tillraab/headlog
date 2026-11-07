@@ -1,7 +1,7 @@
 import { addDays, endOfMonth, getDay, getHours, startOfDay, startOfMonth } from 'date-fns';
 import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
 import { hydrationMl } from './drinks';
-import { ACUTE_CATEGORIES, MONTHLY_LIMITS, type MedCategory } from './medication';
+import { ACUTE_CATEGORIES, MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type MedCategory } from './medication';
 import { DAY, dayKey, dayRange, HOUR, keyToDate, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
@@ -100,7 +100,8 @@ export function hydrationBefore(drinks: Drink[], time: number, hours = 72): { ml
   const from = time - hours * HOUR;
   const ml = drinks.filter((d) => d.time >= from && d.time < time).reduce((sum, d) => sum + hydrationMl(d), 0);
   const water = waterByDay(drinks.filter((d) => d.time < from && d.time >= from - USUAL_HYDRATION_DAYS * DAY));
-  const usual = water.size >= MIN_USUAL_HYDRATION_DAYS ? ([...water.values()].reduce((a, b) => a + b, 0) / water.size) * (hours / 24) : null;
+  const mean = water.size >= MIN_USUAL_HYDRATION_DAYS ? average([...water.values()]) : null;
+  const usual = mean === null ? null : mean * (hours / 24);
   return { ml, usual };
 }
 
@@ -128,7 +129,7 @@ export function usualCaffeine(caffeine: Map<string, number>, firstDrink: string 
   const history = lastDays(addDays(keyToDate(day), -1), USUAL_CAFFEINE_DAYS)
     .filter((k) => k >= firstDrink)
     .map((k) => caffeine.get(k) ?? 0);
-  return history.length ? average(history) : null;
+  return average(history);
 }
 
 /** Days with at least one alcoholic drink. */
@@ -253,6 +254,78 @@ export function monthlyCategoryDays(intakes: Intake[], month: Date): Map<MedCate
   return new Map([...sets].map(([c, s]) => [c, s.size]));
 }
 
+/** A class with an overuse limit and its days this month, or `multiple` for several classes together. */
+export interface OveruseRow {
+  key: MedCategory | 'multiple';
+  days: number;
+  limit: number;
+}
+
+/**
+ * The ICHD-3 overuse rows for the calendar month of `month`: one per class with a limit that was
+ * used, plus the rule for several classes together once two or more were used.
+ */
+export function overuseRows(intakes: Intake[], month: Date): OveruseRow[] {
+  const days = monthlyCategoryDays(intakes, month);
+  const rows: OveruseRow[] = (Object.keys(MONTHLY_LIMITS) as MedCategory[])
+    .filter((c) => days.has(c))
+    .map((c) => ({ key: c, days: days.get(c)!, limit: MONTHLY_LIMITS[c]! }));
+  if (rows.length > 1) rows.push({ key: 'multiple', days: monthlyLimitedDays(intakes, month), limit: MULTIPLE_CLASSES_LIMIT });
+  return rows;
+}
+
+export interface MedicationEffect {
+  name: string;
+  dose: string;
+  category: MedCategory;
+  /** The list entry of the first intake in the group. */
+  medId: number;
+  intakes: number;
+  days: number;
+  /** Rated intakes per relief, indexed by `Relief`. */
+  relief: [number, number, number];
+  rated: number;
+}
+
+/**
+ * Intakes, days and relief ratings per medication for intakes from `from` to `to`, most taken first.
+ * `keyOf` decides what counts as one medication: the Meds tab groups by name, so a dose change stays
+ * one entry, while the doctor report groups by name and dose, since the dose matters there.
+ */
+export function medicationEffect(intakes: Intake[], from: number, to: number, keyOf: (intake: Intake) => string): MedicationEffect[] {
+  const groups = new Map<string, MedicationEffect & { dayKeys: Set<string> }>();
+  for (const i of intakes) {
+    if (i.time < from || i.time > to) continue;
+    const key = keyOf(i);
+    const g = groups.get(key) ?? { name: i.name, dose: i.dose, category: i.category, medId: i.medId, intakes: 0, days: 0, relief: [0, 0, 0], rated: 0, dayKeys: new Set<string>() };
+    g.intakes++;
+    g.dayKeys.add(dayKey(i.time));
+    if (i.relief !== null) {
+      g.relief[i.relief]++;
+      g.rated++;
+    }
+    groups.set(key, g);
+  }
+  return [...groups.values()].map(({ dayKeys, ...g }) => ({ ...g, days: dayKeys.size })).sort((a, b) => b.intakes - a.intakes);
+}
+
+/**
+ * The calendar's month summary up to `now`: headache days, days with acute medication and the
+ * average water per day. Days after `now` are left out.
+ */
+export function monthSummary(data: { episodes: Episode[]; intakes: Intake[]; drinks: Drink[] }, month: Date, now: number) {
+  const today = dayKey(now);
+  const past = dayRange(startOfMonth(month), endOfMonth(month)).filter((k) => k <= today);
+  const hDays = headacheDays(data.episodes, now);
+  const mDays = intakeDays(data.intakes);
+  const water = waterByDay(data.drinks);
+  return {
+    headache: past.filter((k) => hDays.has(k)).length,
+    med: past.filter((k) => mDays.has(k)).length,
+    water: average(past.map((k) => water.get(k) ?? 0)) ?? 0
+  };
+}
+
 export interface PeriodStats {
   days: number;
   headacheDays: number;
@@ -266,7 +339,6 @@ export interface PeriodStats {
   /** Episodes started per 3-hour block of the day. */
   timeOfDay: number[];
   avgWaterMl: number | null;
-  meds: { name: string; intakes: number; days: number; avgRelief: number | null }[];
   tags: { tag: string; count: number }[];
   /** Days since the last headache day, or null without any. */
   clearStreak: number | null;
@@ -297,14 +369,6 @@ export function periodStats(
   }
 
   const waterDays = keys.filter((k) => water.has(k));
-  const medMap = new Map<string, { intakes: number; days: Set<string>; relief: number[] }>();
-  for (const i of intakes) {
-    const m = medMap.get(i.name) ?? { intakes: 0, days: new Set<string>(), relief: [] };
-    m.intakes++;
-    m.days.add(dayKey(i.time));
-    if (i.relief !== null) m.relief.push(i.relief);
-    medMap.set(i.name, m);
-  }
 
   const tagMap = new Map<string, number>();
   for (const e of episodes) for (const t of e.tags) tagMap.set(t, (tagMap.get(t) ?? 0) + 1);
@@ -316,21 +380,13 @@ export function periodStats(
     days: span,
     headacheDays: keys.filter((k) => hDays.has(k)).length,
     episodes: episodes.length,
-    avgDurationMs: done.length ? average(done.map((e) => e.end! - e.start)) : null,
-    avgIntensity: episodes.length ? average(episodes.map((e) => e.intensity)) : null,
+    avgDurationMs: average(done.map((e) => e.end! - e.start)),
+    avgIntensity: average(episodes.map((e) => e.intensity)),
     medDays: mDays.size,
     intakes: intakes.length,
     weekday,
     timeOfDay,
-    avgWaterMl: waterDays.length ? average(waterDays.map((k) => water.get(k)!)) : null,
-    meds: [...medMap]
-      .map(([name, m]) => ({
-        name,
-        intakes: m.intakes,
-        days: m.days.size,
-        avgRelief: m.relief.length ? average(m.relief) : null
-      }))
-      .sort((a, b) => b.intakes - a.intakes),
+    avgWaterMl: average(waterDays.map((k) => water.get(k)!)),
     tags: [...tagMap].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count),
     clearStreak: lastHeadache
       ? Math.max(0, dayRange(keyToDate(lastHeadache), today).length - 1)
@@ -364,9 +420,9 @@ function addMonthsSafe(time: number, months: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + months, 1);
 }
 
-/** The mean of `values`. Callers make sure the list is not empty. */
-function average(values: number[]): number {
-  return values.reduce((a, b) => a + b, 0) / values.length;
+/** The mean of `values`, or null for none. */
+export function average(values: number[]): number | null {
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
 
 /** One value per day of `keys` for the timeline charts. Null where nothing is known; days after today only have the weather forecast. */
@@ -438,7 +494,7 @@ export function compareDays(
     const h = startDays.map(value).filter((v): v is number => v !== null);
     const c = clearDays.map(value).filter((v): v is number => v !== null);
     if (h.length < MIN_COMPARISON_DAYS || c.length < MIN_COMPARISON_DAYS) return [];
-    return [{ key, headache: average(h), clear: average(c), nHeadache: h.length, nClear: c.length }];
+    return [{ key, headache: average(h)!, clear: average(c)!, nHeadache: h.length, nClear: c.length }];
   });
 }
 

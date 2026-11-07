@@ -1,5 +1,5 @@
 import { addDays, getHours, getMinutes } from 'date-fns';
-import { alcoholDays, caffeineByDay, firstDrinkDay, usualCaffeine, waterByDay } from './analysis';
+import { alcoholDays, average, caffeineByDay, firstDrinkDay, usualCaffeine, waterByDay } from './analysis';
 import type { Drink, Night, WeatherDay } from './db';
 import { dayKey, HOUR, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
@@ -73,7 +73,8 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
 
   const night = input.sleep.get(today);
   const recent = lastDays(now, 7).map((k) => input.sleep.get(k)).filter((n) => n !== undefined);
-  const average = recent.length ? recent.reduce((s, n) => s + n.asleepMs, 0) / recent.length / HOUR : null;
+  const recentMs = average(recent.map((n) => n.asleepMs));
+  const sleepAverage = recentMs === null ? null : recentMs / HOUR;
   const sleepStatus: Status = !night ? 'unknown' : night.asleepMs < SHORT_SLEEP_HOURS * HOUR ? 'bad' : 'ok';
 
   const alcohol = alcoholDays(input.drinks);
@@ -93,7 +94,7 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
     bad,
     weather: { status: weatherStatus, today: todayWeather, tomorrow: tomorrowWeather, drop },
     hydration: { status: hydrationStatus, today: todayMl, yesterday: yesterdayMl, expected, goal: input.goalMl, behind: behindToday, lowYesterday },
-    sleep: { status: sleepStatus, night, average },
+    sleep: { status: sleepStatus, night, average: sleepAverage },
     alcohol: { status: alcoholStatus, yesterday: alcohol.has(yesterday), today: alcohol.has(today) },
     caffeine: { status: caffeineStatus, today: caffeineToday, usual, tooEarly: getHours(now) < CAFFEINE_FROM_HOUR }
   };

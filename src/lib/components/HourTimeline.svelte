@@ -9,9 +9,10 @@
   import type { Snippet } from 'svelte';
   import { hydrationCurve } from '$lib/analysis';
   import { intakeColor } from '$lib/colors';
-  import { formatLiters, hm, HOUR, keyToDate, MINUTE } from '$lib/days';
+  import { formatLiters, HOUR, keyToDate, MINUTE } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
   import { data } from '$lib/store.svelte';
+  import { entryDetailLines } from '$lib/format';
   import { sleepSegments } from '$lib/sleep';
   import { isPressureDrop } from '$lib/weather';
   import type { Row } from './TimelineChart.svelte';
@@ -87,11 +88,7 @@
     const near = (time: number) => Math.abs(time - shown) <= NEAR;
     const drinks = data.drinks.filter((d) => near(d.time)).sort((a, b) => a.time - b.time);
     const meds = intakes.filter((i) => near(i.time));
-    const details = [
-      ...(episode ? [t('tl.detailHeadache', { from: hm(episode.start), to: episode.end ? hm(episode.end) : '…', n: episode.intensity })] : []),
-      ...(meds.length ? [`💊 ${meds.map((i) => `${i.name} ${hm(i.time)}`).join(', ')}`] : []),
-      ...(drinks.length ? [`${drinks.map((d) => `${d.emoji} ${hm(d.time)}`).join('  ')}`] : [])
-    ];
+    const details = entryDetailLines({ episodes: episode ? [episode] : [], intakes: meds, drinks });
     return { values: values.filter((v) => row(v.key)), details };
   });
 
