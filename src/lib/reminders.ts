@@ -150,7 +150,7 @@ export async function scheduleReliefCheck(intake: { id: number; time: number; na
         body: t('rem.reliefBody', { time: hm(intake.time) }),
         actionTypeId: RELIEF_TYPE,
         autoCancel: true,
-        extra: { intakeId: intake.id },
+        extra: { intakeId: intake.id, time: intake.time },
         schedule: { at: new Date(at), allowWhileIdle: true }
       }
     ]
@@ -165,7 +165,8 @@ export async function cancelReliefCheck(intakeId: number) {
 export interface NotificationAnswers {
   /** Any tap on a notification or one of its buttons. */
   opened: () => void;
-  relief: (intakeId: number, relief: Relief) => void;
+  /** `time` is the intake's time when the question was scheduled, so a changed or replaced intake is not rated. */
+  relief: (intakeId: number, relief: Relief, time?: number) => void;
   headacheGone: (episodeId: number) => void;
   sleepOk: (day: string) => void;
   sleepFix: (day: string) => void;
@@ -176,9 +177,9 @@ export function onNotificationAction(answers: NotificationAnswers) {
   if (!Capacitor.isNativePlatform()) return () => {};
   const handle = LocalNotifications.addListener('localNotificationActionPerformed', ({ actionId, notification }) => {
     answers.opened();
-    const extra = notification.extra as { intakeId?: number; episodeId?: number; day?: string } | undefined;
+    const extra = notification.extra as { intakeId?: number; time?: number; episodeId?: number; day?: string } | undefined;
     const relief = /^relief-([012])$/.exec(actionId);
-    if (relief && extra?.intakeId !== undefined) answers.relief(extra.intakeId, RELIEFS[Number(relief[1])]);
+    if (relief && extra?.intakeId !== undefined) answers.relief(extra.intakeId, RELIEFS[Number(relief[1])], extra.time);
     if (actionId === 'headache-gone' && extra?.episodeId !== undefined) answers.headacheGone(extra.episodeId);
     if (actionId === 'sleep-ok' && extra?.day) answers.sleepOk(extra.day);
     if (actionId === 'sleep-fix' && extra?.day) answers.sleepFix(extra.day);

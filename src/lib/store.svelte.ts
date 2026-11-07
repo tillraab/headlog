@@ -137,10 +137,20 @@ export async function saveEpisode(episode: Draft<Episode>) {
   await load();
 }
 
+/** Saves an intake. A rated intake needs no "did it help?" any more; a moved one gets it at the new time. */
 export async function saveIntake(intake: Draft<Intake>) {
+  const before = intake.id === undefined ? undefined : await db.intakes.get(intake.id);
   const id = await db.intakes.put($state.snapshot(intake));
   if (intake.relief !== null) void cancelReliefCheck(id).catch(() => {});
+  else if (before && before.time !== intake.time) void moveReliefCheck({ id, time: intake.time, name: intake.name });
   await load();
+}
+
+function moveReliefCheck(intake: { id: number; time: number; name: string }) {
+  const delay = data.settings.reliefCheckMinutes;
+  return cancelReliefCheck(intake.id)
+    .then(() => (delay > 0 ? scheduleReliefCheck(intake, delay) : undefined))
+    .catch(() => {});
 }
 
 export async function saveDrink(drink: Draft<Drink>) {
@@ -183,8 +193,13 @@ export async function endEpisode(id: number) {
   await load();
 }
 
-/** Stores an answer given in a notification. */
-export async function setRelief(intakeId: number, relief: Relief) {
+/**
+ * Stores an answer given in a notification. With `time`, the answer only counts while the intake still
+ * has that time: after a restore or an edit, the id can belong to a different intake.
+ */
+export async function setRelief(intakeId: number, relief: Relief, time?: number) {
+  const intake = await db.intakes.get(intakeId);
+  if (!intake || (time !== undefined && intake.time !== time)) return;
   await db.intakes.update(intakeId, { relief });
   await load();
 }

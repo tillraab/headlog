@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { wipe } from './backup';
 import { db, seed } from './db';
-import { data, load, saveSettings, translateDrinkNames, updateDrinkPreset, updateMedication } from './store.svelte';
+import { data, load, saveSettings, setRelief, translateDrinkNames, updateDrinkPreset, updateMedication } from './store.svelte';
 
 beforeEach(async () => {
   await wipe(db);
@@ -70,5 +70,26 @@ describe('drink reminder migration', () => {
     await db.settings.put({ key: 'settings', value: { drinkCheckins: { enabled: true, times: ['10:00'] } } });
     await load();
     expect(data.settings.drinkReminder).toEqual({ enabled: true, from: 8, to: 20, everyHours: 2 });
+  });
+});
+
+describe('setRelief', () => {
+  const intake = (time: number) => ({ id: 1, time, medId: 1, name: 'Ibuprofen', dose: '400 mg', category: 'analgesic' as const, relief: null });
+
+  it('rates the intake the question was about', async () => {
+    await db.intakes.put(intake(1000));
+    await setRelief(1, 2, 1000);
+    expect((await db.intakes.get(1))!.relief).toBe(2);
+  });
+
+  it('ignores the answer when the id now belongs to an intake with another time', async () => {
+    await db.intakes.put(intake(2000));
+    await setRelief(1, 2, 1000);
+    expect((await db.intakes.get(1))!.relief).toBeNull();
+  });
+
+  it('does not create an intake that is gone', async () => {
+    await setRelief(1, 2, 1000);
+    expect(await db.intakes.count()).toBe(0);
   });
 });

@@ -84,7 +84,7 @@
         closeAllSheets();
         show(0, false);
       },
-      relief: (id, relief) => void setRelief(id, relief),
+      relief: (id, relief, time) => void setRelief(id, relief, time),
       headacheGone: (id) => void endEpisode(id),
       sleepOk: (day) => void confirmNight(day),
       sleepFix: (day) => void openNight(day)
