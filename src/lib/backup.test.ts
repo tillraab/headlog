@@ -70,6 +70,19 @@ describe('loadDemo', () => {
   });
 });
 
+describe('restoreBackup', () => {
+  it('keeps the previous data when a row cannot be added', async () => {
+    await db.episodes.add({ start: 1, end: 2, intensity: 5, tags: [], note: 'kept' });
+    const backup = await createBackup(db);
+    backup.tables.episodes = [
+      { id: 1, start: 1, end: 2, intensity: 5, tags: [], note: '' },
+      { id: 1, start: 3, end: 4, intensity: 5, tags: [], note: '' }
+    ];
+    await restoreBackup(backup, db).catch(() => {});
+    expect((await db.episodes.toArray()).map((e) => e.note)).toEqual(['kept']);
+  });
+});
+
 describe('older backups', () => {
   it('restore without the sleep table', async () => {
     const backup = await createBackup(db);

@@ -7,6 +7,7 @@
 - Clearing a date or time field in the editor no longer saves an invalid time, which made the entry disappear and broke the CSV export. The field keeps its previous value.
 - The doctor report now judges a caffeine drop by the same rule as the forecast: the usual amount only counts days since the first logged drink.
 - Only one headache can be ongoing at a time. Saving a second ongoing headache in the editor shows a message instead.
+- A backup file that cannot be restored now shows "import failed" instead of failing silently. The previous data stays.
 
 ## [0.22.1] - 2026-11-07
 

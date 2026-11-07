@@ -38,8 +38,13 @@
       return;
     }
     if (!confirm(t('set.importConfirm'))) return;
-    await restoreBackup(parsed);
-    await load();
+    try {
+      await restoreBackup(parsed);
+      await load();
+    } catch {
+      toast(t('set.importFailed'));
+      return;
+    }
     toast(t('set.imported'));
   }
 
