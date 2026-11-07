@@ -109,10 +109,11 @@ export async function logDrink(preset: DrinkPreset, time = Date.now()): Promise<
   return id;
 }
 
-type Table = 'episodes' | 'intakes' | 'drinks';
+/** The tables of entries that can be deleted with an undo. */
+export type EntryTable = 'episodes' | 'intakes' | 'drinks';
 
 /** Deletes a row and returns a function that restores it. */
-export async function remove(table: Table, id: number): Promise<() => Promise<void>> {
+export async function remove(table: EntryTable, id: number): Promise<() => Promise<void>> {
   const row = await db.table(table).get(id);
   await db.table(table).delete(id);
   if (table === 'intakes') void cancelReliefCheck(id).catch(() => {});

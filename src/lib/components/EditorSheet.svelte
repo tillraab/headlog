@@ -6,7 +6,7 @@
   import { editor } from '$lib/editor.svelte';
   import { reliefLabels, t, tagLabel, TAGS } from '$lib/i18n.svelte';
   import { manualNight } from '$lib/sleep';
-  import { data, remove, saveDrink, saveEpisode, saveIntake, saveNight } from '$lib/store.svelte';
+  import { data, remove, saveDrink, saveEpisode, saveIntake, saveNight, type EntryTable } from '$lib/store.svelte';
   import { closeSheet, fromLocalInput, toast, toLocalInput } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import SleepTimeline from './SleepTimeline.svelte';
@@ -70,7 +70,7 @@
   async function del() {
     const c = editor.current;
     if (!c || c.kind === 'sleep' || c.item.id === undefined) return;
-    const table = c.kind === 'episode' ? 'episodes' : c.kind === 'intake' ? 'intakes' : 'drinks';
+    const table: EntryTable = c.kind === 'episode' ? 'episodes' : c.kind === 'intake' ? 'intakes' : 'drinks';
     const undo = await remove(table, c.item.id);
     toast(t('toast.deleted'), undo);
     close();

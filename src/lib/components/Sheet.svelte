@@ -3,9 +3,9 @@
   import type { Snippet } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { t } from '$lib/i18n.svelte';
-  import { closeSheet, sheets } from '$lib/ui.svelte';
+  import { closeSheet, sheets, type SheetId } from '$lib/ui.svelte';
 
-  let { id, title, full = false, children }: { id: string; title: string; full?: boolean; children: Snippet } = $props();
+  let { id, title, full = false, children }: { id: SheetId; title: string; full?: boolean; children: Snippet } = $props();
 
   const open = $derived(sheets.stack.includes(id));
   const z = $derived(50 + sheets.stack.indexOf(id) * 2);

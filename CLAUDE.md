@@ -16,6 +16,8 @@ bun run icons      # regenerate favicon and all Android icons from assets/icon.s
 
 Run `bun run check` and `bun run test` before every commit.
 
+The Bun version is pinned in `packageManager` in `package.json`; CI uses the same one. Code that ships in the app goes in `dependencies`, tools for building and testing in `devDependencies`.
+
 ## Layout
 
 - `src/routes/+page.svelte`: the whole app shell. Swipeable tabs (CSS scroll snap), bottom nav, Android back button, app lifecycle (load, Gist sync on leave, reminder rescheduling in an `$effect`, notification button handling).
@@ -76,7 +78,7 @@ Run `bun run check` and `bun run test` before every commit.
 
 - Colors, radii and type sizes are tokens in `src/app.css` (`bg-surface`, `text-pain`, `text-med`, `text-water`, `text-2xs`, …). Use the `card`, `press`, `tabular` utilities.
 - Frequent actions are one tap. Reversible actions show an undo toast instead of a confirmation; `confirm()` only for replacing or deleting all data.
-- Sheets open through `openSheet(id)`; the Android back button closes the newest sheet first.
+- Sheets open through `openSheet(id)` with an id from `SheetId`; the Android back button closes the newest sheet first.
 - Every string goes through `t()` and needs an English and a German entry; `de` is typed against `en`, so a missing key is a type error. Dates go through `fmt()`, written German-style (`d. MMM`); English drops the dot.
 
 ## Testing
@@ -102,6 +104,6 @@ Releases are cut from `main` only.
 
 1. Branch `release/X.Y.Z`: move the `## [Unreleased]` entries under a new `## [X.Y.Z] - <date>` heading (the release notes are cut from it) and bump `version` in `package.json`. PR and merge as above.
 2. Tag the merged commit on `main`: `git checkout main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z`.
-3. `.github/workflows/android-release.yml` checks, tests, builds, signs and publishes `headlog-X.Y.Z.apk`. Obtainium picks it up.
+3. `.github/workflows/android-release.yml` checks that the tag matches `version` in `package.json`, then tests, builds, signs and publishes `headlog-X.Y.Z.apk`. Obtainium picks it up.
 
 `versionCode` is `major*10000 + minor*100 + patch` and must grow with every release. The signing key is a repository secret; the owner keeps the keystore outside the repository. Android only installs updates signed with the same key, so never change the signing setup.

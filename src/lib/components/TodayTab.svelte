@@ -7,7 +7,7 @@
   import { DAY, formatDuration, formatLiters, hm, HOUR, MINUTE } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
-  import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache } from '$lib/store.svelte';
+  import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache, type EntryTable } from '$lib/store.svelte';
   import { celebrate, openSheet, tap, toast } from '$lib/ui.svelte';
   import { prognosis, prognosisInput } from '$lib/prognosis';
   import PrognosisCard from './PrognosisCard.svelte';
@@ -76,7 +76,7 @@
     toast(t('toast.ended'), () => saveEpisode(before));
   }
 
-  function undoFor(table: 'episodes' | 'intakes' | 'drinks', id: number) {
+  function undoFor(table: EntryTable, id: number) {
     return () => remove(table, id);
   }
 

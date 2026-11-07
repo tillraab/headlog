@@ -54,7 +54,7 @@ export function num(value: number, digits = 0, maxDigits = digits): string {
   return format.format(value);
 }
 
-export function dateLocale() {
+function dateLocale() {
   return i18n.lang === 'de' ? deLocale : enGB;
 }
 

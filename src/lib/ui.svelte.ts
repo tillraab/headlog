@@ -38,14 +38,17 @@ export function tap(style: 'light' | 'medium' | 'heavy' = 'light') {
   void Haptics.impact({ style: map[style] });
 }
 
-/** Open sheets, newest last. The Android back button closes the newest one. */
-export const sheets = $state<{ stack: string[] }>({ stack: [] });
+/** Every sheet of the app, by the id it opens with. */
+export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day';
 
-export function openSheet(id: string) {
+/** Open sheets, newest last. The Android back button closes the newest one. */
+export const sheets = $state<{ stack: SheetId[] }>({ stack: [] });
+
+export function openSheet(id: SheetId) {
   sheets.stack = [...sheets.stack.filter((s) => s !== id), id];
 }
 
-export function closeSheet(id: string) {
+export function closeSheet(id: SheetId) {
   sheets.stack = sheets.stack.filter((s) => s !== id);
 }
 

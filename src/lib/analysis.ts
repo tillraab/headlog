@@ -457,7 +457,7 @@ export interface Comparison {
 }
 
 /** Each factor needs at least this many days on both sides to be shown. */
-export const MIN_COMPARISON_DAYS = 3;
+const MIN_COMPARISON_DAYS = 3;
 
 /**
  * Compares the days a headache started with days without headache: hydration, caffeine and

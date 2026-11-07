@@ -131,7 +131,7 @@ export class HeadLogDb extends Dexie {
   }
 }
 
-export const DEFAULT_MEDICATIONS: Omit<Medication, 'id'>[] = [
+const DEFAULT_MEDICATIONS: Omit<Medication, 'id'>[] = [
   { name: 'Ibuprofen', dose: '400 mg', category: 'analgesic', color: MED_COLORS[0], order: 0 },
   { name: 'Paracetamol', dose: '500 mg', category: 'analgesic', color: MED_COLORS[4], order: 1 },
   { name: 'Sumatriptan', dose: '50 mg', category: 'triptan', color: MED_COLORS[2], order: 2 }
@@ -139,7 +139,7 @@ export const DEFAULT_MEDICATIONS: Omit<Medication, 'id'>[] = [
 
 export const DRINK_NAMES = { en: ['Glass', 'Bottle', 'Coffee', 'Tea'], de: ['Glas', 'Flasche', 'Kaffee', 'Tee'] };
 
-export function defaultDrinkPresets(lang: 'en' | 'de'): Omit<DrinkPreset, 'id'>[] {
+function defaultDrinkPresets(lang: 'en' | 'de'): Omit<DrinkPreset, 'id'>[] {
   const [glass, bottle, coffee, tea] = DRINK_NAMES[lang];
   return [
     { name: glass, emoji: '🥛', ml: 250, order: 0 },
