@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-07
+
 ### Changed
 
 - Drink check-ins at fixed times are replaced by a drink reminder: when you have not logged a drink for a set time (default 2 h) between set hours (default 8:00 to 20:00), HeadLog reminds you to drink. Every logged drink starts the time again. The notification has no drink buttons any more; tapping it opens HeadLog. If you had check-ins on, the reminder is on.
