@@ -1,0 +1,63 @@
+1
+00:00:01,000 --> 00:00:02,408
+Headaches keep coming back.
+
+2
+00:00:02,708 --> 00:00:05,481
+And by then, you've forgotten what happened the day before.
+
+3
+00:00:05,931 --> 00:00:10,091
+HeadLog makes it easy to track your headaches, and what triggers or eases them.
+
+4
+00:00:10,541 --> 00:00:12,803
+When a headache starts, one tap logs it.
+
+5
+00:00:13,103 --> 00:00:15,940
+One tap for your medication, one tap when it's over.
+
+6
+00:00:16,240 --> 00:00:17,925
+Only the essentials in the moment.
+
+7
+00:00:18,225 --> 00:00:19,548
+The details can wait.
+
+8
+00:00:19,998 --> 00:00:22,793
+On a normal day, every drink is a single tap.
+
+9
+00:00:23,093 --> 00:00:26,869
+Weather, caffeine, alcohol and your sleep are recorded along the way.
+
+10
+00:00:27,319 --> 00:00:29,461
+A traffic light shows your headache risk for today,
+
+11
+00:00:29,711 --> 00:00:32,588
+and warns you in the evening when tomorrow looks risky.
+
+12
+00:00:33,038 --> 00:00:36,593
+Over time, HeadLog shows what's different before your headache days,
+
+13
+00:00:36,843 --> 00:00:38,265
+compared with the days without.
+
+14
+00:00:38,715 --> 00:00:39,568
+HeadLog.
+
+15
+00:00:39,868 --> 00:00:41,745
+Free, private, and on your phone.
+
+16
+00:00:42,045 --> 00:00:43,368
+Get to know your headaches.
