@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The day charts (Insights over 30 days and more, the rolling medication count) show the selected day's values as coloured chips next to each chart heading, like the hour view, instead of a legend that could be cut off.
+- Chart details write entries of the same minute under one time, e.g. "💊 14:00 Ibuprofen, Sumatriptan" and "🥛 13:35 · 💧🍵 14:00", so they fit on narrow phones.
+
 ## [0.26.2] - 2026-11-08
 
 ### Changed
