@@ -80,6 +80,20 @@
       status: p.sleep.status,
       value: p.sleep.night ? formatDuration(p.sleep.night.asleepMs) : '–',
       onclick: () => openNight(dayKey(clock.now))
+    },
+    {
+      icon: '🍷',
+      label: t('prog.alcohol'),
+      status: p.alcohol.status,
+      value: p.alcohol.status === 'unknown' ? '–' : t('prog.alcoholTile', { today: p.alcohol.drinksToday }),
+      onclick: toggle
+    },
+    {
+      icon: '☕',
+      label: t('prog.caffeine'),
+      status: p.caffeine.status,
+      value: `${Math.round(p.caffeine.today)} mg`,
+      onclick: toggle
     }
   ]);
 
@@ -124,9 +138,9 @@
     </button>
     <InfoButton class="mt-4" title={t('prog.title')} text={t('prog.how')} />
   </div>
-  <div class="grid grid-cols-3 gap-2 px-4 pb-4">
-    {#each tiles as tile (tile.label)}
-      <button class="press flex min-w-0 flex-col gap-0.5 rounded-xl bg-surface-2 px-2.5 py-2 text-left" onclick={tile.onclick}>
+  <div class="grid grid-cols-6 gap-2 px-4 pb-4">
+    {#each tiles as tile, i (tile.label)}
+      <button class="press flex min-w-0 flex-col gap-0.5 rounded-xl bg-surface-2 px-2.5 py-2 text-left {i < 3 ? 'col-span-2' : 'col-span-3'}" onclick={tile.onclick}>
         <span class="flex items-center justify-between">
           <span class="text-lg leading-none">{tile.icon}</span>
           <span class="size-2.5 rounded-full" style:background-color={STATUS[tile.status]}></span>
@@ -188,32 +202,32 @@
         data.settings.sleep.enabled || p.sleep.night ? () => openNight(dayKey(clock.now)) : () => openSheet('settings')
       )}
 
-      {#if p.alcohol.status !== 'unknown'}
-        {@render factor(
-          p.alcohol.status,
-          t('prog.alcohol'),
-          [],
-          p.alcohol.status === 'bad'
+      {@render factor(
+        p.alcohol.status,
+        t('prog.alcohol'),
+        p.alcohol.status === 'unknown' ? [] : [t('prog.alcoholDrinks', { today: p.alcohol.drinksToday, yesterday: p.alcohol.drinksYesterday })],
+        p.alcohol.status === 'unknown'
+          ? t('prog.why.alcoholUnknown')
+          : p.alcohol.status === 'bad'
             ? t('prog.why.alcoholBad', { when: [p.alcohol.yesterday ? t('prog.yesterday') : '', p.alcohol.today ? t('prog.today') : ''].filter(Boolean).join(t('prog.and')) })
             : t('prog.why.alcoholOk'),
-          t('prog.rule.alcohol'),
-          SOURCES.alcohol
-        )}
-      {/if}
+        t('prog.rule.alcohol'),
+        SOURCES.alcohol
+      )}
 
-      {#if p.caffeine.usual !== null}
-        {@render factor(
-          p.caffeine.status,
-          t('prog.caffeine'),
-          [
-            t('prog.caffeineValue', { mg: Math.round(p.caffeine.today), byNow: Math.round(p.caffeine.usualByNow ?? 0) }),
-            t('prog.caffeineYesterday', { mg: Math.round(p.caffeine.yesterday), usual: Math.round(p.caffeine.usual) })
-          ],
-          caffeineWhy(),
-          t('prog.rule.caffeine'),
-          SOURCES.caffeine
-        )}
-      {/if}
+      {@render factor(
+        p.caffeine.status,
+        t('prog.caffeine'),
+        p.caffeine.usual === null
+          ? [t('prog.caffeineSoFar', { mg: Math.round(p.caffeine.today), yesterday: Math.round(p.caffeine.yesterday) })]
+          : [
+              t('prog.caffeineValue', { mg: Math.round(p.caffeine.today), byNow: Math.round(p.caffeine.usualByNow ?? 0) }),
+              t('prog.caffeineYesterday', { mg: Math.round(p.caffeine.yesterday), usual: Math.round(p.caffeine.usual) })
+            ],
+        caffeineWhy(),
+        t('prog.rule.caffeine'),
+        SOURCES.caffeine
+      )}
 
       <p class="rounded-xl bg-surface-2 p-3">💡 {tip}</p>
     </div>

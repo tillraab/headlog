@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The forecast always shows all five factors as tiles, alcohol and caffeine included, also when they are fine or cannot be judged yet. Alcohol shows today's alcoholic drinks and caffeine today's milligrams; the details list today's and yesterday's numbers.
+
 ## [0.26.0] - 2026-11-08
 
 ### Changed
