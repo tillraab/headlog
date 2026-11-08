@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-08
+
 ### Changed
 
 - The weather factor follows the study it is based on: today is unfavourable when tomorrow's daily mean pressure is forecast to be more than 5 hPa lower, since migraine was more frequent on the day before such a drop. The evening warning looks at the drop from tomorrow to the day after, and Insights and the doctor report compare headache days with a drop on the following day.
