@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-11-08
+
 ### Changed
 
 - The Tomorrow row shows only the level (looks fine so far, raised risk, high risk), so it always fits. Tapping it opens a list of the three checks for tomorrow with their status and the rule: each unfavourable factor counts once, one is yellow, two or more red.
