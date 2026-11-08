@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-11-08
+
 ### Changed
 
 - The caffeine factor of the forecast follows how withdrawal headaches work: today counts when you have had less than half of what you usually have by this time of day (instead of half a whole day's amount from 10:00), and a big drop yesterday counts too, since withdrawal headaches peak one to two days later. It is judged only from 7 logged days. The doctor report uses the same rule.
