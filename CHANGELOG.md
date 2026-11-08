@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The rule explanations (i) in the forecast and the 10/20 rule name their sources and say how strong the evidence is: hydration, sleep and alcohol have weak or mixed evidence, the caffeine limit of 100 mg is compared with the 200 mg of the diagnostic criteria.
+
 ## [0.25.0] - 2026-11-08
 
 ### Changed
