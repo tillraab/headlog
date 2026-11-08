@@ -47,7 +47,7 @@ export function expectedByNow(goalMl: number, now: number): number {
 }
 
 /**
- * Traffic light for the hours ahead: weather today and tomorrow, hydration yesterday and today,
+ * Traffic light for today: today's pressure drop, hydration yesterday and today,
  * last night's sleep, alcohol and caffeine. Each unfavourable factor counts; none is green,
  * 1 yellow, 2 or more red. Unknown factors (no weather, no sleep data) do not count.
  */
@@ -58,8 +58,9 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
 
   const todayWeather = input.weather.get(today);
   const tomorrowWeather = input.weather.get(tomorrow);
-  const drop = Math.max(todayWeather?.pressureDrop ?? 0, tomorrowWeather?.pressureDrop ?? 0);
-  const weatherStatus: Status = !todayWeather && !tomorrowWeather ? 'unknown' : isPressureDrop(drop) ? 'bad' : 'ok';
+  // Only today counts; tomorrow's forecast is shown for information and counts in the evening warning.
+  const drop = todayWeather?.pressureDrop ?? 0;
+  const weatherStatus: Status = !todayWeather ? 'unknown' : isPressureDrop(drop) ? 'bad' : 'ok';
 
   const water = waterByDay(input.drinks);
   const first = firstDrinkDay(input.drinks);

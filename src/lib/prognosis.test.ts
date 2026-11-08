@@ -38,8 +38,13 @@ describe('prognosis', () => {
     expect(prognosis(input({ sleep: new Map([['2026-03-10', night(4.5)]]) }), now).light).toBe('yellow');
   });
 
+  it('does not count a pressure drop tomorrow', () => {
+    const p = prognosis(input({ weather: new Map([['2026-03-10', weather('2026-03-10', 1)], ['2026-03-11', weather('2026-03-11', 9)]]) }), now);
+    expect([p.weather.status, p.weather.drop]).toEqual(['ok', 1]);
+  });
+
   it('turns red with two', () => {
-    const p = prognosis(input({ sleep: new Map([['2026-03-10', night(4.5)]]), weather: new Map([['2026-03-11', weather('2026-03-11', 8)]]) }), now);
+    const p = prognosis(input({ sleep: new Map([['2026-03-10', night(4.5)]]), weather: new Map([['2026-03-10', weather('2026-03-10', 8)]]) }), now);
     expect([p.light, p.weather.drop]).toEqual(['red', 8]);
   });
 
@@ -109,7 +114,7 @@ describe('prognosis at the thresholds', () => {
       input({
         drinks: [drink('2026-03-09T12:00', 800), drink('2026-03-09T20:00', 150, { alcohol: true }), drink('2026-03-10T09:00', 300)],
         sleep: new Map([['2026-03-10', night(4.5)]]),
-        weather: new Map([['2026-03-11', weather('2026-03-11', 8)]])
+        weather: new Map([['2026-03-10', weather('2026-03-10', 8)]])
       }),
       now
     );
