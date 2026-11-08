@@ -4,7 +4,7 @@
   import { t } from '$lib/i18n.svelte';
   import { awakeMs } from '$lib/sleep';
   import { badFactors, prognosis, prognosisInput, type Status } from '$lib/prognosis';
-  import { CAFFEINE_DROP, LOW_HYDRATION, SHORT_SLEEP_HOURS } from '$lib/thresholds';
+  import { LOW_HYDRATION, SHORT_SLEEP_HOURS } from '$lib/thresholds';
   import { openNight } from '$lib/editor.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
@@ -33,10 +33,16 @@
 
   function caffeineWhy(): string {
     const c = p.caffeine;
-    if (c.tooEarly) return t('prog.why.caffeineEarly');
     if (c.status === 'unknown') return t('prog.why.caffeineLittle');
-    const values = { mg: Math.round(c.today), half: Math.round((c.usual ?? 0) * CAFFEINE_DROP) };
-    return t(c.status === 'bad' ? 'prog.why.caffeineBad' : 'prog.why.caffeineOk', values);
+    const values = {
+      mg: Math.round(c.today),
+      byNow: Math.round(c.usualByNow ?? 0),
+      yesterday: Math.round(c.yesterday),
+      usual: Math.round(c.usual ?? 0)
+    };
+    if (c.todayLow) return t('prog.why.caffeineBadToday', values);
+    if (c.yesterdayLow) return t('prog.why.caffeineBadYesterday', values);
+    return t(c.tooEarly ? 'prog.why.caffeineEarly' : 'prog.why.caffeineOk', values);
   }
 
   /** The tip for the first unfavourable factor, in the order weather, hydration, sleep, alcohol, caffeine. */
@@ -186,9 +192,12 @@
         {@render factor(
           p.caffeine.status,
           t('prog.caffeine'),
-          [t('prog.caffeineValue', { mg: Math.round(p.caffeine.today), usual: Math.round(p.caffeine.usual) })],
+          [
+            t('prog.caffeineValue', { mg: Math.round(p.caffeine.today), byNow: Math.round(p.caffeine.usualByNow ?? 0) }),
+            t('prog.caffeineYesterday', { mg: Math.round(p.caffeine.yesterday), usual: Math.round(p.caffeine.usual) })
+          ],
           caffeineWhy(),
-          t('prog.rule.caffeine', { half: Math.round(p.caffeine.usual * CAFFEINE_DROP) })
+          t('prog.rule.caffeine')
         )}
       {/if}
 

@@ -1,8 +1,8 @@
 import { addDays, getHours, getMinutes } from 'date-fns';
-import { alcoholDays, average, caffeineByDay, firstDrinkDay, usualCaffeine, waterByDay } from './analysis';
+import { alcoholDays, average, caffeineByDay, caffeineDropOn, firstDrinkDay, usualCaffeine, usualCaffeineByTime, waterByDay } from './analysis';
 import type { Drink, Night, WeatherDay } from './db';
 import { dayKey, HOUR, lastDays } from './days';
-import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
+import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, MIN_USUAL_CAFFEINE_BY_NOW, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
 
 export type Light = 'green' | 'yellow' | 'red';
@@ -13,8 +13,6 @@ export type Status = 'ok' | 'bad' | 'unknown';
 /** The hydration goal is spread evenly over the waking day, 7:00 to 22:00. */
 const DAY_START_HOUR = 7;
 const DAY_END_HOUR = 22;
-/** Before this hour today's caffeine says nothing yet. */
-const CAFFEINE_FROM_HOUR = 10;
 
 export interface PrognosisInput {
   drinks: Drink[];
@@ -31,7 +29,18 @@ export interface Prognosis {
   hydration: { status: Status; today: number; yesterday: number | null; expected: number; goal: number; behind: boolean; lowYesterday: boolean };
   sleep: { status: Status; night?: Night; average: number | null };
   alcohol: { status: Status; yesterday: boolean; today: boolean };
-  caffeine: { status: Status; today: number; usual: number | null; tooEarly: boolean };
+  caffeine: {
+    status: Status;
+    /** Caffeine so far today, yesterday, and the usual amounts for a whole day and by this time of day. */
+    today: number;
+    yesterday: number;
+    usual: number | null;
+    usualByNow: number | null;
+    todayLow: boolean;
+    yesterdayLow: boolean;
+    /** By this time of day you usually have had too little caffeine to judge today yet. */
+    tooEarly: boolean;
+  };
 }
 
 /** The forecast's input from the app data. */
@@ -82,11 +91,16 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   const tracksAlcohol = input.drinks.some((d) => d.alcohol);
   const alcoholStatus: Status = !tracksAlcohol ? 'unknown' : alcohol.has(yesterday) || alcohol.has(today) ? 'bad' : 'ok';
 
-  const caffeine = caffeineByDay(input.drinks);
+  const caffeine = caffeineByDay(input.drinks.filter((d) => d.time <= now));
   const usual = usualCaffeine(caffeine, first, today);
+  const usualByNow = usualCaffeineByTime(input.drinks, first, today, getHours(now) * 60 + getMinutes(now));
   const caffeineToday = caffeine.get(today) ?? 0;
-  const caffeineStatus: Status =
-    usual === null || usual < MIN_USUAL_CAFFEINE || getHours(now) < CAFFEINE_FROM_HOUR ? 'unknown' : caffeineToday < usual * CAFFEINE_DROP ? 'bad' : 'ok';
+  const judged = usual !== null && usual >= MIN_USUAL_CAFFEINE;
+  const tooEarly = usualByNow === null || usualByNow < MIN_USUAL_CAFFEINE_BY_NOW;
+  // Today against what is usual by this time of day; yesterday as a whole, since withdrawal peaks a day or two later.
+  const todayLow = judged && usualByNow !== null && !tooEarly && caffeineToday < usualByNow * CAFFEINE_DROP;
+  const yesterdayLow = caffeineDropOn(caffeine, first, yesterday);
+  const caffeineStatus: Status = !judged ? 'unknown' : todayLow || yesterdayLow ? 'bad' : 'ok';
 
   const statuses = [weatherStatus, hydrationStatus, sleepStatus, alcoholStatus, caffeineStatus];
   const bad = statuses.filter((s) => s === 'bad').length;
@@ -97,7 +111,7 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
     hydration: { status: hydrationStatus, today: todayMl, yesterday: yesterdayMl, expected, goal: input.goalMl, behind: behindToday, lowYesterday },
     sleep: { status: sleepStatus, night, average: sleepAverage },
     alcohol: { status: alcoholStatus, yesterday: alcohol.has(yesterday), today: alcohol.has(today) },
-    caffeine: { status: caffeineStatus, today: caffeineToday, usual, tooEarly: getHours(now) < CAFFEINE_FROM_HOUR }
+    caffeine: { status: caffeineStatus, today: caffeineToday, yesterday: caffeine.get(yesterday) ?? 0, usual, usualByNow, todayLow, yesterdayLow, tooEarly }
   };
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Drink, Night, WeatherDay } from './db';
+import { dayKey as dayKeyOf } from './days';
 import { badFactors, expectedByNow, prognosis, tomorrowRisk, type PrognosisInput } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
@@ -79,20 +80,37 @@ describe('prognosis', () => {
     expect([p.sleep.status, p.weather.status, p.light]).toEqual(['unknown', 'unknown', 'green']);
   });
 
-  it.each([
-    ['2026-03-10T14:30', 250, 'ok'],
-    ['2026-03-10T10:30', 0, 'bad'],
-    ['2026-03-10T09:30', 0, 'unknown']
-  ])('at %s with %i mg today, after three days of 200 mg, caffeine is %s', (time, mg, status) => {
-    const coffees = ['2026-03-07', '2026-03-08', '2026-03-09'].map((d) => drink(`${d}T08:00`, 200, { caffeineMg: 200 }));
-    const today = mg ? [drink('2026-03-10T08:00', 200, { caffeineMg: mg })] : [];
-    expect(prognosis(input({ drinks: [...coffees, ...today, drink('2026-03-10T09:00', 1200)] }), at(time)).caffeine.status).toBe(status);
-  });
+  describe('caffeine', () => {
+    /** Mar 1 to 9: coffee at 8:00 and 14:00, 100 mg each; Mar 10 is today. */
+    const usualDays = Array.from({ length: 9 }, (_, i) => `2026-03-0${i + 1}`);
+    const history = usualDays.flatMap((d) => [drink(`${d}T08:00`, 200, { caffeineMg: 100 }), drink(`${d}T14:00`, 200, { caffeineMg: 100 })]);
+    const water = [drink('2026-03-09T12:00', 2200), drink('2026-03-10T09:00', 1200)];
+    const caffeineAt = (time: string, today: Drink[], past = history) => prognosis(input({ drinks: [...past, ...today, ...water] }), at(time)).caffeine;
 
-  it('counts a caffeine drop from 10:00', () => {
-    const coffees = Array.from({ length: 9 }, (_, i) => drink(`2026-03-0${i + 1}T08:00`, 200, { caffeineMg: 200 }));
-    const p = prognosis(input({ drinks: [...input().drinks, ...coffees] }), now);
-    expect([p.caffeine.status, p.caffeine.today]).toEqual(['bad', 0]);
+    it.each([
+      ['07:00', [], 'ok', 'too early: nothing is usual by now'],
+      ['10:00', [], 'bad', 'the usual morning coffee is missing'],
+      ['10:00', [drink('2026-03-10T08:00', 200, { caffeineMg: 100 })], 'ok', 'the morning coffee is there'],
+      ['15:00', [drink('2026-03-10T08:00', 200, { caffeineMg: 100 })], 'ok', 'half of the usual 200 mg by 15:00 is enough']
+    ])('at %s with %j today is %s (%s)', (time, today, status) => {
+      expect(caffeineAt(`2026-03-10T${time}`, today).status).toBe(status);
+    });
+
+    it('compares today with the usual amount by this time of day, not the whole day', () => {
+      const c = caffeineAt('2026-03-10T10:00', [drink('2026-03-10T08:00', 200, { caffeineMg: 100 })]);
+      expect([c.usualByNow, c.usual]).toEqual([100, 200]);
+    });
+
+    it('counts a drop yesterday, even early in the morning', () => {
+      const lowYesterday = history.filter((d) => dayKeyOf(d.time) !== '2026-03-09');
+      const c = caffeineAt('2026-03-10T07:00', [], [...lowYesterday, drink('2026-03-09T08:00', 200, { caffeineMg: 50 })]);
+      expect([c.status, c.yesterdayLow, c.todayLow]).toEqual(['bad', true, false]);
+    });
+
+    it('is not judged with fewer than 7 logged days', () => {
+      const short = history.filter((d) => dayKeyOf(d.time) >= '2026-03-05');
+      expect(caffeineAt('2026-03-10T10:00', [], short).status).toBe('unknown');
+    });
   });
 });
 

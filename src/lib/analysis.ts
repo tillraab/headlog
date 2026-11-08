@@ -3,7 +3,7 @@ import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db
 import { hydrationMl } from './drinks';
 import { ACUTE_CATEGORIES, MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type MedCategory } from './medication';
 import { DAY, dayKey, dayRange, HOUR, keyToDate, lastDays } from './days';
-import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
+import { CAFFEINE_DROP, LOW_HYDRATION, MIN_CAFFEINE_DAYS, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
 
 /** Peak intensity per day touched by a headache. Ongoing episodes run until `now`. */
@@ -119,17 +119,45 @@ export function caffeineByDay(drinks: Drink[]): Map<string, number> {
 /** Days the usual caffeine amount looks back on. */
 const USUAL_CAFFEINE_DAYS = 14;
 
+/** The days the usual caffeine amount for `day` is based on: up to 14 before it, since the first logged drink. */
+function caffeineHistory(firstDrink: string, day: string): string[] {
+  return lastDays(addDays(keyToDate(day), -1), USUAL_CAFFEINE_DAYS).filter((k) => k >= firstDrink);
+}
+
 /**
  * The usual daily caffeine before `day`: the average over the 14 days before it, counting only days
  * since the first logged drink, since days before it are unknown. Null without any caffeine logged or
- * without a known day. The forecast and the report both judge a caffeine drop against this.
+ * with fewer than 7 such days. The forecast and the report both judge a caffeine drop against this.
  */
 export function usualCaffeine(caffeine: Map<string, number>, firstDrink: string | null, day: string): number | null {
   if (!caffeine.size || firstDrink === null) return null;
-  const history = lastDays(addDays(keyToDate(day), -1), USUAL_CAFFEINE_DAYS)
-    .filter((k) => k >= firstDrink)
-    .map((k) => caffeine.get(k) ?? 0);
-  return average(history);
+  const history = caffeineHistory(firstDrink, day);
+  return history.length < MIN_CAFFEINE_DAYS ? null : average(history.map((k) => caffeine.get(k) ?? 0));
+}
+
+/**
+ * The caffeine usually taken by `minutes` after midnight, averaged over the same days as
+ * usualCaffeine. Lets the forecast judge today against what is normal at this hour, not against a
+ * whole day. Null where usualCaffeine is null.
+ */
+export function usualCaffeineByTime(drinks: Drink[], firstDrink: string | null, day: string, minutes: number): number | null {
+  if (firstDrink === null || !drinks.some((d) => d.caffeineMg)) return null;
+  const history = caffeineHistory(firstDrink, day);
+  if (history.length < MIN_CAFFEINE_DAYS) return null;
+  const days = new Set(history);
+  let total = 0;
+  for (const d of drinks) {
+    if (!d.caffeineMg || !days.has(dayKey(d.time))) continue;
+    const at = new Date(d.time);
+    if (at.getHours() * 60 + at.getMinutes() <= minutes) total += d.caffeineMg;
+  }
+  return total / history.length;
+}
+
+/** Whether `day` as a whole had less than half of its usual caffeine, for a usual amount worth judging. */
+export function caffeineDropOn(caffeine: Map<string, number>, firstDrink: string | null, day: string): boolean {
+  const usual = usualCaffeine(caffeine, firstDrink, day);
+  return usual !== null && usual >= MIN_USUAL_CAFFEINE && (caffeine.get(day) ?? 0) < usual * CAFFEINE_DROP;
 }
 
 /** Days with at least one alcoholic drink. */
@@ -536,8 +564,7 @@ export function dayFactors(
   const night = data.sleep.get(key);
   if (night && night.asleepMs < SHORT_SLEEP_HOURS * HOUR) factors.sleep = night.asleepMs / HOUR;
   if (alcoholDays(data.drinks).has(before)) factors.alcohol = true;
-  const usual = usualCaffeine(caffeine, first, key);
-  const today = caffeine.get(key) ?? 0;
-  if (usual !== null && usual >= MIN_USUAL_CAFFEINE && today < usual * CAFFEINE_DROP) factors.caffeine = today;
+  // A drop that day or the day before: withdrawal headaches peak one to two days after it.
+  if (caffeineDropOn(caffeine, first, key) || caffeineDropOn(caffeine, first, before)) factors.caffeine = caffeine.get(key) ?? 0;
   return factors;
 }
