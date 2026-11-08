@@ -54,10 +54,26 @@ export function closeSheet(id: SheetId) {
 
 export function closeAllSheets() {
   sheets.stack = [];
+  closeInfo();
 }
 
-/** Closes the newest sheet. Returns false when none was open. */
+/** The explanation an info button opened, shown above every sheet until it is closed. */
+export const info = $state<{ open: { title: string; text: string[] } | null }>({ open: null });
+
+export function showInfo(title: string, text: string | string[]) {
+  info.open = { title, text: typeof text === 'string' ? [text] : text };
+}
+
+export function closeInfo() {
+  info.open = null;
+}
+
+/** Closes an open explanation, else the newest sheet. Returns false when neither was open. */
 export function closeTopSheet(): boolean {
+  if (info.open) {
+    closeInfo();
+    return true;
+  }
   if (!sheets.stack.length) return false;
   sheets.stack = sheets.stack.slice(0, -1);
   return true;

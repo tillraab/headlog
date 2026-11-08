@@ -21,10 +21,9 @@
   }
 </script>
 
-<Sheet id="report" title={t('set.doctor')}>
+<Sheet id="report" title={t('set.doctor')} info={t('report.hint')}>
   <div class="flex flex-col gap-3">
-    <p class="text-sm text-muted">{t('report.hint')}</p>
-    <label class="flex flex-col gap-1 text-xs text-muted">
+    <label class="flex flex-col gap-1 text-sm text-muted">
       {t('pdf.name')}
       <input value={data.settings.reportName} placeholder={t('pdf.namePlaceholder')} onchange={(e) => saveSettings({ reportName: e.currentTarget.value.trim() })} />
     </label>
@@ -32,7 +31,7 @@
       <select bind:value={months}>
         {#each [1, 3, 6, 12] as n (n)}<option value={n}>{t('pdf.months', { n })}</option>{/each}
       </select>
-      <div class="flex rounded-xl bg-surface-2 p-1 text-sm">
+      <div class="flex rounded-xl bg-surface-2 p-1">
         {#each [['pdf', 'PDF'], ['csv', 'CSV']] as const as [value, name] (value)}
           <button class="press flex-1 rounded-lg py-1.5 {format === value ? 'bg-surface font-semibold shadow-sm' : 'text-muted'}" onclick={() => (format = value)}>
             {name}
@@ -40,8 +39,8 @@
         {/each}
       </div>
     </div>
-    <p class="text-xs text-muted">{format === 'pdf' ? t('report.pdf') : t('report.csv')}</p>
-    <button class="press rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-fg disabled:opacity-50" disabled={busy} onclick={share}>
+    <p class="text-sm text-muted">{format === 'pdf' ? t('report.pdf') : t('report.csv')}</p>
+    <button class="press min-h-12 rounded-xl bg-primary px-4 py-3 font-semibold text-primary-fg disabled:opacity-50" disabled={busy} onclick={share}>
       {t('set.doctorExport')}
     </button>
   </div>

@@ -28,7 +28,7 @@
       <div class="relative flex h-full flex-1 flex-col justify-end" title={bar.title ?? `${bar.label}: ${bar.value}`}>
         <div class="relative rounded-t-[4px] transition-[height] duration-500" style:height="{(bar.value / max) * 100}%" style:background-color={color}>
           {#if bar.value > 0}
-            <span class="absolute inset-x-0 -top-3.5 text-center text-2xs leading-none text-muted tabular">{Math.round(bar.value * 10) / 10}</span>
+            <span class="absolute inset-x-0 -top-3.5 text-center text-axis leading-none text-muted tabular">{Math.round(bar.value * 10) / 10}</span>
           {/if}
         </div>
       </div>
@@ -36,7 +36,7 @@
   </div>
   <div class="flex gap-1">
     {#each bars as bar, i (i)}
-      <span class="flex-1 truncate text-center text-2xs text-muted">{bar.label}</span>
+      <span class="flex-1 truncate text-center text-caption text-muted">{bar.label}</span>
     {/each}
   </div>
 </div>

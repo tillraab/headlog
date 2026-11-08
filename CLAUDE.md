@@ -21,7 +21,7 @@ The Bun version is pinned in `packageManager` in `package.json`; CI uses the sam
 ## Layout
 
 - `src/routes/+page.svelte`: the whole app shell. Swipeable tabs (CSS scroll snap), bottom nav, Android back button, app lifecycle (load, Gist sync on leave, reminder rescheduling in an `$effect`, notification button handling).
-- `src/lib/components/`: tabs `TodayTab` (built from snippets; medication moves above hydration during a headache), `MedsTab` (10/20 rule, personal limits, how well each medication works, recent intakes, overuse limits; single days live in the calendar), `CalendarTab` (+ `DaySheet`), `InsightsTab` (sections Overview, Connections, Hydration, Patterns; `TimelineChart`, `ComparisonChart`). Sheets: `SettingsSheet`, `MedListSheet` and `DrinkListSheet` (the lists and the hydration goal, opened from Today, Meds and Settings), `ReportSheet`, `EditorSheet` (edit any episode, intake, drink or night), `VersionsSheet`. Cards: `PrognosisCard`, `WelcomeCard` (until the first entry). Shared: `Sheet`, `Toasts`, `Celebration`, `BarChart`, `IntensityPicker`, `RuleBadge`, `OrderButtons`.
+- `src/lib/components/`: tabs `TodayTab` (built from snippets; medication moves above hydration during a headache), `MedsTab` (10/20 rule, personal limits, how well each medication works, recent intakes, overuse limits; single days live in the calendar), `CalendarTab` (+ `DaySheet`), `InsightsTab` (sections Overview, Connections, Hydration, Patterns; `TimelineChart`, `ComparisonChart`). Sheets: `SettingsSheet`, `MedListSheet` and `DrinkListSheet` (the lists and the hydration goal, opened from Today, Meds and Settings), `ReportSheet`, `EditorSheet` (edit any episode, intake, drink or night), `VersionsSheet`. Cards: `PrognosisCard`, `WelcomeCard` (until the first entry). Shared: `Sheet` (optional `info` puts an (i) button next to the title), `InfoButton` and `InfoPopover` (explanations behind an (i) button), `CardHeading` (card title with an optional (i) button), `Toasts`, `Celebration`, `BarChart`, `IntensityPicker`, `RuleBadge`, `OrderButtons`.
 - Things go where they are used: list editing next to the list, reports in Insights, settings only for what has no better home.
 - `src/lib/db.ts`: Dexie schema, entity types (`Relief`, `Draft`), default medication and drink lists, `seed`.
 - `src/lib/medication.ts`: medication classes (`CATEGORIES`, `MedCategory`, `ACUTE_CATEGORIES`), the ICHD-3 limits, `guessCategory`, `fromMedication`. `drinks.ts`: `CAFFEINE`, `hydrationMl`, `fromPreset`. `colors.ts`: `MED_COLORS`, `medColor`, `intakeColor`.
@@ -40,7 +40,7 @@ The Bun version is pinned in `packageManager` in `package.json`; CI uses the sam
 - `src/lib/sleep.ts` and `android/.../ScreenEventsPlugin.java`: sleep estimate from Android's screen on/off events (`UsageStatsManager`, usage access granted by the user). `estimateNight` is pure and tested; `syncNights` recomputes the last 8 nights on app start and return, but never a night the user edited (`source: 'manual'`). Moving the emulator clock rewrites usage event times, so a night cannot be simulated there; test the algorithm with unit tests.
 - `src/lib/weather.ts`: Open-Meteo place search and daily weather. `pressureDrop` is how far the daily mean pressure fell from the day before; `isPressureDrop` (more than 5 hPa) follows Kimoto et al. 2011 and is the only place that decides what a pressure drop is. Keep thresholds that come from studies with the study's own measure. (archive for old days, forecast API for the last two weeks and tomorrow), stored in the `weather` table by day. Not part of backups; it can always be fetched again. `updateWeather()` in the store syncs at most every 3 hours.
 - `src/lib/i18n.svelte.ts`: `t()`, date formatting `fmt()`, numbers in the app language `num()`, tag and relief labels. The strings live in `src/lib/i18n/en.ts` and `de.ts`.
-- `src/lib/ui.svelte.ts`: toasts with undo, haptics, sheet stack, theme, datetime-local helpers.
+- `src/lib/ui.svelte.ts`: toasts with undo, haptics, sheet stack, the open explanation (`showInfo`), theme, datetime-local helpers.
 - `src/lib/editor.svelte.ts`: which entry the editor sheet shows; `openNight` opens the sleep editor.
 - `src/lib/demo.ts`: 90 days of seeded demo data (Settings → Load demo data).
 - `android/`: Capacitor project. Hand-edited: `app/build.gradle` (version and signing from the environment), `AndroidManifest.xml` (`USE_EXACT_ALARM`, `PACKAGE_USAGE_STATS`), `MainActivity.java` (registers `ScreenEventsPlugin`), `res/drawable/ic_stat_headlog.xml` (notification icon). Icons and splash images are generated.
@@ -76,9 +76,11 @@ The Bun version is pinned in `packageManager` in `package.json`; CI uses the sam
 
 ### UI
 
-- Colors, radii and type sizes are tokens in `src/app.css` (`bg-surface`, `text-pain`, `text-med`, `text-water`, `text-2xs`, …). Use the `card`, `press`, `tabular` utilities.
+- Colors, radii and type sizes are tokens in `src/app.css` (`bg-surface`, `text-pain`, `text-med`, `text-water`, `text-caption`, `text-axis`, …). The type scale is raised for reading on a phone: `text-sm` is body text (16 px), `text-xs` secondary text (14 px), `text-caption` the smallest text (12 px), `text-axis` only for chart axes. Use the `card`, `press`, `tabular` utilities.
+- Touch targets are at least 44 px (`size-11`, `min-h-11`); icons in buttons 20–24 px.
+- Text that explains rather than labels goes behind an (i) button: `InfoButton`, `CardHeading info=…` or `Sheet info=…`. Keep short labels and instructions needed to act on the screen.
 - Frequent actions are one tap. Reversible actions show an undo toast instead of a confirmation; `confirm()` only for replacing or deleting all data.
-- Sheets open through `openSheet(id)` with an id from `SheetId`; the Android back button closes the newest sheet first.
+- Sheets open through `openSheet(id)` with an id from `SheetId`; the Android back button closes an open explanation first, then the newest sheet.
 - Every string goes through `t()` and needs an English and a German entry; `de` is typed against `en`, so a missing key is a type error. Dates go through `fmt()`, written German-style (`d. MMM`); English drops the dot.
 
 ## Testing

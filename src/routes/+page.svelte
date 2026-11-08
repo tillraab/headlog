@@ -8,6 +8,7 @@
   import MedListSheet from '$lib/components/MedListSheet.svelte';
   import Celebration from '$lib/components/Celebration.svelte';
   import EditorSheet from '$lib/components/EditorSheet.svelte';
+  import InfoPopover from '$lib/components/InfoPopover.svelte';
   import InsightsTab from '$lib/components/InsightsTab.svelte';
   import MedsTab from '$lib/components/MedsTab.svelte';
   import SettingsSheet from '$lib/components/SettingsSheet.svelte';
@@ -109,13 +110,13 @@
 
 <div class="flex h-dvh flex-col">
   <header class="safe-top border-b border-line/60 bg-bg">
-    <div class="mx-auto flex h-12 max-w-lg items-center justify-between px-4">
-      <span class="flex items-center gap-2 font-semibold tracking-tight">
-        <img src="favicon.svg" alt="" class="size-6" />
+    <div class="mx-auto flex h-14 max-w-lg items-center justify-between px-4">
+      <span class="flex items-center gap-2 text-lg font-semibold tracking-tight">
+        <img src="favicon.svg" alt="" class="size-7" />
         HeadLog
       </span>
-      <button class="press -mr-2 grid size-10 place-items-center rounded-full text-muted" onclick={() => openSheet('settings')} aria-label={t('set.title')}>
-        <Settings size={20} />
+      <button class="press -mr-2 grid size-11 place-items-center rounded-full text-muted" onclick={() => openSheet('settings')} aria-label={t('set.title')}>
+        <Settings size={24} />
       </button>
     </div>
   </header>
@@ -139,15 +140,15 @@
     <div class="mx-auto grid max-w-lg grid-cols-4">
       {#each tabs as tab, i (i)}
         <button
-          class="press flex flex-col items-center gap-0.5 py-2 text-caption font-medium {active === i ? 'text-primary' : 'text-muted'}"
+          class="press flex flex-col items-center gap-0.5 py-2 text-xs font-medium {active === i ? 'text-primary' : 'text-muted'}"
           onclick={() => {
             tap();
             show(i);
           }}
           aria-current={active === i ? 'page' : undefined}
         >
-          <span class="grid h-7 w-14 place-items-center rounded-full transition-colors {active === i ? 'bg-primary/12' : ''}">
-            <tab.icon size={20} strokeWidth={active === i ? 2.4 : 2} />
+          <span class="grid h-8 w-16 place-items-center rounded-full transition-colors {active === i ? 'bg-primary/12' : ''}">
+            <tab.icon size={24} strokeWidth={active === i ? 2.4 : 2} />
           </span>
           {tab.label}
         </button>
@@ -161,5 +162,6 @@
 <MedListSheet />
 <DrinkListSheet />
 <VersionsSheet />
+<InfoPopover />
 <Toasts />
 <Celebration />

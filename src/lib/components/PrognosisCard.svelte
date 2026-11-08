@@ -8,6 +8,7 @@
   import { openNight } from '$lib/editor.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
+  import InfoButton from './InfoButton.svelte';
   import TrafficLight, { LIGHT_COLOR } from './TrafficLight.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
 
@@ -75,52 +76,55 @@
 </script>
 
 {#snippet factor(status: Status, title: string, facts: string[], why: string, rule: string, action?: () => void)}
-  <div class="flex gap-2.5">
-    <span class="mt-1 size-2.5 shrink-0 rounded-full" style:background-color={STATUS[status]}></span>
-    <div class="flex flex-1 flex-col gap-0.5">
-      <p class="flex items-center gap-2">
-        <span class="font-medium">{title}</span>
-        <span class="rounded-full px-2 py-0.5 text-2xs font-semibold" style:color={STATUS[status]} style:background-color="color-mix(in oklab, {STATUS[status]} 14%, transparent)">
+  <div class="flex gap-3">
+    <span class="mt-2 size-3 shrink-0 rounded-full" style:background-color={STATUS[status]}></span>
+    <div class="flex min-w-0 flex-1 flex-col gap-1">
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span class="font-semibold">{title}</span>
+        <span class="rounded-full px-2 py-0.5 text-xs font-semibold" style:color={STATUS[status]} style:background-color="color-mix(in oklab, {STATUS[status]} 14%, transparent)">
           {t(`prog.status.${status}`)}
         </span>
-        {#if action}
-          <button class="press ml-auto grid size-6 place-items-center rounded-full text-muted" onclick={action} aria-label={title}><Pencil size={12} /></button>
-        {/if}
-      </p>
+        <span class="ml-auto flex">
+          <InfoButton {title} text={`${t('prog.ruleLabel')} ${rule}`} />
+          {#if action}
+            <button class="press -my-2 grid size-11 place-items-center rounded-full text-muted" onclick={action} aria-label={title}><Pencil size={20} /></button>
+          {/if}
+        </span>
+      </div>
       {#each facts.filter(Boolean) as fact, i (i)}<p class="text-xs text-muted tabular">{fact}</p>{/each}
-      <p class="text-xs"><span class="font-semibold">{t('prog.why')}</span> {why}</p>
-      <p class="text-2xs text-muted">{t('prog.ruleLabel')} {rule}</p>
+      <p><span class="font-semibold">{t('prog.why')}</span> {why}</p>
     </div>
   </div>
 {/snippet}
 
 <section class="card overflow-hidden">
-  <button class="press flex w-full flex-col gap-3 p-4 pb-3 text-left" onclick={toggle} aria-expanded={open}>
-    <div class="flex items-center gap-3">
+  <div class="flex items-start gap-1 pr-2">
+    <button class="press flex min-w-0 flex-1 items-center gap-3 p-4 pr-1 pb-3 text-left" onclick={toggle} aria-expanded={open}>
       <TrafficLight light={p.light} />
-      <span class="flex-1">
+      <span class="min-w-0 flex-1">
         <span class="block text-xs text-muted">{t('prog.title')}</span>
-        <span class="block font-semibold" style:color={LIGHT_COLOR[p.light]}>{t(`prog.${p.light}`)}</span>
+        <span class="block text-lg font-semibold" style:color={LIGHT_COLOR[p.light]}>{t(`prog.${p.light}`)}</span>
         <span class="block text-xs text-muted">{t('prog.count', { n: p.bad })}</span>
       </span>
-      <ChevronDown size={18} class="shrink-0 text-muted transition-transform {open ? 'rotate-180' : ''}" />
-    </div>
-  </button>
+      <ChevronDown size={22} class="shrink-0 text-muted transition-transform {open ? 'rotate-180' : ''}" />
+    </button>
+    <InfoButton class="mt-4" title={t('prog.title')} text={t('prog.how')} />
+  </div>
   <div class="grid grid-cols-3 gap-2 px-4 pb-4">
     {#each tiles as tile (tile.label)}
-      <button class="press flex flex-col gap-0.5 rounded-xl bg-surface-2 px-2.5 py-2 text-left" onclick={tile.onclick}>
-        <span class="flex items-center gap-1.5 text-xs text-muted">
-          <span class="size-2 rounded-full" style:background-color={STATUS[tile.status]}></span>
-          {tile.icon} {tile.label}
+      <button class="press flex min-w-0 flex-col gap-0.5 rounded-xl bg-surface-2 px-2.5 py-2 text-left" onclick={tile.onclick}>
+        <span class="flex items-center justify-between">
+          <span class="text-lg leading-none">{tile.icon}</span>
+          <span class="size-2.5 rounded-full" style:background-color={STATUS[tile.status]}></span>
         </span>
-        <span class="text-sm font-semibold tabular">{tile.value}</span>
+        <span class="truncate text-xs text-muted">{tile.label}</span>
+        <span class="font-semibold whitespace-nowrap tabular">{tile.value}</span>
       </button>
     {/each}
   </div>
 
   {#if open}
-    <div class="flex flex-col gap-3 px-4 pb-4 text-sm">
-      <p class="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('prog.how')}</p>
+    <div class="flex flex-col gap-4 px-4 pb-4 text-sm">
 
       {@render factor(
         p.weather.status,
@@ -188,7 +192,7 @@
         )}
       {/if}
 
-      <p class="text-xs text-muted">💡 {tip}</p>
+      <p class="rounded-xl bg-surface-2 p-3">💡 {tip}</p>
     </div>
   {/if}
 </section>

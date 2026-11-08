@@ -1,11 +1,18 @@
 <script lang="ts">
   import { X } from '@lucide/svelte';
   import type { Snippet } from 'svelte';
+  import InfoButton from './InfoButton.svelte';
   import { fade, fly } from 'svelte/transition';
   import { t } from '$lib/i18n.svelte';
   import { closeSheet, sheets, type SheetId } from '$lib/ui.svelte';
 
-  let { id, title, full = false, children }: { id: SheetId; title: string; full?: boolean; children: Snippet } = $props();
+  let {
+    id,
+    title,
+    full = false,
+    info,
+    children
+  }: { id: SheetId; title: string; full?: boolean; info?: string | string[]; children: Snippet } = $props();
 
   const open = $derived(sheets.stack.includes(id));
   const z = $derived(50 + sheets.stack.indexOf(id) * 2);
@@ -27,10 +34,11 @@
     aria-modal="true"
     aria-label={title}
   >
-    <div class="flex items-center justify-between px-5 pt-4 pb-2 {full ? 'safe-top' : ''}">
-      <h2 class="text-lg font-semibold">{title}</h2>
-      <button class="press -mr-2 grid size-10 place-items-center rounded-full hover:bg-surface-2" onclick={() => closeSheet(id)} aria-label={t('a11y.close')}>
-        <X size={20} />
+    <div class="flex items-center gap-1 px-5 pt-4 pb-2 {full ? 'safe-top' : ''}">
+      <h2 class="min-w-0 text-lg font-semibold">{title}</h2>
+      {#if info}<InfoButton {title} text={info} />{/if}
+      <button class="press -mr-2 ml-auto grid size-11 shrink-0 place-items-center rounded-full hover:bg-surface-2" onclick={() => closeSheet(id)} aria-label={t('a11y.close')}>
+        <X size={24} />
       </button>
     </div>
     <div class="overflow-y-auto px-5 pb-6">

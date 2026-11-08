@@ -9,6 +9,7 @@
   import { clock, data } from '$lib/store.svelte';
   import { isPressureDrop, PRESSURE_DROP_HPA } from '$lib/weather';
   import BarChart from './BarChart.svelte';
+  import CardHeading from './CardHeading.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
   import ReportSheet from './ReportSheet.svelte';
   import HourTimeline from './HourTimeline.svelte';
@@ -121,15 +122,15 @@
 </script>
 
 {#snippet heading(title: string)}
-  <h2 class="mt-3 -mb-1 text-xs font-semibold tracking-wide text-muted uppercase">{title}</h2>
+  <h2 class="mt-3 -mb-1 text-sm font-semibold tracking-wide text-muted uppercase">{title}</h2>
 {/snippet}
 
 <div class="flex flex-col gap-3 pb-6">
   <header class="flex flex-col gap-2 pt-2">
-    <h1 class="text-2xl font-semibold">{t('tab.insights')}</h1>
-    <div class="grid grid-cols-5 rounded-full bg-surface-2 p-1 text-xs font-medium">
+<h1 class="text-3xl font-semibold">{t('tab.insights')}</h1>
+    <div class="flex rounded-full bg-surface-2 p-1 text-xs font-medium">
       {#each PERIODS as p (p)}
-        <button class="press rounded-full py-1.5 {span === p ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => (span = p)}>
+        <button class="press min-h-10 flex-auto rounded-full px-1 py-1.5 whitespace-nowrap {span === p ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => (span = p)}>
           {t('ins.days', { n: p })}
         </button>
       {/each}
@@ -137,18 +138,18 @@
   </header>
 
   <button
-    class="press flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-fg"
+    class="press flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 font-semibold text-primary-fg"
     onclick={() => {
       reportMonths = REPORT_MONTHS[span];
       openSheet('report');
     }}
   >
-    <FileText size={18} />
+    <FileText size={22} />
     {t('pdf.insightsButton', { n: REPORT_MONTHS[span] })}
   </button>
 
   {#if !hasData}
-    <p class="card p-6 text-center text-sm text-muted">{t('ins.noData')}</p>
+    <p class="card p-6 text-center text-muted">{t('ins.noData')}</p>
   {:else}
     {@render heading(t('ins.overview'))}
     <section class="grid grid-cols-3 gap-2">
@@ -161,8 +162,8 @@
         { label: t('sleep.avg'), value: sleepAvg === null ? '–' : formatDuration(sleepAvg * HOUR), cls: 'text-primary' }
       ] as tile (tile.label)}
         <div class="card p-3">
-          <p class="text-lg font-semibold tabular {tile.cls}">{tile.value}</p>
-          <p class="text-xs leading-tight text-muted">{tile.label}</p>
+          <p class="text-xl font-semibold tabular {tile.cls}">{tile.value}</p>
+          <p class="text-xs leading-tight hyphens-auto text-muted">{tile.label}</p>
         </div>
       {/each}
     </section>
@@ -170,46 +171,43 @@
     {@render heading(t('ins.connections'))}
     <section class="card p-4">
       {#if span <= HOUR_VIEW_DAYS}
-        <h2 class="text-sm font-semibold">{t('hv.title')}</h2>
-        <p class="mb-3 text-xs text-muted">{t('hv.hint')}</p>
+        <CardHeading class="mb-3" title={t('hv.title')} info={t('hv.hint')} />
         <HourTimeline {rows} keys={chartKeys} now={clock.now} />
       {:else}
-        <h2 class="text-sm font-semibold">{t('tl.title')}</h2>
-        <p class="mb-3 text-xs text-muted">{t('tl.hint')}</p>
+        <CardHeading class="mb-3" title={t('tl.title')} info={t('tl.hint')} />
         <TimelineChart {rows} keys={chartKeys} forecast={chartKeys.length - keys.length} bands={series.headache.map((v) => v > 0)} details={dayDetails} />
       {/if}
     </section>
 
     <section class="card p-4">
-      <h2 class="text-sm font-semibold">{t('cmp.title')}</h2>
-      <p class="mb-3 text-xs text-muted">{t('cmp.hint')}</p>
+      <CardHeading class="mb-3" title={t('cmp.title')} info={t('cmp.hint')} />
       {#if pairs.length}
         <ComparisonChart {pairs} headacheLabel={t('cmp.headache')} clearLabel={t('cmp.clear')} />
       {:else}
-        <p class="text-sm text-muted">{t('cmp.empty')}</p>
+        <p class="text-muted">{t('cmp.empty')}</p>
       {/if}
     </section>
 
     {@render heading(t('today.water'))}
     <section class="card grid grid-cols-3 gap-2 p-4">
       <div>
-        <p class="text-lg font-semibold text-water tabular">🔥 {streak.current}</p>
+        <p class="text-xl font-semibold text-water tabular">🔥 {streak.current}</p>
         <p class="text-xs leading-tight text-muted">{t('streak.label')}<br />{t('streak.best', { n: streak.best })}</p>
       </div>
       <div>
-        <p class="text-lg font-semibold tabular">{caffeine === null ? '–' : `${Math.round(caffeine)} mg`}</p>
+        <p class="text-xl font-semibold tabular">{caffeine === null ? '–' : `${Math.round(caffeine)} mg`}</p>
         <p class="text-xs leading-tight text-muted">{t('drink.caffeineAvg')}</p>
       </div>
       <div>
-        <p class="text-lg font-semibold tabular">{alcohol}</p>
+        <p class="text-xl font-semibold tabular">{alcohol}</p>
         <p class="text-xs leading-tight text-muted">{t('drink.alcoholDays')}</p>
       </div>
     </section>
 
     {@render heading(t('ins.patterns'))}
     <section class="card p-4">
-      <h2 class="mb-1 text-sm font-semibold">{t('ins.monthly')}</h2>
-      <div class="mb-1 flex gap-4 text-xs text-muted">
+      <CardHeading class="mb-1" title={t('ins.monthly')} />
+      <div class="mb-2 flex flex-wrap gap-x-4 text-xs text-muted">
         <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-pain"></span>{t('cal.headacheDays')}</span>
         <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-med"></span>{t('cal.medDays')}</span>
       </div>
@@ -226,22 +224,22 @@
 
     {#if stats.episodes}
       <section class="card p-4">
-        <h2 class="mb-1 text-sm font-semibold">{t('ins.weekday')}</h2>
+        <CardHeading class="mb-1" title={t('ins.weekday')} />
         <BarChart height={72} bars={stats.weekday.map((v, i) => ({ label: weekdayShort()[i], value: v }))} />
       </section>
 
       <section class="card p-4">
-        <h2 class="mb-1 text-sm font-semibold">{t('ins.timeOfDay')}</h2>
+        <CardHeading class="mb-1" title={t('ins.timeOfDay')} />
         <BarChart height={72} bars={stats.timeOfDay.map((v, i) => ({ label: `${String(i * 3).padStart(2, '0')}`, value: v }))} />
       </section>
     {/if}
 
     {#if stats.tags.length}
       <section class="card p-4">
-        <h2 class="mb-3 text-sm font-semibold">{t('ins.tags')}</h2>
+        <CardHeading class="mb-3" title={t('ins.tags')} />
         <ul class="flex flex-col gap-2">
           {#each stats.tags as tag (tag.tag)}
-            <li class="flex items-center gap-3 text-sm">
+            <li class="flex items-center gap-3">
               <span class="w-36 truncate">{tagLabel(tag.tag)}</span>
               <div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
                 <div class="h-full rounded-full bg-primary" style:width="{(tag.count / maxTag) * 100}%"></div>

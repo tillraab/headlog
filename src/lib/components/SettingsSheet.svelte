@@ -12,6 +12,7 @@
   import type { Theme } from '$lib/settings';
   import { applyTheme, openSheet, toast } from '$lib/ui.svelte';
   import HourSelect from './HourSelect.svelte';
+  import InfoButton from './InfoButton.svelte';
   import Sheet from './Sheet.svelte';
 
   let fileInput = $state<HTMLInputElement>();
@@ -184,20 +185,22 @@
 </script>
 
 {#snippet group(title: string, hint?: string)}
-  <h3 class="mt-6 mb-1 text-xs font-semibold tracking-wide text-muted uppercase">{title}</h3>
-  {#if hint}<p class="mb-2 text-xs text-muted">{hint}</p>{/if}
+  <div class="mt-6 mb-2 flex min-h-6 items-center gap-1">
+    <h3 class="text-sm font-semibold tracking-wide text-muted uppercase">{title}</h3>
+    {#if hint}<InfoButton {title} text={hint} />{/if}
+  </div>
 {/snippet}
 
 <Sheet id="settings" title={t('set.title')} full>
   {@render group(t('set.lists'))}
   <div class="card flex flex-col p-1 text-body">
-    <button class="press flex items-center justify-between rounded-xl px-3 py-3 text-left" onclick={() => openSheet('medList')}>
+    <button class="press flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-3 text-left" onclick={() => openSheet('medList')}>
       <span>💊 {t('set.meds')}</span>
-      <span class="flex items-center gap-1 text-sm text-muted">{data.medications.length}<ChevronRight size={16} /></span>
+      <span class="flex items-center gap-1 text-muted">{data.medications.length}<ChevronRight size={20} /></span>
     </button>
-    <button class="press flex items-center justify-between rounded-xl px-3 py-3 text-left" onclick={() => openSheet('drinkList')}>
+    <button class="press flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-3 text-left" onclick={() => openSheet('drinkList')}>
       <span>💧 {t('set.drinks')}</span>
-      <span class="flex items-center gap-1 text-sm text-muted">{t('set.goalShort', { goal: formatLiters(data.settings.waterGoalMl) })}<ChevronRight size={16} /></span>
+      <span class="flex items-center gap-1 text-muted">{t('set.goalShort', { goal: formatLiters(data.settings.waterGoalMl) })}<ChevronRight size={20} /></span>
     </button>
   </div>
   {@render group(t('set.general'))}
@@ -208,19 +211,19 @@
         {#each [6, 8, 10, 12, 15] as n (n)}<option value={n}>{n}</option>{/each}
       </select>
     </label>
-    <div class="flex items-center justify-between gap-4 text-body">
+    <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-body">
       {t('set.language')}
-      <div class="flex rounded-full bg-surface-2 p-1 text-sm">
+      <div class="flex rounded-full bg-surface-2 p-1">
         {#each [['de', 'Deutsch'], ['en', 'English']] as [code, name] (code)}
-          <button class="press rounded-full px-3 py-1 {i18n.lang === code ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => changeLang(code as Lang)}>{name}</button>
+          <button class="press min-h-10 rounded-full px-3 py-1 {i18n.lang === code ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => changeLang(code as Lang)}>{name}</button>
         {/each}
       </div>
     </div>
-    <div class="flex items-center justify-between gap-4 text-body">
+    <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-body">
       {t('set.theme')}
-      <div class="flex rounded-full bg-surface-2 p-1 text-sm">
+      <div class="flex rounded-full bg-surface-2 p-1">
         {#each [['system', t('set.themeSystem')], ['light', t('set.themeLight')], ['dark', t('set.themeDark')]] as [value, name] (value)}
-          <button class="press rounded-full px-3 py-1 {data.settings.theme === value ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => setTheme(value as Theme)}>
+          <button class="press min-h-10 rounded-full px-3 py-1 {data.settings.theme === value ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => setTheme(value as Theme)}>
             {name}
           </button>
         {/each}
@@ -264,8 +267,8 @@
           {#each [1, 1.5, 2, 3, 4] as n (n)}<option value={n}>{duration(n * 60)}</option>{/each}
         </select>
       </label>
-      <div class="flex items-center justify-between gap-4 text-body">
-        {t('rem.drinkWindow')}
+      <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-body">
+        <span class="flex items-center gap-1">{t('rem.drinkWindow')}<InfoButton title={t('rem.drinkWindow')} text={t('rem.drinkHint')} /></span>
         <span class="flex shrink-0 items-center gap-1">
           <select class="w-24" aria-label={t('rem.drinkFrom')} value={data.settings.drinkReminder.from} onchange={(e) => setDrinkReminder({ from: Number(e.currentTarget.value) })}>
             {#each [5, 6, 7, 8, 9, 10, 11, 12] as h (h)}<option value={h}>{hourLabel(h)}</option>{/each}
@@ -276,18 +279,16 @@
           </select>
         </span>
       </div>
-      <p class="-mt-2 text-xs text-muted">{t('rem.drinkHint')}</p>
     {/if}
     <label class="flex items-center justify-between gap-4 text-body">
-      {t('rem.enabled')}
+      <span class="flex items-center gap-1">{t('rem.enabled')}<InfoButton title={t('rem.enabled')} text={t('rem.hint')} /></span>
       <input
         type="checkbox"
-        class="size-6 accent-primary"
+        class="size-6 shrink-0 accent-primary"
         checked={data.settings.reminders.enabled}
         onchange={(e) => toggleReminders(e.currentTarget)}
       />
     </label>
-    <p class="-mt-2 text-xs text-muted">{t('rem.hint')}</p>
     {#if data.settings.reminders.enabled}
       {#each [['noon', [10, 11, 12, 13, 14, 15]], ['evening', [16, 17, 18, 19, 20, 21]]] as const as [field, hours] (field)}
         <label class="flex items-center justify-between gap-4 text-body">
@@ -307,7 +308,7 @@
   {@render group(t('sleep.title'), t('sleep.hint'))}
   <div class="card flex flex-col gap-3 p-4 text-body">
     {#if access && !access.supported}
-      <p class="text-sm text-muted">{t('sleep.unsupported')}</p>
+      <p class="text-muted">{t('sleep.unsupported')}</p>
     {:else}
       <label class="flex items-center justify-between gap-4">
         {t('sleep.setting')}
@@ -322,7 +323,7 @@
         />
       </label>
       {#if data.settings.sleep.enabled && access?.granted}
-        <p class="text-xs text-muted">{data.sleep.size ? t('sleep.nights', { n: data.sleep.size }) : t('sleep.none')}</p>
+        <p class="text-sm text-muted">{data.sleep.size ? t('sleep.nights', { n: data.sleep.size }) : t('sleep.none')}</p>
       {/if}
       {#if data.settings.sleep.enabled}
         <label class="flex items-center justify-between gap-4">
@@ -331,7 +332,7 @@
         </label>
       {/if}
       {#if data.settings.sleep.enabled && access && !access.granted}
-        <p class="text-xs text-muted">{t('sleep.allowHint')}</p>
+        <p class="text-sm text-muted">{t('sleep.allowHint')}</p>
         <button class="press btn-primary" onclick={() => openUsageAccessSettings()}>
           {t('sleep.allow')}
         </button>
@@ -354,7 +355,7 @@
           }}
         />
       </label>
-      <p class="text-xs text-muted">{t('weather.days', { n: data.weather.size })}</p>
+      <p class="text-sm text-muted">{t('weather.days', { n: data.weather.size })}</p>
     {/if}
     <form
       class="flex gap-2"
@@ -364,7 +365,7 @@
       }}
     >
       <input placeholder={data.settings.weather.place ? t('weather.change') : t('weather.search')} bind:value={placeQuery} />
-      <button class="press shrink-0 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-fg disabled:opacity-50" disabled={!placeQuery.trim()}>
+      <button class="press min-h-11 shrink-0 rounded-xl bg-primary px-4 font-semibold text-primary-fg disabled:opacity-50" disabled={!placeQuery.trim()}>
         {t('weather.find')}
       </button>
     </form>
@@ -372,21 +373,21 @@
       <ul class="flex flex-col">
         {#each places as place, i (i)}
           <li>
-            <button class="press w-full rounded-xl px-3 py-2 text-left hover:bg-surface-2" onclick={() => choosePlace(place)}>
-              <span class="font-medium">{place.name}</span> <span class="text-xs text-muted">{place.region}</span>
+            <button class="press min-h-11 w-full rounded-xl px-3 py-2 text-left hover:bg-surface-2" onclick={() => choosePlace(place)}>
+              <span class="font-medium">{place.name}</span> <span class="text-sm text-muted">{place.region}</span>
             </button>
           </li>
         {/each}
       </ul>
     {/if}
-    {#if placeError}<p class="text-xs text-over">{placeError}</p>{/if}
+    {#if placeError}<p class="text-sm text-over">{placeError}</p>{/if}
   </div>
 
   {@render group(t('sync.title'), t('sync.hint'))}
   <div class="card flex flex-col gap-3 p-4 text-body">
     {#if sync.link}
-      {#if sync.link.paused}<p class="rounded-xl bg-med-soft p-3 text-sm">{t('sync.paused')}</p>{/if}
-      <p class="text-sm text-muted">
+      {#if sync.link.paused}<p class="rounded-xl bg-med-soft p-3">{t('sync.paused')}</p>{/if}
+      <p class="text-muted">
         {sync.link.lastSync ? t('sync.last', { time: fmt(sync.link.lastSync, 'd. MMM HH:mm') }) : t('sync.never')}
       </p>
       <div class="flex flex-wrap gap-2">
@@ -395,18 +396,18 @@
           disabled={sync.busy}
           onclick={backupNow}>{t('sync.now')}</button
         >
-        <button class="press rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium disabled:opacity-50" disabled={sync.busy} onclick={restoreGist}>
+        <button class="press min-h-11 rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium disabled:opacity-50" disabled={sync.busy} onclick={restoreGist}>
           {t('sync.restore')}
         </button>
-        <button class="press rounded-xl px-4 py-2.5 text-sm font-medium text-over" onclick={disconnect}>{t('sync.disconnect')}</button>
+        <button class="press min-h-11 rounded-xl px-4 py-2.5 text-sm font-medium text-over" onclick={disconnect}>{t('sync.disconnect')}</button>
       </div>
-      <button class="press self-start text-sm font-medium text-primary underline underline-offset-4" onclick={() => openSheet('versions')}>
+      <button class="press min-h-11 self-start font-medium text-primary underline underline-offset-4" onclick={() => openSheet('versions')}>
         {t('versions.open')}
       </button>
     {:else}
       <input type="password" autocomplete="off" placeholder="github_pat_…" bind:value={token} />
-      <div class="flex items-center justify-between gap-2">
-        <a class="text-sm text-primary underline underline-offset-4" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <a class="text-primary underline underline-offset-4" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">
           {t('sync.tokenLink')}
         </a>
         <button
@@ -416,19 +417,19 @@
         >
       </div>
     {/if}
-    {#if sync.error}<p class="text-xs text-over">{sync.error}</p>{/if}
+    {#if sync.error}<p class="text-sm text-over">{sync.error}</p>{/if}
   </div>
 
   {@render group(t('set.backup'), t('set.backupHint'))}
   <div class="card grid grid-cols-2 gap-2 p-4">
     <button class="press btn-primary" onclick={exportJson}>{t('set.export')}</button>
-    <button class="press rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium" onclick={() => fileInput?.click()}>{t('set.import')}</button>
+    <button class="press min-h-11 rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium" onclick={() => fileInput?.click()}>{t('set.import')}</button>
   </div>
 
   <details class="group mt-6">
-    <summary class="flex cursor-pointer list-none items-center gap-1 text-xs font-semibold tracking-wide text-muted uppercase">
+    <summary class="flex min-h-11 cursor-pointer list-none items-center gap-1 text-sm font-semibold tracking-wide text-muted uppercase">
       {t('set.advanced')}
-      <ChevronDown size={14} class="transition-transform group-open:rotate-180" />
+      <ChevronDown size={20} class="transition-transform group-open:rotate-180" />
     </summary>
     <div class="card mt-2 flex flex-col p-1 text-body">
       <button class="press rounded-xl px-3 py-3 text-left" onclick={demo}>{t('set.demo')}</button>
@@ -447,5 +448,5 @@
     }}
   />
 
-  <p class="mt-6 text-center text-xs text-muted">{t('set.about', { v: __APP_VERSION__ })}</p>
+  <p class="mt-6 text-center text-sm text-muted">{t('set.about', { v: __APP_VERSION__ })}</p>
 </Sheet>
