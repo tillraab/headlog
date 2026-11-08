@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.26.3] - 2026-11-08
+
 ### Changed
 
 - The day charts (Insights over 30 days and more, the rolling medication count) show the selected day's values as coloured chips next to each chart heading, like the hour view, instead of a legend that could be cut off.
