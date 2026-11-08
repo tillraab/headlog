@@ -53,7 +53,9 @@
   });
 
   /** Fixed height for the detail box, so the charts below never move: date, value rows, two extra lines. */
-  const boxHeight = $derived(2.6 + Math.ceil(rows.length / 2) * 1.3 + (details ? 2.5 : 0));
+  /** One line of 1.25rem for the date and two for the details, so the box never changes height. */
+  const DETAIL_LINES = 2;
+  const boxHeight = $derived((1 + (details ? DETAIL_LINES : 0)) * 1.25 + 1);
 
   /** Weekly ticks up to 45 days, the 1st and 15th up to 120 days, otherwise the 1st of each month. */
   const ticks = $derived.by(() => {
@@ -83,26 +85,16 @@
 </script>
 
 <div class="flex flex-col gap-3">
-  <div class="overflow-hidden rounded-xl bg-surface-2 px-3 py-2 text-xs" style:height="{boxHeight}rem">
+  <div class="overflow-hidden rounded-xl bg-surface-2 px-3 py-2 text-xs leading-5" style:height="{boxHeight}rem">
     {#if selected === null}
       <p class="text-muted">{t('tl.tapHint')}</p>
     {:else}
-      <p class="mb-1 font-semibold">
+      <p class="truncate font-semibold">
         {fmt(keyToDate(keys[selected]), 'EEEE, d. MMMM')}
         {#if selected >= n - forecast}<span class="font-normal text-muted">· {t('tl.forecast')}</span>{/if}
       </p>
-      <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 tabular">
-        {#each rows as row (row.label)}
-          {@const v = row.values[selected]}
-          <span class="flex items-center gap-1.5">
-            <span class="size-2 shrink-0 rounded-full" style:background-color={row.color}></span>
-            <span class="text-muted">{row.label}:</span>
-            <span class="font-medium">{v === null ? '–' : row.format(v)}</span>
-          </span>
-        {/each}
-      </div>
-      {#each (details?.(selected) ?? []).slice(0, 2) as line, i (i)}
-        <p class="mt-0.5 truncate text-muted">{line}</p>
+      {#each (details?.(selected) ?? []).slice(0, DETAIL_LINES) as line, i (i)}
+        <p class="truncate text-muted">{line}</p>
       {/each}
     {/if}
   </div>
@@ -110,9 +102,15 @@
   {#each rows as row (row.label)}
     {@const s = scale(row)}
     <div class="flex flex-col gap-1">
-      <div class="flex flex-wrap items-baseline justify-between gap-x-2 pl-10 text-xs">
-        <span class="font-semibold">{row.label}</span>
-        <span class="ml-auto text-muted tabular">{row.summary}</span>
+      <div class="flex items-baseline gap-x-2 pl-10 text-xs whitespace-nowrap">
+        <span class="min-w-0 truncate font-semibold">{row.label}</span>
+        {#if selected !== null}
+          {@const v = row.values[selected]}
+          {@const color = row.colors?.[selected] ?? row.color}
+          <span class="ml-auto shrink-0 rounded-full px-2 font-semibold tabular" style:color style:background-color="color-mix(in oklab, {color} 16%, transparent)">{v === null ? '–' : row.format(v)}</span>
+        {:else}
+          <span class="ml-auto min-w-0 truncate text-muted tabular">{row.summary}</span>
+        {/if}
       </div>
       <div class="flex gap-1">
         <div class="flex h-12 w-9 shrink-0 flex-col justify-between text-right text-axis leading-none text-muted tabular">
