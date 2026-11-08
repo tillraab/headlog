@@ -27,7 +27,8 @@ const NOTES = {
  * Replaces all data with 90 plausible days that show every part of the app: headaches linked to
  * pressure drops, short nights, little to drink and wine, medication with ratings and a personal
  * limit, caffeine, sleep with wake breaks, a hydration streak, an open "did it help?" question,
- * and a pressure drop forecast for tomorrow with a short night today, so the forecast turns red.
+ * and pressure drops today and tomorrow with a short night today, so the forecast turns red and the
+ * evening warning fires.
  */
 export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lang: 'en' | 'de' = 'en') {
   await wipe(database);
@@ -61,8 +62,8 @@ export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lan
     const isToday = i === 0;
     const isTomorrow = i === -1;
 
-    // A front passes now and then: pressure falls for a day, then recovers. Tomorrow always brings one.
-    const front = isTomorrow || (!isToday && rnd() < 0.12);
+    // A front passes now and then: pressure falls for a day, then recovers. Today and tomorrow always bring one.
+    const front = isTomorrow || isToday || rnd() < 0.12;
     const before = pressure;
     pressure = front ? pressure - 7 - rnd() * 5 : pressure + (1016 - pressure) * 0.3 + (rnd() - 0.5) * 4;
     weather.push({
