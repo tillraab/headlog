@@ -172,6 +172,11 @@ describe('tomorrowRisk', () => {
     expect(r.factors).toEqual([]);
   });
 
+  it('lists every factor with its status', () => {
+    const r = tomorrowRisk(input({ drinks: [drink('2026-03-10T09:00', 1800), drink('2026-03-10T19:00', 500, { alcohol: true })] }), evening);
+    expect(r.statuses).toEqual([['weather', 'unknown'], ['hydration', 'ok'], ['alcohol', 'bad']]);
+  });
+
   it('ignores a short night and counts only what matters tomorrow', () => {
     const r = tomorrowRisk(input({ sleep: new Map([['2026-03-10', night(4)]]), drinks: [drink('2026-03-10T09:00', 1800)] }), evening);
     expect([r.light, r.factors]).toEqual(['green', []]);

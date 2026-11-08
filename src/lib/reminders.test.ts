@@ -106,7 +106,7 @@ describe('planDrinkReminders', () => {
 });
 
 describe('planRiskAlert', () => {
-  const risk = (light: 'green' | 'yellow' | 'red', factors: TomorrowRisk['factors'] = []) => () => ({ light, factors });
+  const risk = (light: 'green' | 'yellow' | 'red', factors: TomorrowRisk['factors'] = []) => () => ({ light, factors, statuses: [] });
 
   it('warns at the chosen hour when tomorrow is not green, naming the reasons', () => {
     const [alert] = planRiskAlert(at('2026-03-02T15:00'), { enabled: true, hour: 20 }, risk('red', ['weather', 'alcohol']));
@@ -152,7 +152,7 @@ describe('id ranges', () => {
       water: planReminders(now, on, 2000, 0),
       headache: planHeadacheChecks({ id: 1, start: now, end: null }, now, 1),
       drink: planDrinkReminders(now, { enabled: true, from: 5, to: 23, everyHours: 0.5 }, []),
-      risk: planRiskAlert(now, { enabled: true, hour: 20 }, () => ({ light: 'red', factors: ['weather', 'alcohol'] })),
+      risk: planRiskAlert(now, { enabled: true, hour: 20 }, () => ({ light: 'red', factors: ['weather', 'alcohol'], statuses: [] })),
       sleep: planSleepChecks(now, { enabled: true, hour: 9 }, new Map())
     };
     const outside = Object.entries(plans).flatMap(([kind, plan]) => {
