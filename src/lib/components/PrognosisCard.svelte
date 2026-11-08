@@ -157,13 +157,23 @@
   <button class="press mx-4 mb-4 flex w-[calc(100%-2rem)] min-w-0 items-center gap-2.5 rounded-xl bg-surface-2 px-3 py-2 text-left text-sm" onclick={toggle}>
     <span class="size-3 shrink-0 rounded-full" style:background-color={LIGHT_COLOR[tomorrow.light]}></span>
     <span class="shrink-0 font-semibold">{t('prog.tomorrow')}</span>
-    <span class="min-w-0 truncate text-muted">
-      {tomorrow.factors.length ? tomorrow.factors.map((k) => t(`prog.tomorrowFactor.${k}`)).join(', ') : t('prog.tomorrowFine')}
-    </span>
+    <span class="min-w-0 truncate" style:color={tomorrow.light === 'green' ? undefined : LIGHT_COLOR[tomorrow.light]}>{t(`prog.tomorrowLight.${tomorrow.light}`)}</span>
   </button>
 
   {#if open}
     <div class="flex flex-col gap-4 px-4 pb-4 text-sm">
+      <div class="flex flex-col gap-1.5 rounded-xl border border-surface-2 p-3">
+        <p class="font-semibold">{t('prog.tomorrowChecks')}</p>
+        {#each tomorrow.statuses as [key, status] (key)}
+          <p class="flex items-center gap-2 pl-1">
+            <span class="size-2 shrink-0 rounded-full" style:background-color={STATUS[status]}></span>
+            <span class="min-w-0 flex-1">{t(`prog.tomorrowCheck.${key}`)}</span>
+            <span class="shrink-0 text-xs font-semibold" style:color={STATUS[status]}>{t(`prog.status.${status}`)}</span>
+          </p>
+        {/each}
+        <p class="text-xs text-muted">{t('prog.tomorrowRule')}</p>
+      </div>
+
 
       {@render factor(
         p.weather.status,

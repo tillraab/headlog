@@ -135,6 +135,8 @@ export interface TomorrowRisk {
   light: Light;
   /** The unfavourable factors, in a fixed order. */
   factors: TomorrowFactor[];
+  /** Every factor with its status, in the same order. */
+  statuses: [TomorrowFactor, Status][];
 }
 
 /**
@@ -154,5 +156,5 @@ export function tomorrowRisk(input: PrognosisInput, at: number): TomorrowRisk {
     ['alcohol', !drinks.some((d) => d.alcohol) ? 'unknown' : alcoholDays(drinks).has(today) ? 'bad' : 'ok']
   ];
   const factors = statuses.filter(([, s]) => s === 'bad').map(([k]) => k);
-  return { light: factors.length >= 2 ? 'red' : factors.length === 1 ? 'yellow' : 'green', factors };
+  return { light: factors.length >= 2 ? 'red' : factors.length === 1 ? 'yellow' : 'green', factors, statuses };
 }
