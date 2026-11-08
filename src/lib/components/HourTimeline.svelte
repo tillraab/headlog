@@ -83,7 +83,7 @@
       { key: 'headache', value: episode ? `${episode.intensity}/10` : '–' },
       { key: 'hydration', value: ml === null ? '–' : formatLiters(ml) },
       { key: 'sleep', value: sleeping ? t('hv.asleep') : data.sleep.size && shown <= now ? t('hv.awake') : '–' },
-      { key: 'pressure', value: weather ? `${Math.round(weather.value)} hPa` : '–' }
+      { key: 'pressure', value: weather ? String(Math.round(weather.value)) : '–' }
     ] as const;
     const near = (time: number) => Math.abs(time - shown) <= NEAR;
     const drinks = data.drinks.filter((d) => near(d.time)).sort((a, b) => a.time - b.time);
