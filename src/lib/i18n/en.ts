@@ -112,6 +112,7 @@ export const en = {
   'prog.stable': 'stable',
   'prog.today': 'Today',
   'prog.tomorrow': 'Tomorrow',
+  'prog.tomorrowFine': 'looks fine so far',
   'prog.yesterday': 'Yesterday',
   'prog.hydrationToday': 'Today so far {ml}, by now {expected} would be on track',
   'prog.hydrationYesterday': 'Yesterday {ml} of {goal}',

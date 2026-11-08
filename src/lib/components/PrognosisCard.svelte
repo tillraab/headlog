@@ -3,7 +3,7 @@
   import { dayKey, formatDuration, formatLiters, hm, HOUR } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
   import { awakeMs } from '$lib/sleep';
-  import { badFactors, prognosis, prognosisInput, type Status } from '$lib/prognosis';
+  import { badFactors, prognosis, prognosisInput, tomorrowRisk, type Status } from '$lib/prognosis';
   import { LOW_HYDRATION, MIN_SLEEP_EFFICIENCY, SHORT_SLEEP_HOURS } from '$lib/thresholds';
   import { openNight } from '$lib/editor.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -20,6 +20,9 @@
   );
 
   const toggle = () => (open = !open);
+
+  /** Tomorrow's outlook as it stands now, the same rule as the evening warning. */
+  const tomorrow = $derived(tomorrowRisk(prognosisInput(data), clock.now));
 
   const STATUS: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
 
@@ -150,6 +153,14 @@
       </button>
     {/each}
   </div>
+
+  <button class="press mx-4 mb-4 flex w-[calc(100%-2rem)] min-w-0 items-center gap-2.5 rounded-xl bg-surface-2 px-3 py-2 text-left text-sm" onclick={toggle}>
+    <span class="size-3 shrink-0 rounded-full" style:background-color={LIGHT_COLOR[tomorrow.light]}></span>
+    <span class="shrink-0 font-semibold">{t('prog.tomorrow')}</span>
+    <span class="min-w-0 truncate text-muted">
+      {tomorrow.factors.length ? tomorrow.factors.map((k) => t(`prog.tomorrowFactor.${k}`)).join(', ') : t('prog.tomorrowFine')}
+    </span>
+  </button>
 
   {#if open}
     <div class="flex flex-col gap-4 px-4 pb-4 text-sm">
