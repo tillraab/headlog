@@ -28,7 +28,7 @@ export interface Prognosis {
   weather: { status: Status; today?: WeatherDay; tomorrow?: WeatherDay; drop: number };
   hydration: { status: Status; today: number; yesterday: number | null; expected: number; goal: number; behind: boolean; lowYesterday: boolean };
   sleep: { status: Status; night?: Night; average: number | null; efficiency: number | null; short: boolean; fragmented: boolean };
-  alcohol: { status: Status; yesterday: boolean; today: boolean };
+  alcohol: { status: Status; yesterday: boolean; today: boolean; drinksToday: number; drinksYesterday: number };
   caffeine: {
     status: Status;
     /** Caffeine so far today, yesterday, and the usual amounts for a whole day and by this time of day. */
@@ -91,6 +91,7 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   const alcohol = alcoholDays(input.drinks);
   const tracksAlcohol = input.drinks.some((d) => d.alcohol);
   const alcoholStatus: Status = !tracksAlcohol ? 'unknown' : alcohol.has(yesterday) || alcohol.has(today) ? 'bad' : 'ok';
+  const alcoholCount = (key: string) => input.drinks.filter((d) => d.alcohol && d.time <= now && dayKey(d.time) === key).length;
 
   const caffeine = caffeineByDay(input.drinks.filter((d) => d.time <= now));
   const usual = usualCaffeine(caffeine, first, today);
@@ -111,7 +112,7 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
     weather: { status: weatherStatus, today: todayWeather, tomorrow: tomorrowWeather, drop },
     hydration: { status: hydrationStatus, today: todayMl, yesterday: yesterdayMl, expected, goal: input.goalMl, behind: behindToday, lowYesterday },
     sleep: { status: sleepStatus, night, average: sleepAverage, efficiency: night ? sleepEfficiency(night) : null, ...poor },
-    alcohol: { status: alcoholStatus, yesterday: alcohol.has(yesterday), today: alcohol.has(today) },
+    alcohol: { status: alcoholStatus, yesterday: alcohol.has(yesterday), today: alcohol.has(today), drinksToday: alcoholCount(today), drinksYesterday: alcoholCount(yesterday) },
     caffeine: { status: caffeineStatus, today: caffeineToday, yesterday: caffeine.get(yesterday) ?? 0, usual, usualByNow, todayLow, yesterdayLow, tooEarly }
   };
 }

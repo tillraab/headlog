@@ -143,6 +143,12 @@ describe('prognosis at the thresholds', () => {
     const data = input({ drinks: [drink('2026-03-09T12:00', 2200), drink('2026-03-09T20:00', 150, { alcohol: true }), drink('2026-03-10T09:00', 1800)] });
     expect([prognosis(data, now).alcohol.status, tomorrowRisk(data, at('2026-03-10T20:00')).factors]).toEqual(['bad', []]);
   });
+
+  it('counts the alcoholic drinks of today and yesterday', () => {
+    const data = input({ drinks: [drink('2026-03-09T19:00', 150, { alcohol: true }), drink('2026-03-09T21:00', 150, { alcohol: true }), drink('2026-03-10T09:00', 1800)] });
+    const { alcohol } = prognosis(data, now);
+    expect([alcohol.drinksToday, alcohol.drinksYesterday]).toEqual([0, 2]);
+  });
 });
 
 describe('tomorrowRisk', () => {
