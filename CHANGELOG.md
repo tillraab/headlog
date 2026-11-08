@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Hour by hour in Insights: the value at the selected time shows as a coloured chip next to each chart's heading instead of in a legend, and the box above keeps only the time and what happened around it. Nothing wraps or gets cut off on narrow phones any more. Chart headings stay on one line.
+
 ## [0.26.1] - 2026-11-08
 
 ### Changed
