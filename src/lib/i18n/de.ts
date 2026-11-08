@@ -117,7 +117,7 @@ export const de: Record<keyof typeof en, string> = {
   'prog.tomorrowLight.green': 'bisher unauffällig',
   'prog.tomorrowLight.yellow': 'erhöhtes Risiko',
   'prog.tomorrowLight.red': 'hohes Risiko',
-  'prog.tomorrowChecks': 'Was für morgen zählt',
+  'prog.tomorrowChecks': 'Risiko für morgen',
   'prog.tomorrowCheck.weather': 'Luftdruck morgen → übermorgen',
   'prog.tomorrowCheck.hydration': 'Getrunken vs. Plan',
   'prog.tomorrowCheck.alcohol': 'Alkohol heute',
