@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-08
+
 ### Added
 
 - A Tomorrow row under the forecast tiles shows tomorrow's outlook as a coloured dot with its reasons, by the same rule as the evening warning. Tap it for the details.
