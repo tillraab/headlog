@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.27.2] - 2026-11-08
+
 ### Changed
 
 - Tomorrow's risk moved to the end of the forecast details, below the tip, with tomorrow's coloured dot before its heading.
