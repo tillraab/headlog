@@ -162,18 +162,6 @@
 
   {#if open}
     <div class="flex flex-col gap-4 px-4 pb-4 text-sm">
-      <div class="flex flex-col gap-1.5 rounded-xl border border-surface-2 p-3">
-        <p class="font-semibold">{t('prog.tomorrowChecks')}</p>
-        {#each tomorrow.statuses as [key, status] (key)}
-          <p class="flex items-center gap-2 pl-1">
-            <span class="size-2 shrink-0 rounded-full" style:background-color={STATUS[status]}></span>
-            <span class="min-w-0 flex-1">{t(`prog.tomorrowCheck.${key}`)}</span>
-            <span class="shrink-0 text-xs font-semibold" style:color={STATUS[status]}>{t(`prog.status.${status}`)}</span>
-          </p>
-        {/each}
-        <p class="text-xs text-muted">{t('prog.tomorrowRule')}</p>
-      </div>
-
 
       {@render factor(
         p.weather.status,
@@ -251,6 +239,21 @@
       )}
 
       <p class="rounded-xl bg-surface-2 p-3">💡 {tip}</p>
+
+      <div class="flex flex-col gap-1.5 rounded-xl border border-surface-2 p-3">
+        <p class="flex items-center gap-2 font-semibold">
+          <span class="size-3 shrink-0 rounded-full" style:background-color={LIGHT_COLOR[tomorrow.light]}></span>
+          {t('prog.tomorrowChecks')}
+        </p>
+        {#each tomorrow.statuses as [key, status] (key)}
+          <p class="flex items-center gap-2 pl-1">
+            <span class="size-2 shrink-0 rounded-full" style:background-color={STATUS[status]}></span>
+            <span class="min-w-0 flex-1">{t(`prog.tomorrowCheck.${key}`)}</span>
+            <span class="shrink-0 text-xs font-semibold" style:color={STATUS[status]}>{t(`prog.status.${status}`)}</span>
+          </p>
+        {/each}
+        <p class="text-xs text-muted">{t('prog.tomorrowRule')}</p>
+      </div>
     </div>
   {/if}
 </section>
