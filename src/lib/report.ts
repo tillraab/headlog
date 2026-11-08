@@ -74,7 +74,12 @@ function factorText(f: DayFactors): string[] {
   const parts: string[] = [];
   if (f.pressure !== undefined) parts.push(t('pdf.f.pressure', { n: Math.round(f.pressure) }));
   if (f.hydration !== undefined) parts.push(t('pdf.f.hydration', { ml: formatLiters(f.hydration) }));
-  if (f.sleep !== undefined) parts.push(t('pdf.f.sleep', { d: formatDuration(f.sleep * HOUR) }));
+  if (f.sleep !== undefined)
+    parts.push(
+      f.sleepEfficiency !== undefined
+        ? t('pdf.f.sleepFragmented', { d: formatDuration(f.sleep * HOUR), pct: Math.round(f.sleepEfficiency * 100) })
+        : t('pdf.f.sleep', { d: formatDuration(f.sleep * HOUR) })
+    );
   if (f.alcohol) parts.push(t('pdf.f.alcohol'));
   if (f.caffeine !== undefined) parts.push(t('pdf.f.caffeine', { mg: Math.round(f.caffeine) }));
   return parts;

@@ -173,3 +173,26 @@ describe('tomorrowRisk', () => {
     expect([r.light, r.factors]).toEqual(['red', ['weather', 'hydration']]);
   });
 });
+
+describe('sleep', () => {
+  const night = (start: string, end: string, breaks: [string, string][] = []): Night => {
+    const b = breaks.map(([s0, e0]) => ({ start: at(s0), end: at(e0) }));
+    const awake = b.reduce((sum, x) => sum + x.end - x.start, 0);
+    return { day: '2026-03-10', start: at(start), end: at(end), asleepMs: at(end) - at(start) - awake, breaks: b, source: 'screen' };
+  };
+  const sleepFor = (n: Night) => prognosis(input({ sleep: new Map([['2026-03-10', n]]) }), now).sleep;
+
+  it.each([
+    ['a continuous 6-hour night', night('2026-03-10T00:00', '2026-03-10T06:00'), 'ok'],
+    ['a night under 5 hours', night('2026-03-10T02:00', '2026-03-10T06:30'), 'bad'],
+    ['8 hours with 90 minutes awake (81 % asleep)', night('2026-03-09T22:00', '2026-03-10T06:00', [['2026-03-10T02:00', '2026-03-10T03:30']]), 'bad'],
+    ['8 hours with 30 minutes awake (94 % asleep)', night('2026-03-09T22:00', '2026-03-10T06:00', [['2026-03-10T02:00', '2026-03-10T02:30']]), 'ok']
+  ])('%s is %s', (_, n, status) => {
+    expect(sleepFor(n).status).toBe(status);
+  });
+
+  it('names why: fragmented, not short', () => {
+    const s = sleepFor(night('2026-03-09T22:00', '2026-03-10T06:00', [['2026-03-10T02:00', '2026-03-10T03:30']]));
+    expect([s.short, s.fragmented, Math.round((s.efficiency ?? 0) * 100)]).toEqual([false, true, 81]);
+  });
+});

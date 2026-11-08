@@ -1,8 +1,8 @@
 import { addDays, getHours, getMinutes } from 'date-fns';
-import { alcoholDays, average, caffeineByDay, caffeineDropOn, firstDrinkDay, usualCaffeine, usualCaffeineByTime, waterByDay } from './analysis';
+import { alcoholDays, average, caffeineByDay, caffeineDropOn, firstDrinkDay, poorNight, sleepEfficiency, usualCaffeine, usualCaffeineByTime, waterByDay } from './analysis';
 import type { Drink, Night, WeatherDay } from './db';
 import { dayKey, HOUR, lastDays } from './days';
-import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, MIN_USUAL_CAFFEINE_BY_NOW, SHORT_SLEEP_HOURS } from './thresholds';
+import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, MIN_USUAL_CAFFEINE_BY_NOW } from './thresholds';
 import { isPressureDrop } from './weather';
 
 export type Light = 'green' | 'yellow' | 'red';
@@ -27,7 +27,7 @@ export interface Prognosis {
   bad: number;
   weather: { status: Status; today?: WeatherDay; tomorrow?: WeatherDay; drop: number };
   hydration: { status: Status; today: number; yesterday: number | null; expected: number; goal: number; behind: boolean; lowYesterday: boolean };
-  sleep: { status: Status; night?: Night; average: number | null };
+  sleep: { status: Status; night?: Night; average: number | null; efficiency: number | null; short: boolean; fragmented: boolean };
   alcohol: { status: Status; yesterday: boolean; today: boolean };
   caffeine: {
     status: Status;
@@ -85,7 +85,8 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   const recent = lastDays(now, 7).map((k) => input.sleep.get(k)).filter((n) => n !== undefined);
   const recentMs = average(recent.map((n) => n.asleepMs));
   const sleepAverage = recentMs === null ? null : recentMs / HOUR;
-  const sleepStatus: Status = !night ? 'unknown' : night.asleepMs < SHORT_SLEEP_HOURS * HOUR ? 'bad' : 'ok';
+  const poor = night ? poorNight(night) : { short: false, fragmented: false };
+  const sleepStatus: Status = !night ? 'unknown' : poor.short || poor.fragmented ? 'bad' : 'ok';
 
   const alcohol = alcoholDays(input.drinks);
   const tracksAlcohol = input.drinks.some((d) => d.alcohol);
@@ -109,7 +110,7 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
     bad,
     weather: { status: weatherStatus, today: todayWeather, tomorrow: tomorrowWeather, drop },
     hydration: { status: hydrationStatus, today: todayMl, yesterday: yesterdayMl, expected, goal: input.goalMl, behind: behindToday, lowYesterday },
-    sleep: { status: sleepStatus, night, average: sleepAverage },
+    sleep: { status: sleepStatus, night, average: sleepAverage, efficiency: night ? sleepEfficiency(night) : null, ...poor },
     alcohol: { status: alcoholStatus, yesterday: alcohol.has(yesterday), today: alcohol.has(today) },
     caffeine: { status: caffeineStatus, today: caffeineToday, yesterday: caffeine.get(yesterday) ?? 0, usual, usualByNow, todayLow, yesterdayLow, tooEarly }
   };

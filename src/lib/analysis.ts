@@ -3,7 +3,7 @@ import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db
 import { hydrationMl } from './drinks';
 import { ACUTE_CATEGORIES, MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type MedCategory } from './medication';
 import { DAY, dayKey, dayRange, HOUR, keyToDate, lastDays } from './days';
-import { CAFFEINE_DROP, LOW_HYDRATION, MIN_CAFFEINE_DAYS, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
+import { CAFFEINE_DROP, LOW_HYDRATION, MIN_CAFFEINE_DAYS, MIN_SLEEP_EFFICIENCY, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { isPressureDrop } from './weather';
 
 /** Peak intensity per day touched by a headache. Ongoing episodes run until `now`. */
@@ -158,6 +158,20 @@ export function usualCaffeineByTime(drinks: Drink[], firstDrink: string | null, 
 export function caffeineDropOn(caffeine: Map<string, number>, firstDrink: string | null, day: string): boolean {
   const usual = usualCaffeine(caffeine, firstDrink, day);
   return usual !== null && usual >= MIN_USUAL_CAFFEINE && (caffeine.get(day) ?? 0) < usual * CAFFEINE_DROP;
+}
+
+/** Share of the night from falling asleep to waking up that was spent asleep, 0 to 1. */
+export function sleepEfficiency(night: Pick<Night, 'start' | 'end' | 'asleepMs'>): number {
+  const span = night.end - night.start;
+  return span > 0 ? Math.min(1, night.asleepMs / span) : 1;
+}
+
+/**
+ * Whether a night may favour a headache: very short (under 5 h asleep) or fragmented (under 85 % of
+ * it asleep). Fragmented sleep, not a short night, went with next-day migraine in Bertisch et al. 2019.
+ */
+export function poorNight(night: Pick<Night, 'start' | 'end' | 'asleepMs'>): { short: boolean; fragmented: boolean } {
+  return { short: night.asleepMs < SHORT_SLEEP_HOURS * HOUR, fragmented: sleepEfficiency(night) < MIN_SLEEP_EFFICIENCY };
 }
 
 /** Days with at least one alcoholic drink. */
@@ -531,8 +545,10 @@ export interface DayFactors {
   pressure?: number;
   /** Fluid the day before, when below three quarters of the goal. */
   hydration?: number;
-  /** Hours asleep the night before, when the night was short. */
+  /** Hours asleep the night before, when the night was very short or fragmented. */
   sleep?: number;
+  /** Share of the night spent asleep, when the night was fragmented. */
+  sleepEfficiency?: number;
   /** Alcohol the day before. */
   alcohol?: true;
   /** Caffeine on the day, when below half of the usual amount. */
@@ -562,7 +578,11 @@ export function dayFactors(
     if (ml < goalMl * LOW_HYDRATION) factors.hydration = ml;
   }
   const night = data.sleep.get(key);
-  if (night && night.asleepMs < SHORT_SLEEP_HOURS * HOUR) factors.sleep = night.asleepMs / HOUR;
+  if (night) {
+    const { short, fragmented } = poorNight(night);
+    if (short || fragmented) factors.sleep = night.asleepMs / HOUR;
+    if (fragmented) factors.sleepEfficiency = sleepEfficiency(night);
+  }
   if (alcoholDays(data.drinks).has(before)) factors.alcohol = true;
   // A drop that day or the day before: withdrawal headaches peak one to two days after it.
   if (caffeineDropOn(caffeine, first, key) || caffeineDropOn(caffeine, first, before)) factors.caffeine = caffeine.get(key) ?? 0;

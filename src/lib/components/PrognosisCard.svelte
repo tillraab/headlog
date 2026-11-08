@@ -4,7 +4,7 @@
   import { t } from '$lib/i18n.svelte';
   import { awakeMs } from '$lib/sleep';
   import { badFactors, prognosis, prognosisInput, type Status } from '$lib/prognosis';
-  import { LOW_HYDRATION, SHORT_SLEEP_HOURS } from '$lib/thresholds';
+  import { LOW_HYDRATION, MIN_SLEEP_EFFICIENCY, SHORT_SLEEP_HOURS } from '$lib/thresholds';
   import { openNight } from '$lib/editor.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
@@ -29,6 +29,13 @@
     if (h.lowYesterday) return t('prog.why.hydrationYesterday', { ml: formatLiters(h.yesterday ?? 0), limit: formatLiters(h.goal * LOW_HYDRATION) });
     if (h.today >= h.goal) return t('prog.why.hydrationGoal');
     return t('prog.why.hydrationOk');
+  }
+
+  function sleepWhy(night: NonNullable<typeof p.sleep.night>): string {
+    const values = { d: formatDuration(night.asleepMs), pct: Math.round((p.sleep.efficiency ?? 1) * 100), limit: SHORT_SLEEP_HOURS, min: Math.round(MIN_SLEEP_EFFICIENCY * 100) };
+    if (p.sleep.short) return t('prog.why.sleepShort', values);
+    if (p.sleep.fragmented) return t('prog.why.sleepFragmented', values);
+    return t('prog.why.sleepOk', values);
   }
 
   function caffeineWhy(): string {
@@ -166,13 +173,14 @@
               p.sleep.night.breaks.length
                 ? `${t('sleep.breaks', { n: p.sleep.night.breaks.length, d: formatDuration(awakeMs(p.sleep.night)) })}: ${p.sleep.night.breaks.map((b) => `${hm(b.start)}–${hm(b.end)}`).join(', ')}`
                 : '',
+              p.sleep.efficiency !== null ? t('prog.sleepEfficiency', { pct: Math.round(p.sleep.efficiency * 100) }) : '',
               p.sleep.average !== null ? t('prog.sleepAvg', { d: formatDuration(p.sleep.average * HOUR) }) : ''
             ]
           : [],
         !p.sleep.night
           ? t(data.settings.sleep.enabled ? 'prog.why.sleepNone' : 'prog.why.sleepOff')
-          : t(p.sleep.status === 'bad' ? 'prog.why.sleepBad' : 'prog.why.sleepOk', { d: formatDuration(p.sleep.night.asleepMs), limit: SHORT_SLEEP_HOURS }),
-        t('prog.rule.sleep', { limit: SHORT_SLEEP_HOURS }),
+          : sleepWhy(p.sleep.night),
+        t('prog.rule.sleep', { limit: SHORT_SLEEP_HOURS, pct: Math.round(MIN_SLEEP_EFFICIENCY * 100) }),
         data.settings.sleep.enabled || p.sleep.night ? () => openNight(dayKey(clock.now)) : () => openSheet('settings')
       )}
 
