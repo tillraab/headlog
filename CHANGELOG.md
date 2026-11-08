@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Insights, the hour view and the calendar day mark the day before a pressure drop of more than 5 hPa instead of the day the pressure has already fallen. That is the day the forecast counts as unfavourable, and the info texts explain the orange marks.
+- Settings shows under the evening warning what it will say tonight as the data stands, e.g. "Tonight at 22:00: no warning", so a missing warning is explained.
+- The weather is fetched again at once when the forecast for the day after tomorrow is missing, which the evening warning needs.
+- The weather explanation (i) adds a 2025 meta-analysis of 31 studies and a 2026 study of 714,911 app headache entries: the link with air pressure is real but small, temperature and humidity showed none, and about half of people show no weather pattern.
+
 ## [0.26.3] - 2026-11-08
 
 ### Changed

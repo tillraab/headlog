@@ -14,7 +14,7 @@
   import { data } from '$lib/store.svelte';
   import { entryDetailLines } from '$lib/format';
   import { sleepSegments } from '$lib/sleep';
-  import { isPressureDrop } from '$lib/weather';
+  import { dropToNextDay, isPressureDrop } from '$lib/weather';
   import type { Row } from './TimelineChart.svelte';
 
   let { rows, keys, now }: { rows: Row[]; keys: string[]; now: number } = $props();
@@ -45,7 +45,7 @@
     keys.flatMap((key) => {
       const w = data.weather.get(key);
       const start = keyToDate(key).getTime();
-      return w ? [{ start, end: addDays(start, 1).getTime(), value: w.pressure, drop: isPressureDrop(w.pressureDrop) }] : [];
+      return w ? [{ start, end: addDays(start, 1).getTime(), value: w.pressure, drop: isPressureDrop(dropToNextDay(data.weather, key) ?? 0) }] : [];
     })
   );
   const pressureScale = $derived.by(() => {

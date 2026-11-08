@@ -4,7 +4,9 @@
   import { loadDemo } from '$lib/demo';
   import { fmt, i18n, num, setLang, t, type Lang } from '$lib/i18n.svelte';
   import { formatLiters, hourLabel } from '$lib/days';
-  import { data, load, saveSettings, translateDrinkNames, updateSleep, updateWeather } from '$lib/store.svelte';
+  import { clock, data, load, saveSettings, translateDrinkNames, updateSleep, updateWeather } from '$lib/store.svelte';
+  import { prognosisInput, tomorrowRisk } from '$lib/prognosis';
+  import { setHours, startOfDay } from 'date-fns';
   import { requestReminderPermission } from '$lib/reminders';
   import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
   import { openUsageAccessSettings, screenAccess } from '$lib/sleep';
@@ -21,6 +23,17 @@
     const backup = await createBackup();
     await saveFile(`headlog-backup-${backup.exportedAt.slice(0, 10)}.json`, JSON.stringify(backup, null, 1), 'application/json');
   }
+
+  /** What the evening warning will say tonight, as the data stands now; nothing once the hour has passed. */
+  const riskTonight = $derived.by(() => {
+    if (!data.settings.riskAlert.enabled) return '';
+    const at = setHours(startOfDay(clock.now), data.settings.riskAlert.hour).getTime();
+    if (at <= clock.now) return '';
+    const risk = tomorrowRisk(prognosisInput(data), at);
+    const hour = hourLabel(data.settings.riskAlert.hour);
+    if (risk.light === 'green') return t('risk.tonightNone', { hour });
+    return t('risk.tonight', { hour, factors: risk.factors.map((k) => t(`prog.tomorrowFactor.${k}`)).join(', ') });
+  });
 
   async function importFile(file: File) {
     let parsed: unknown;
@@ -244,6 +257,7 @@
       {t('risk.setting')}
       <HourSelect setting={data.settings.riskAlert} hours={[18, 19, 20, 21, 22]} onchange={(riskAlert) => saveSettings({ riskAlert })} />
     </label>
+    {#if riskTonight}<p class="-mt-2 text-sm text-muted">{riskTonight}</p>{/if}
     <label class="flex items-center justify-between gap-4 text-body">
       {t('rem.headacheSetting')}
       <select class="w-32 shrink-0" value={data.settings.headacheCheckHours} onchange={(e) => saveSettings({ headacheCheckHours: Number(e.currentTarget.value) })}>

@@ -4,7 +4,9 @@ const ICHD3 = 'Headache Classification Committee of the International Headache S
 
 export const SOURCES = {
   weather: [
-    'Kimoto K, Aiba S, Takashima R, et al. (2011). Influence of barometric pressure in patients with migraine headache. Intern Med 50:1923–1928. doi:10.2169/internalmedicine.50.5640'
+    'Kimoto K, Aiba S, Takashima R, et al. (2011). Influence of barometric pressure in patients with migraine headache. Intern Med 50:1923–1928. doi:10.2169/internalmedicine.50.5640',
+    'Li S, Liu Q, Ma M, Fang J, He L (2025). Association between weather conditions and migraine: a systematic review and meta-analysis. J Neurol 272:346. doi:10.1007/s00415-025-13078-0',
+    'Katsuki M, Moran K, Tatsumoto M, et al. (2026). Weather factors associated with recorded headache events and user-level meteorological recording profiles in smartphone headache diary data: a retrospective observational study. J Headache Pain, article in press. doi:10.1186/s10194-026-02529-2'
   ],
   hydration: [
     'Blau JN, Kell CA, Sperling JM (2004). Water-deprivation headache: a new headache with two variants. Headache 44:79–83. doi:10.1111/j.1526-4610.2004.04014.x',

@@ -159,6 +159,14 @@ describe('tomorrowRisk', () => {
     expect(r.factors).toEqual(['hydration']);
   });
 
+  it.each([
+    ['no drop from tomorrow to the day after', new Map([['2026-03-11', weather('2026-03-11', 10)], ['2026-03-12', weather('2026-03-12', 0)]])],
+    ['no forecast for the day after tomorrow', new Map([['2026-03-11', weather('2026-03-11', 10)]])]
+  ])('stays green after a drop from today to tomorrow with %s', (_, forecast) => {
+    const r = tomorrowRisk(input({ drinks: [drink('2026-03-10T09:00', 2400)], weather: forecast }), evening);
+    expect([r.light, r.factors]).toEqual(['green', []]);
+  });
+
   it('ignores a short night and counts only what matters tomorrow', () => {
     const r = tomorrowRisk(input({ sleep: new Map([['2026-03-10', night(4)]]), drinks: [drink('2026-03-10T09:00', 1800)] }), evening);
     expect([r.light, r.factors]).toEqual(['green', []]);

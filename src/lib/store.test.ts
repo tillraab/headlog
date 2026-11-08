@@ -1,7 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { wipe } from './backup';
 import { db, seed } from './db';
-import { confirmNight, data, deleteMedication, endEpisode, load, logIntake, remove, saveSettings, setRelief, translateDrinkNames, updateDrinkPreset, updateMedication } from './store.svelte';
+import { confirmNight, data, deleteMedication, endEpisode, load, logIntake, remove, saveSettings, setRelief, translateDrinkNames, updateDrinkPreset, updateMedication, updateWeather } from './store.svelte';
+import { dayKey, DAY } from './days';
+import { WEATHER_SYNC_KEY } from './weather';
 
 beforeEach(async () => {
   await wipe(db);
@@ -178,5 +180,34 @@ describe('load', () => {
     await db.settings.put({ key: 'settings', value: { drinkReminder: { enabled: true, from: 9, to: 18 } } });
     await load();
     expect(data.settings.drinkReminder.everyHours).toBe(2);
+  });
+});
+
+describe('updateWeather', () => {
+  const day = (key: string) => ({ day: key, pressure: 1010, pressureDrop: 0, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 });
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify({ hourly: { time: [], pressure_msl: [], relative_humidity_2m: [] }, daily: { time: [], temperature_2m_max: [], temperature_2m_min: [], precipitation_sum: [], weather_code: [] } })));
+
+  beforeEach(async () => {
+    const stored = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (k: string) => stored.get(k) ?? null, setItem: (k: string, v: string) => stored.set(k, v) });
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockClear();
+    await load();
+    await saveSettings({ weather: { enabled: true, place: { name: 'Berlin', latitude: 52.5, longitude: 13.4 } } });
+    localStorage.setItem(WEATHER_SYNC_KEY, String(Date.now()));
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('waits after a recent sync when the day after tomorrow is known', async () => {
+    data.weather = new Map([[dayKey(Date.now() + 2 * DAY), day(dayKey(Date.now() + 2 * DAY))]]);
+    await updateWeather();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('syncs right away when the day after tomorrow is missing', async () => {
+    data.weather = new Map();
+    await updateWeather();
+    expect(fetchMock).toHaveBeenCalled();
   });
 });
