@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-11-08
+
 ### Changed
 
 - The weather factor of today's forecast only counts a pressure drop today. A drop tomorrow no longer turns today's light yellow or red; it counts in the evening warning for tomorrow.
