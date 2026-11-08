@@ -321,16 +321,21 @@ describe('hydrationCurve', () => {
 });
 
 describe('usualCaffeine', () => {
-  /** Logging starts on Oct 7 with 3 × 120 mg a day; Oct 10 has water but no coffee. */
+  /** Logging starts on Oct 1 with 3 × 120 mg a day; Oct 10 has water but no coffee. */
   const day = (d: number, h: number) => new Date(2026, 9, d, h).getTime();
   const drinks: Drink[] = [
-    ...[7, 8, 9].flatMap((d) => [8, 11, 14].map((h): Drink => ({ id: 1, time: day(d, h), presetId: null, name: 'Coffee', emoji: '☕', ml: 200, caffeineMg: 120 }))),
+    ...[1, 2, 3, 4, 5, 6, 7, 8, 9].flatMap((d) => [8, 11, 14].map((h): Drink => ({ id: 1, time: day(d, h), presetId: null, name: 'Coffee', emoji: '☕', ml: 200, caffeineMg: 120 }))),
     { id: 2, time: day(10, 8), presetId: null, name: 'Water', emoji: '🥛', ml: 250 }
   ];
   const input = { drinks, sleep: new Map(), weather: new Map(), goalMl: 250 };
 
   it('averages only the days since the first logged drink', () => {
     expect(usualCaffeine(caffeineByDay(drinks), firstDrinkDay(drinks), '2026-10-10')).toBe(360);
+  });
+
+  it('is null with fewer than 7 logged days', () => {
+    const recent = drinks.filter((d) => d.time >= day(5, 0));
+    expect(usualCaffeine(caffeineByDay(recent), firstDrinkDay(recent), '2026-10-10')).toBeNull();
   });
 
   it('is null without any caffeine', () => {
