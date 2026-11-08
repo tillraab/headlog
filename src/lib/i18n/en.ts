@@ -115,7 +115,7 @@ export const en = {
   'prog.tomorrowLight.green': 'looks fine so far',
   'prog.tomorrowLight.yellow': 'raised risk',
   'prog.tomorrowLight.red': 'high risk',
-  'prog.tomorrowChecks': 'What counts for tomorrow',
+  'prog.tomorrowChecks': 'Tomorrow’s risk',
   'prog.tomorrowCheck.weather': 'Pressure tomorrow → day after',
   'prog.tomorrowCheck.hydration': 'Drinks today vs. pace',
   'prog.tomorrowCheck.alcohol': 'Alcohol today',
