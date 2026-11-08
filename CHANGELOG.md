@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-08
+
 ### Changed
 
 - Larger text and icons throughout for easier reading on a phone: body text 16 px, secondary text 14 px, nothing smaller than 12 px except chart axes. Icon buttons, list rows and chips are at least 44 px tall.
