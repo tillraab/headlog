@@ -114,6 +114,7 @@ export const de: Record<keyof typeof en, string> = {
   'prog.stable': 'stabil',
   'prog.today': 'Heute',
   'prog.tomorrow': 'Morgen',
+  'prog.tomorrowFine': 'bisher unauffällig',
   'prog.yesterday': 'Gestern',
   'prog.hydrationToday': 'Heute bisher {ml}, im Plan wären jetzt {expected}',
   'prog.hydrationYesterday': 'Gestern {ml} von {goal}',

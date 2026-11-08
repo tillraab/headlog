@@ -139,8 +139,8 @@ export interface TomorrowRisk {
 
 /**
  * The outlook for tomorrow as it stands at `at`, for the evening warning. Only what can still matter
- * tomorrow counts: a pressure drop from tomorrow to the day after, today's total below three quarters of the goal (tomorrow's
- * "yesterday"), and alcohol today. Last night's sleep and today's caffeine say nothing about tomorrow.
+ * tomorrow counts: a pressure drop from tomorrow to the day after, today's total below three quarters of the pace to the
+ * goal at `at` (the whole goal from 22:00; tomorrow's "yesterday"), and alcohol today. Last night's sleep and today's caffeine say nothing about tomorrow.
  * 0 unfavourable is green, 1 yellow, 2 or more red; unknown factors do not count.
  */
 export function tomorrowRisk(input: PrognosisInput, at: number): TomorrowRisk {
@@ -150,7 +150,7 @@ export function tomorrowRisk(input: PrognosisInput, at: number): TomorrowRisk {
   const first = firstDrinkDay(drinks);
   const statuses: [TomorrowFactor, Status][] = [
     ['weather', !dayAfter ? 'unknown' : isPressureDrop(dayAfter.pressureDrop) ? 'bad' : 'ok'],
-    ['hydration', first === null ? 'unknown' : (waterByDay(drinks).get(today) ?? 0) < input.goalMl * LOW_HYDRATION ? 'bad' : 'ok'],
+    ['hydration', first === null ? 'unknown' : (waterByDay(drinks).get(today) ?? 0) < expectedByNow(input.goalMl, at) * LOW_HYDRATION ? 'bad' : 'ok'],
     ['alcohol', !drinks.some((d) => d.alcohol) ? 'unknown' : alcoholDays(drinks).has(today) ? 'bad' : 'ok']
   ];
   const factors = statuses.filter(([, s]) => s === 'bad').map(([k]) => k);

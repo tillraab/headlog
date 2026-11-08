@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- A Tomorrow row under the forecast tiles shows tomorrow's outlook as a coloured dot with its reasons, by the same rule as the evening warning. Tap it for the details.
+
+### Changed
+
+- Tomorrow's outlook and the evening warning compare today's drinks with the pace to your goal at that time of day instead of the whole goal, so the afternoon no longer always shows "little to drink". From 22:00 the pace is the whole goal.
+
 ## [0.26.4] - 2026-11-08
 
 ### Changed

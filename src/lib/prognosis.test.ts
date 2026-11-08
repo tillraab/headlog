@@ -167,6 +167,11 @@ describe('tomorrowRisk', () => {
     expect([r.light, r.factors]).toEqual(['green', []]);
   });
 
+  it('judges today\'s drinks against the pace at the hour it looks from', () => {
+    const r = tomorrowRisk(input({ drinks: [drink('2026-03-10T09:00', 800)] }), at('2026-03-10T12:00'));
+    expect(r.factors).toEqual([]);
+  });
+
   it('ignores a short night and counts only what matters tomorrow', () => {
     const r = tomorrowRisk(input({ sleep: new Map([['2026-03-10', night(4)]]), drinks: [drink('2026-03-10T09:00', 1800)] }), evening);
     expect([r.light, r.factors]).toEqual(['green', []]);
