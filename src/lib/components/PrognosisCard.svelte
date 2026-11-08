@@ -11,6 +11,7 @@
   import InfoButton from './InfoButton.svelte';
   import TrafficLight, { LIGHT_COLOR } from './TrafficLight.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
+  import { SOURCES } from '$lib/sources';
 
   let { open = $bindable(false) }: { open?: boolean } = $props();
 
@@ -88,7 +89,7 @@
   }
 </script>
 
-{#snippet factor(status: Status, title: string, facts: string[], why: string, rule: string, action?: () => void)}
+{#snippet factor(status: Status, title: string, facts: string[], why: string, rule: string, sources: readonly string[], action?: () => void)}
   <div class="flex gap-3">
     <span class="mt-2 size-3 shrink-0 rounded-full" style:background-color={STATUS[status]}></span>
     <div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -98,7 +99,7 @@
           {t(`prog.status.${status}`)}
         </span>
         <span class="ml-auto flex">
-          <InfoButton {title} text={`${t('prog.ruleLabel')} ${rule}`} />
+          <InfoButton {title} text={`${t('prog.ruleLabel')} ${rule}`} {sources} />
           {#if action}
             <button class="press -my-2 grid size-11 place-items-center rounded-full text-muted" onclick={action} aria-label={title}><Pencil size={20} /></button>
           {/if}
@@ -150,6 +151,7 @@
           ? t('prog.why.weatherUnknown')
           : t(p.weather.status === 'bad' ? 'prog.why.weatherBad' : 'prog.why.weatherOk', { n: Math.round(p.weather.drop), limit: PRESSURE_DROP_HPA }),
         t('prog.rule.weather', { limit: PRESSURE_DROP_HPA }),
+        SOURCES.weather,
         p.weather.status === 'unknown' ? () => openSheet('settings') : undefined
       )}
 
@@ -161,7 +163,8 @@
           p.hydration.yesterday !== null ? t('prog.hydrationYesterday', { ml: formatLiters(p.hydration.yesterday), goal: formatLiters(p.hydration.goal) }) : ''
         ],
         hydrationWhy(),
-        t('prog.rule.hydration', { pace: formatLiters(p.hydration.expected * LOW_HYDRATION), yesterday: formatLiters(p.hydration.goal * LOW_HYDRATION) })
+        t('prog.rule.hydration', { pace: formatLiters(p.hydration.expected * LOW_HYDRATION), yesterday: formatLiters(p.hydration.goal * LOW_HYDRATION) }),
+        SOURCES.hydration
       )}
 
       {@render factor(
@@ -181,6 +184,7 @@
           ? t(data.settings.sleep.enabled ? 'prog.why.sleepNone' : 'prog.why.sleepOff')
           : sleepWhy(p.sleep.night),
         t('prog.rule.sleep', { limit: SHORT_SLEEP_HOURS, pct: Math.round(MIN_SLEEP_EFFICIENCY * 100) }),
+        SOURCES.sleep,
         data.settings.sleep.enabled || p.sleep.night ? () => openNight(dayKey(clock.now)) : () => openSheet('settings')
       )}
 
@@ -192,7 +196,8 @@
           p.alcohol.status === 'bad'
             ? t('prog.why.alcoholBad', { when: [p.alcohol.yesterday ? t('prog.yesterday') : '', p.alcohol.today ? t('prog.today') : ''].filter(Boolean).join(t('prog.and')) })
             : t('prog.why.alcoholOk'),
-          t('prog.rule.alcohol')
+          t('prog.rule.alcohol'),
+          SOURCES.alcohol
         )}
       {/if}
 
@@ -205,7 +210,8 @@
             t('prog.caffeineYesterday', { mg: Math.round(p.caffeine.yesterday), usual: Math.round(p.caffeine.usual) })
           ],
           caffeineWhy(),
-          t('prog.rule.caffeine')
+          t('prog.rule.caffeine'),
+          SOURCES.caffeine
         )}
       {/if}
 

@@ -212,6 +212,8 @@ export interface TenTwenty {
   /** Days with acute medication in the window ending today. */
   count: number;
   limit: number;
+  /** Most medication days that still count as within the limit. */
+  allowed: number;
   window: number;
   status: RuleStatus;
   /** Window days, oldest first, with whether medication was taken. */
@@ -225,10 +227,10 @@ export interface TenTwenty {
 }
 
 /**
- * The 10/20 rule: within any 30 consecutive days, take acute headache medication on at most
- * 10 days, so that at least 20 days stay free of it.
+ * The 10/20 rule: within any 30 consecutive days, take acute headache medication on fewer than
+ * `limit` days. `allowed` is the most days still within it; a personal limit allows `limit` days.
  */
-export function tenTwenty(medDays: Set<string>, today: number | Date, limit = 10, window = 30): TenTwenty {
+export function tenTwenty(medDays: Set<string>, today: number | Date, limit = 10, window = 30, allowed = limit - 1): TenTwenty {
   const days = lastDays(today, window).map((key) => ({ key, med: medDays.has(key) }));
   const count = days.filter((d) => d.med).length;
   const todayTaken = days[days.length - 1].med;
@@ -236,8 +238,9 @@ export function tenTwenty(medDays: Set<string>, today: number | Date, limit = 10
   return {
     count,
     limit,
+    allowed,
     window,
-    status: ruleStatus(count, limit),
+    status: ruleStatus(count, allowed),
     days,
     ifTakenToday: todayTaken ? count : count + 1,
     nextRelief: first ? dayKey(addDays(keyToDate(first.key), window)) : null,
@@ -245,9 +248,10 @@ export function tenTwenty(medDays: Set<string>, today: number | Date, limit = 10
   };
 }
 
-export function ruleStatus(count: number, limit: number): RuleStatus {
-  if (count > limit) return 'over';
-  if (count >= Math.ceil(limit * 0.8)) return 'caution';
+/** Over above `allowed` days, caution from 80 % of it. */
+export function ruleStatus(count: number, allowed: number): RuleStatus {
+  if (count > allowed) return 'over';
+  if (count >= Math.ceil(allowed * 0.8)) return 'caution';
   return 'ok';
 }
 
@@ -257,7 +261,7 @@ export function medicationLimits(intakes: Intake[], medications: Medication[], t
     .filter((m) => m.limitDays)
     .map((med) => {
       const days = new Set(intakes.filter((i) => i.medId === med.id).map((i) => dayKey(i.time)));
-      return { med, rule: tenTwenty(days, today, med.limitDays, med.limitWindow ?? 30) };
+      return { med, rule: tenTwenty(days, today, med.limitDays, med.limitWindow ?? 30, med.limitDays) };
     });
 }
 
@@ -504,7 +508,7 @@ const MIN_COMPARISON_DAYS = 3;
 /**
  * Compares the days a headache started with days without headache: hydration, caffeine and
  * alcohol the day before, sleep the night before, and how often the pressure dropped on the day
- * itself. Today is left out because it is not over.
+ * after. Today is left out because it is not over.
  */
 export function compareDays(
   data: { episodes: Episode[]; drinks: Drink[]; sleep: Map<string, Night>; weather: Map<string, WeatherDay> },
@@ -517,6 +521,7 @@ export function compareDays(
   const startDays = keys.filter((k) => k !== today && starts.has(k));
   const clearDays = keys.filter((k) => k !== today && !pain.has(k));
   const before = (k: string) => dayKey(addDays(keyToDate(k), -1));
+  const after = (k: string) => dayKey(addDays(keyToDate(k), 1));
 
   const water = waterByDay(data.drinks);
   const caffeine = caffeineByDay(data.drinks);
@@ -528,7 +533,7 @@ export function compareDays(
     ['hydration', (k) => water.get(before(k)) ?? null],
     ['sleep', (k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / HOUR : null)],
     ['caffeine', (k) => (tracksCaffeine && water.has(before(k)) ? (caffeine.get(before(k)) ?? 0) : null)],
-    ['pressure', (k) => (data.weather.has(k) ? (isPressureDrop(data.weather.get(k)!.pressureDrop) ? 1 : 0) : null)],
+    ['pressure', (k) => (data.weather.has(after(k)) ? (isPressureDrop(data.weather.get(after(k))!.pressureDrop) ? 1 : 0) : null)],
     ['alcohol', (k) => (tracksAlcohol && water.has(before(k)) ? (alcohol.has(before(k)) ? 1 : 0) : null)]
   ];
 
@@ -541,7 +546,7 @@ export function compareDays(
 }
 
 export interface DayFactors {
-  /** Fall of the daily mean pressure from the day before, when it counts as a drop. */
+  /** Fall of the daily mean pressure to the next day, when it counts as a drop. */
   pressure?: number;
   /** Fluid the day before, when below three quarters of the goal. */
   hydration?: number;
@@ -557,7 +562,7 @@ export interface DayFactors {
 
 /**
  * The factors present for a headache that started on `key`, by the same rules as the forecast:
- * pressure drop on the day, little to drink and alcohol the day before, a short night, a caffeine
+ * pressure drop to the next day, little to drink and alcohol the day before, a short or fragmented night, a caffeine
  * drop. Factors without data are left out.
  */
 export function dayFactors(
@@ -571,7 +576,7 @@ export function dayFactors(
   const caffeine = caffeineByDay(data.drinks);
   const factors: DayFactors = {};
 
-  const w = data.weather.get(key);
+  const w = data.weather.get(dayKey(addDays(keyToDate(key), 1)));
   if (w && isPressureDrop(w.pressureDrop)) factors.pressure = w.pressureDrop;
   if (first !== null && before >= first) {
     const ml = water.get(before) ?? 0;

@@ -110,7 +110,7 @@ describe('planRiskAlert', () => {
 
   it('warns at the chosen hour when tomorrow is not green, naming the reasons', () => {
     const [alert] = planRiskAlert(at('2026-03-02T15:00'), { enabled: true, hour: 20 }, risk('red', ['weather', 'alcohol']));
-    expect([new Date(alert.at).getHours(), alert.body]).toEqual([20, 'Unfavourable: pressure drop tomorrow, alcohol today. Details in HeadLog.']);
+    expect([new Date(alert.at).getHours(), alert.body]).toEqual([20, 'Unfavourable: pressure drop the day after tomorrow, alcohol today. Details in HeadLog.']);
   });
 
   it('stays silent when tomorrow is green', () => {

@@ -39,13 +39,13 @@ describe('prognosis', () => {
     expect(prognosis(input({ sleep: new Map([['2026-03-10', night(4.5)]]) }), now).light).toBe('yellow');
   });
 
-  it('does not count a pressure drop tomorrow', () => {
-    const p = prognosis(input({ weather: new Map([['2026-03-10', weather('2026-03-10', 1)], ['2026-03-11', weather('2026-03-11', 9)]]) }), now);
+  it('does not count a pressure drop today', () => {
+    const p = prognosis(input({ weather: new Map([['2026-03-10', weather('2026-03-10', 9)], ['2026-03-11', weather('2026-03-11', 1)]]) }), now);
     expect([p.weather.status, p.weather.drop]).toEqual(['ok', 1]);
   });
 
   it('turns red with two', () => {
-    const p = prognosis(input({ sleep: new Map([['2026-03-10', night(4.5)]]), weather: new Map([['2026-03-10', weather('2026-03-10', 8)]]) }), now);
+    const p = prognosis(input({ sleep: new Map([['2026-03-10', night(4.5)]]), weather: new Map([['2026-03-11', weather('2026-03-11', 8)]]) }), now);
     expect([p.light, p.weather.drop]).toEqual(['red', 8]);
   });
 
@@ -115,14 +115,14 @@ describe('prognosis', () => {
 });
 
 describe('prognosis at the thresholds', () => {
-  it('counts a pressure drop today', () => {
-    expect(prognosis(input({ weather: new Map([['2026-03-10', weather('2026-03-10', 8)]]) }), now).weather.status).toBe('bad');
+  it('counts a pressure drop from today to tomorrow', () => {
+    expect(prognosis(input({ weather: new Map([['2026-03-11', weather('2026-03-11', 8)]]) }), now).weather.status).toBe('bad');
   });
 
   it.each([
     ['a night of exactly 6 h', input({ sleep: new Map([['2026-03-10', night(6)]]) }), 'sleep'],
     ['yesterday at exactly three quarters of the goal', input({ drinks: [drink('2026-03-09T12:00', 1500), drink('2026-03-10T09:00', 1200)] }), 'hydration'],
-    ['a pressure drop of exactly 5 hPa', input({ weather: new Map([['2026-03-10', weather('2026-03-10', 5)]]) }), 'weather']
+    ['a pressure drop of exactly 5 hPa', input({ weather: new Map([['2026-03-11', weather('2026-03-11', 5)]]) }), 'weather']
   ] as const)('is fine with %s', (_, data, factor) => {
     expect(prognosis(data, now)[factor].status).toBe('ok');
   });
@@ -132,7 +132,7 @@ describe('prognosis at the thresholds', () => {
       input({
         drinks: [drink('2026-03-09T12:00', 800), drink('2026-03-09T20:00', 150, { alcohol: true }), drink('2026-03-10T09:00', 300)],
         sleep: new Map([['2026-03-10', night(4.5)]]),
-        weather: new Map([['2026-03-10', weather('2026-03-10', 8)]])
+        weather: new Map([['2026-03-11', weather('2026-03-11', 8)]])
       }),
       now
     );
@@ -159,7 +159,7 @@ describe('tomorrowRisk', () => {
   });
 
   it.each([
-    ['a pressure drop tomorrow', { weather: new Map([['2026-03-11', weather('2026-03-11', 8)]]) }, ['weather']],
+    ['a pressure drop the day after tomorrow', { weather: new Map([['2026-03-12', weather('2026-03-12', 8)]]) }, ['weather']],
     ['too little to drink today', { drinks: [drink('2026-03-10T09:00', 1000)] }, ['hydration']],
     ['alcohol today', { drinks: [drink('2026-03-10T09:00', 1800), drink('2026-03-10T19:00', 150, { alcohol: true })] }, ['alcohol']]
   ])('turns yellow with %s', (_, overrides, factors) => {
@@ -169,7 +169,7 @@ describe('tomorrowRisk', () => {
   });
 
   it('turns red with two factors', () => {
-    const r = tomorrowRisk(input({ drinks: [drink('2026-03-10T09:00', 1000)], weather: new Map([['2026-03-11', weather('2026-03-11', 8)]]) }), evening);
+    const r = tomorrowRisk(input({ drinks: [drink('2026-03-10T09:00', 1000)], weather: new Map([['2026-03-12', weather('2026-03-12', 8)]]) }), evening);
     expect([r.light, r.factors]).toEqual(['red', ['weather', 'hydration']]);
   });
 });

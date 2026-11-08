@@ -441,7 +441,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     rolling.forEach((r, i) => {
       if (!r.count) return;
       const bh = ((box.bottom - box.top) * r.count) / max;
-      doc.setFillColor(...STATUS_COLOR[ruleStatus(r.count, input.limit)]);
+      doc.setFillColor(...STATUS_COLOR[ruleStatus(r.count, input.limit - 1)]);
       doc.rect(box.left + i * step, box.bottom - bh, Math.max(0.15, step * 0.85), bh, 'F');
     });
     const ly = box.bottom - ((box.bottom - box.top) * input.limit) / max;

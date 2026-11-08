@@ -65,9 +65,15 @@ describe('tenTwenty', () => {
     expect(tenTwenty(new Set(), today).nextRelief).toBeNull();
   });
 
-  it('reports over the limit at 11 days', () => {
-    const med = new Set(lastDays(today, 11));
-    expect(tenTwenty(med, today).status).toBe('over');
+  it.each([
+    [9, 'caution'],
+    [10, 'over']
+  ] as const)('reports %i days as %s', (days, status) => {
+    expect(tenTwenty(new Set(lastDays(today, days)), today).status).toBe(status);
+  });
+
+  it('allows the full personal limit', () => {
+    expect(tenTwenty(new Set(lastDays(today, 4)), today, 4, 30, 4).status).toBe('caution');
   });
 });
 
@@ -247,7 +253,7 @@ describe('timeline and compareDays', () => {
     episodes: headacheStarts.map((d) => episode(`${d}T09:00`, `${d}T11:00`, 6)),
     drinks: keys.flatMap((k) => [drink(`${k}T10:00`, headacheStarts.includes(dayKeyAfter(k)) ? 1000 : 2000)]),
     sleep: new Map(keys.map((k) => [k, night(k, headacheStarts.includes(k) ? 5 : 8)])),
-    weather: new Map(keys.map((k) => [k, weather(k, headacheStarts.includes(k) ? 8 : 1)]))
+    weather: new Map(keys.map((k) => [k, weather(k, headacheStarts.some((h) => dayKeyAfter(h) === k) ? 8 : 1)]))
   };
 
   function dayKeyAfter(k: string): string {
@@ -289,7 +295,7 @@ describe('dayFactors', () => {
     const data = {
       drinks: [drink('2026-03-01T10:00', 2000), drink('2026-03-09T10:00', 600), { ...drink('2026-03-09T20:00', 150), alcohol: true }],
       sleep: new Map([['2026-03-10', night('2026-03-10', 4.5)]]),
-      weather: new Map([['2026-03-10', weather('2026-03-10', 8)]])
+      weather: new Map([['2026-03-11', weather('2026-03-11', 8)]])
     };
     expect(dayFactors(data, '2026-03-10', 2000)).toEqual({ pressure: 8, hydration: 600, sleep: 4.5, alcohol: true });
   });
