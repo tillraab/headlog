@@ -10,7 +10,7 @@
   import { clock, data } from '$lib/store.svelte';
   import { hydrationBefore, waterOn } from '$lib/analysis';
   import { awakeMs } from '$lib/sleep';
-  import { isPressureDrop, weatherEmoji } from '$lib/weather';
+  import { dropToNextDay, isPressureDrop, weatherEmoji } from '$lib/weather';
   import Sheet from './Sheet.svelte';
 
   let { day }: { day: string } = $props();
@@ -22,6 +22,7 @@
   const drinks = $derived(data.drinks.filter((d) => d.time >= from && d.time < to));
   const water = $derived(waterOn(data.drinks, from));
   const weather = $derived(data.weather.get(day));
+  const dropNext = $derived(dropToNextDay(data.weather, day));
   const night = $derived(data.sleep.get(day));
   const noon = $derived(Math.min(setHours(keyToDate(day), 12).getTime(), clock.now));
 
@@ -45,9 +46,8 @@
         <span class="text-xl">{weatherEmoji(weather.code)}</span>
         <span>{Math.round(weather.tempMin)}–{Math.round(weather.tempMax)} °C</span>
         <span class="text-muted">·</span>
-        <span class={isPressureDrop(weather.pressureDrop) ? 'font-semibold text-over' : ''}>
-          {Math.round(weather.pressure)} hPa{weather.pressureDrop >= 1 ? ` (−${Math.round(weather.pressureDrop)})` : ''}
-        </span>
+        <span>{Math.round(weather.pressure)} hPa</span>
+        {#if isPressureDrop(dropNext ?? 0)}<span class="font-semibold text-over">{t('day.dropNext', { n: Math.round(dropNext ?? 0) })}</span>{/if}
         {#if weather.humidity !== null}<span class="text-muted">·</span><span>{weather.humidity} %</span>{/if}
         {#if weather.precipitation >= 0.5}<span class="text-muted">·</span><span>{num(weather.precipitation, 1)} mm</span>{/if}
       </p>

@@ -7,7 +7,7 @@
   import { openSheet } from '$lib/ui.svelte';
   import { fmt, num, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
-  import { isPressureDrop, PRESSURE_DROP_HPA } from '$lib/weather';
+  import { dropToNextDay, isPressureDrop, PRESSURE_DROP_HPA } from '$lib/weather';
   import BarChart from './BarChart.svelte';
   import CardHeading from './CardHeading.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
@@ -79,7 +79,7 @@
       });
     }
     if (known(series.pressure).length) {
-      const marks = series.pressureDrop.map((d) => d !== null && isPressureDrop(d));
+      const marks = chartKeys.map((k) => isPressureDrop(dropToNextDay(data.weather, k) ?? 0));
       result.push({
         key: 'pressure',
         label: t('tl.pressure'),
@@ -102,8 +102,8 @@
       episodes: data.episodes.filter((e) => dayKey(e.start) === key),
       intakes: data.intakes.filter((i) => dayKey(i.time) === key)
     });
-    const drop = series.pressureDrop[index];
-    if (drop !== null && drop >= 1) lines.push(t('tl.detailDrop', { n: Math.round(drop) }));
+    const drop = dropToNextDay(data.weather, key);
+    if (drop !== null && isPressureDrop(drop)) lines.push(t('tl.detailDrop', { n: Math.round(drop) }));
     return lines;
   }
 

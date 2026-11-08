@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Insights, the hour view and the calendar day mark the day before a pressure drop of more than 5 hPa instead of the day the pressure has already fallen. That is the day the forecast counts as unfavourable, and the info texts explain the orange marks.
+- The weather explanation (i) adds a 2025 meta-analysis of 31 studies and a 2026 study of 714,911 app headache entries: the link with air pressure is real but small, temperature and humidity showed none, and about half of people show no weather pattern.
+
 ## [0.26.3] - 2026-11-08
 
 ### Changed

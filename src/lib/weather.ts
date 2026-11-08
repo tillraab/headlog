@@ -18,6 +18,14 @@ export function isPressureDrop(drop: number): boolean {
   return drop > PRESSURE_DROP_HPA;
 }
 
+/**
+ * How far the daily mean pressure falls from day `key` to the next day, or null when the next day is unknown.
+ * Migraine is more frequent on the day before such a fall, so a drop here makes `key` itself unfavourable.
+ */
+export function dropToNextDay(weather: Map<string, WeatherDay>, key: string): number | null {
+  return weather.get(dayKey(addDays(keyToDate(key), 1)))?.pressureDrop ?? null;
+}
+
 /** localStorage key holding the time of the last weather sync. */
 export const WEATHER_SYNC_KEY = 'headlog.weatherSync';
 

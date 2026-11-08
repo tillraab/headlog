@@ -4,7 +4,7 @@ import { hydrationMl } from './drinks';
 import { ACUTE_CATEGORIES, MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type MedCategory } from './medication';
 import { DAY, dayKey, dayRange, HOUR, keyToDate, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_CAFFEINE_DAYS, MIN_SLEEP_EFFICIENCY, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
-import { isPressureDrop } from './weather';
+import { dropToNextDay, isPressureDrop } from './weather';
 
 /** Peak intensity per day touched by a headache. Ongoing episodes run until `now`. */
 export function headacheDays(episodes: Episode[], now: number): Map<string, number> {
@@ -485,8 +485,7 @@ export function timeline(
     headache: keys.map((k) => pain.get(k) ?? 0),
     hydration: keys.map((k) => (water.has(k) ? water.get(k)! : first !== null && k >= first && k <= today ? 0 : null)),
     sleepHours: keys.map((k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / HOUR : null)),
-    pressure: keys.map((k) => data.weather.get(k)?.pressure ?? null),
-    pressureDrop: keys.map((k) => data.weather.get(k)?.pressureDrop ?? null)
+    pressure: keys.map((k) => data.weather.get(k)?.pressure ?? null)
   };
 }
 
@@ -521,7 +520,6 @@ export function compareDays(
   const startDays = keys.filter((k) => k !== today && starts.has(k));
   const clearDays = keys.filter((k) => k !== today && !pain.has(k));
   const before = (k: string) => dayKey(addDays(keyToDate(k), -1));
-  const after = (k: string) => dayKey(addDays(keyToDate(k), 1));
 
   const water = waterByDay(data.drinks);
   const caffeine = caffeineByDay(data.drinks);
@@ -533,7 +531,10 @@ export function compareDays(
     ['hydration', (k) => water.get(before(k)) ?? null],
     ['sleep', (k) => (data.sleep.has(k) ? data.sleep.get(k)!.asleepMs / HOUR : null)],
     ['caffeine', (k) => (tracksCaffeine && water.has(before(k)) ? (caffeine.get(before(k)) ?? 0) : null)],
-    ['pressure', (k) => (data.weather.has(after(k)) ? (isPressureDrop(data.weather.get(after(k))!.pressureDrop) ? 1 : 0) : null)],
+    ['pressure', (k) => {
+      const drop = dropToNextDay(data.weather, k);
+      return drop === null ? null : isPressureDrop(drop) ? 1 : 0;
+    }],
     ['alcohol', (k) => (tracksAlcohol && water.has(before(k)) ? (alcohol.has(before(k)) ? 1 : 0) : null)]
   ];
 
@@ -576,8 +577,8 @@ export function dayFactors(
   const caffeine = caffeineByDay(data.drinks);
   const factors: DayFactors = {};
 
-  const w = data.weather.get(dayKey(addDays(keyToDate(key), 1)));
-  if (w && isPressureDrop(w.pressureDrop)) factors.pressure = w.pressureDrop;
+  const drop = dropToNextDay(data.weather, key);
+  if (drop !== null && isPressureDrop(drop)) factors.pressure = drop;
   if (first !== null && before >= first) {
     const ml = water.get(before) ?? 0;
     if (ml < goalMl * LOW_HYDRATION) factors.hydration = ml;
