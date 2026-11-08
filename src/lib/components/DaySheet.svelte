@@ -41,8 +41,8 @@
 <Sheet id="day" title={fmt(keyToDate(day), 'EEEE, d. MMMM yyyy')}>
   <div class="flex flex-col gap-3">
     {#if weather}
-      <p class="flex flex-wrap items-center gap-x-2 rounded-2xl bg-surface-2 px-3 py-2 text-sm tabular">
-        <span class="text-lg">{weatherEmoji(weather.code)}</span>
+      <p class="flex flex-wrap items-center gap-x-2 rounded-2xl bg-surface-2 px-3 py-2 tabular">
+        <span class="text-xl">{weatherEmoji(weather.code)}</span>
         <span>{Math.round(weather.tempMin)}–{Math.round(weather.tempMax)} °C</span>
         <span class="text-muted">·</span>
         <span class={isPressureDrop(weather.pressureDrop) ? 'font-semibold text-over' : ''}>
@@ -54,8 +54,8 @@
     {/if}
 
     {#if night}
-      <button class="press flex items-center gap-3 rounded-2xl bg-surface-2 px-3 py-2 text-left text-sm tabular" onclick={() => edit({ kind: 'sleep', item: night })}>
-        <span class="text-lg">😴</span>
+      <button class="press flex flex-wrap items-center gap-x-3 rounded-2xl bg-surface-2 px-3 py-2 text-left tabular" onclick={() => edit({ kind: 'sleep', item: night })}>
+        <span class="text-xl">😴</span>
         <span class="font-semibold">{formatDuration(night.asleepMs)}</span>
         <span class="text-muted">{hm(night.start)}–{hm(night.end)}</span>
         {#if night.breaks.length}<span class="text-muted">· {t('sleep.breaks', { n: night.breaks.length, d: formatDuration(awakeMs(night)) })}</span>{/if}
@@ -63,14 +63,14 @@
     {/if}
 
     {#if !episodes.length && !intakes.length && !drinks.length}
-      <p class="text-sm text-muted">{t('day.empty')}</p>
+      <p class="text-muted">{t('day.empty')}</p>
     {/if}
 
     {#each episodes as ep (ep.id)}
       {@const before = hydrationBefore(data.drinks, ep.start)}
       <button class="press flex items-start gap-3 rounded-2xl bg-pain-soft p-3 text-left" onclick={() => edit({ kind: 'episode', item: ep })}>
-        <span class="grid size-9 shrink-0 place-items-center rounded-full bg-pain text-white"><Zap size={18} /></span>
-        <span class="flex flex-col text-sm">
+        <span class="grid size-10 shrink-0 place-items-center rounded-full bg-pain text-white"><Zap size={20} /></span>
+        <span class="flex min-w-0 flex-col">
           <span class="font-semibold">{t('today.headache')} · {ep.intensity}/10</span>
           <span class="text-muted tabular">
             {hm(ep.start)}–{ep.end ? hm(ep.end) : '…'}
@@ -91,24 +91,24 @@
 
     {#each intakes as intake (intake.id)}
       <button class="press flex items-center gap-3 rounded-2xl bg-med-soft p-3 text-left" onclick={() => edit({ kind: 'intake', item: intake })}>
-        <span class="grid size-9 shrink-0 place-items-center rounded-full bg-med text-white"><Pill size={18} /></span>
-        <span class="flex flex-1 flex-col text-sm">
+        <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med text-white"><Pill size={20} /></span>
+        <span class="flex min-w-0 flex-1 flex-col">
           <span><span class="font-semibold">{intake.name}</span> {intake.dose}</span>
           <span class="flex items-center gap-1.5 text-xs text-muted">
-            <span class="size-2 rounded-full" style:background-color={intakeColor(intake, data.medications)}></span>
+            <span class="size-2.5 rounded-full" style:background-color={intakeColor(intake, data.medications)}></span>
             {ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')}
           </span>
         </span>
-        <span class="text-sm text-muted tabular">{hm(intake.time)}</span>
+        <span class="text-muted tabular">{hm(intake.time)}</span>
       </button>
     {/each}
 
     {#if drinks.length}
       <div class="flex flex-col gap-2 rounded-2xl bg-water-soft p-3">
-        <div class="flex items-center gap-2 text-sm font-semibold"><Droplets size={16} class="text-water" /> {formatLiters(water)}</div>
+        <div class="flex items-center gap-2 font-semibold"><Droplets size={20} class="text-water" /> {formatLiters(water)}</div>
         <div class="flex flex-wrap gap-1.5">
           {#each drinks as drink (drink.id)}
-            <button class="press rounded-full bg-surface px-2.5 py-1 text-xs tabular" onclick={() => edit({ kind: 'drink', item: drink })}>
+            <button class="press min-h-11 rounded-full bg-surface px-3 py-1.5 text-sm tabular" onclick={() => edit({ kind: 'drink', item: drink })}>
               {drink.emoji} {hm(drink.time)}
             </button>
           {/each}
@@ -118,13 +118,13 @@
 
     <div class="flex flex-wrap gap-2 pt-1">
       <button
-        class="press flex items-center gap-1 rounded-full bg-surface-2 px-3 py-2 text-sm font-medium"
+        class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium"
         onclick={() => edit({ kind: 'episode', item: { start: setHours(keyToDate(day), 9).getTime(), end: setHours(keyToDate(day), 12).getTime(), intensity: 5, tags: [], note: '' } })}
       >
-        <Plus size={16} />{t('day.addHeadache')}
+        <Plus size={20} />{t('day.addHeadache')}
       </button>
-      <button class="press flex items-center gap-1 rounded-full bg-surface-2 px-3 py-2 text-sm font-medium" onclick={addMed}><Plus size={16} />{t('day.addMed')}</button>
-      <button class="press flex items-center gap-1 rounded-full bg-surface-2 px-3 py-2 text-sm font-medium" onclick={addDrink}><Plus size={16} />{t('day.addDrink')}</button>
+      <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addMed}><Plus size={20} />{t('day.addMed')}</button>
+      <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addDrink}><Plus size={20} />{t('day.addDrink')}</button>
     </div>
   </div>
 </Sheet>

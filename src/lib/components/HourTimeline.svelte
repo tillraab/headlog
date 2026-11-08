@@ -92,17 +92,17 @@
     return { values: values.filter((v) => row(v.key)), details };
   });
 
-  const boxHeight = $derived(2.4 + Math.ceil(rows.length / 2) * 1.05 + 3.15);
+  const boxHeight = $derived(2.6 + Math.ceil(rows.length / 2) * 1.3 + 3.75);
 </script>
 
 {#snippet frame(r: Row, content: Snippet, axis: [string, string])}
   <div class="flex flex-col gap-1">
-    <div class="flex items-baseline justify-between pl-10 text-xs">
+    <div class="flex flex-wrap items-baseline justify-between gap-x-2 pl-10 text-xs">
       <span class="font-semibold">{r.label}</span>
-      <span class="truncate pl-2 text-muted tabular">{r.summary}</span>
+      <span class="ml-auto text-muted tabular">{r.summary}</span>
     </div>
     <div class="flex gap-1">
-      <div class="flex h-12 w-9 shrink-0 flex-col justify-between text-right text-2xs leading-none text-muted tabular">
+      <div class="flex h-12 w-9 shrink-0 flex-col justify-between text-right text-axis leading-none text-muted tabular">
         <span>{axis[0]}</span>
         <span>{axis[1]}</span>
       </div>
@@ -239,7 +239,7 @@
     {@render frame(row('pressure')!, air, [String(Math.round(pressureScale.max)), String(Math.round(pressureScale.min))])}
   {/if}
 
-  <div class="relative ml-10 h-4 text-2xs text-muted">
+  <div class="relative ml-10 h-4 text-axis text-muted">
     {#each days as d (d.key)}
       <span class="absolute -translate-x-1/2 whitespace-nowrap" style:left="{((x(d.start) + 12) / width) * 100}%">
         {fmt(d.start, keys.length <= 3 ? 'EEEE' : 'EEEEEE d.')}

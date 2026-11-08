@@ -7,7 +7,9 @@
   import { clock, data } from '$lib/store.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import { intakeColor } from '$lib/colors';
+  import CardHeading from './CardHeading.svelte';
   import DaySheet from './DaySheet.svelte';
+  import InfoButton from './InfoButton.svelte';
   import TimelineChart from './TimelineChart.svelte';
 
   /** Days shown in the rolling chart. */
@@ -41,24 +43,24 @@
 
 <div class="flex flex-col gap-3 pb-6">
   <header class="flex items-center justify-between pt-2">
-    <h1 class="text-2xl font-semibold capitalize">{fmt(month, 'LLLL yyyy')}</h1>
+    <h1 class="text-3xl font-semibold capitalize">{fmt(month, 'LLLL yyyy')}</h1>
     <div class="flex gap-1">
-      <button class="press grid size-10 place-items-center rounded-full bg-surface-2" onclick={() => (month = addMonths(month, -1))} aria-label={t('a11y.prevMonth')}>
-        <ChevronLeft size={20} />
+      <button class="press grid size-11 place-items-center rounded-full bg-surface-2" onclick={() => (month = addMonths(month, -1))} aria-label={t('a11y.prevMonth')}>
+        <ChevronLeft size={24} />
       </button>
       <button
-        class="press grid size-10 place-items-center rounded-full bg-surface-2 disabled:opacity-40"
+        class="press grid size-11 place-items-center rounded-full bg-surface-2 disabled:opacity-40"
         disabled={isAfter(addMonths(month, 1), clock.now)}
         onclick={() => (month = addMonths(month, 1))}
         aria-label={t('a11y.nextMonth')}
       >
-        <ChevronRight size={20} />
+        <ChevronRight size={24} />
       </button>
     </div>
   </header>
 
   <section class="card p-3">
-    <div class="mb-1 grid grid-cols-7 text-center text-caption font-medium text-muted">
+    <div class="mb-1 grid grid-cols-7 text-center text-sm font-medium text-muted">
       {#each weekdayShort() as wd (wd)}<span>{wd}</span>{/each}
     </div>
     <div class="grid grid-cols-7 gap-1">
@@ -69,7 +71,7 @@
         {@const ml = water.get(key) ?? 0}
         {@const future = key > today}
         <button
-          class="press relative flex aspect-square flex-col items-center justify-center rounded-xl text-sm tabular disabled:opacity-30
+          class="press relative flex aspect-square flex-col items-center justify-center rounded-xl pb-1.5 text-base tabular disabled:opacity-30
             {key === today ? 'ring-2 ring-primary' : ''} {intensity ? 'font-semibold text-white' : 'bg-surface-2'}"
           style:background-color={painStyle(intensity)}
           disabled={future}
@@ -77,48 +79,47 @@
         >
           {keyToDate(key).getDate()}
           {#if meds?.length}
-            <span class="absolute bottom-1.5 flex gap-0.5">
+            <span class="absolute bottom-2 flex gap-0.5">
               {#each meds.slice(0, 3) as m (m.id)}
-                <span class="size-1.5 rounded-full ring-1 ring-surface" style:background-color={intakeColor(m, data.medications)}></span>
+                <span class="size-2 rounded-full ring-1 ring-surface" style:background-color={intakeColor(m, data.medications)}></span>
               {/each}
             </span>
           {/if}
           {#if ml >= data.settings.waterGoalMl}
-            <span class="absolute inset-x-2 bottom-0.5 h-0.5 rounded-full bg-water"></span>
+            <span class="absolute inset-x-2 bottom-0.5 h-1 rounded-full bg-water"></span>
           {/if}
         </button>
       {/each}
     </div>
-    <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs text-muted">
-      <span class="flex items-center gap-1.5"><span class="size-3 rounded bg-pain"></span>{t('cal.headache')}</span>
-      <span class="flex items-center gap-1.5"><span class="h-0.5 w-3 rounded-full bg-water"></span>{t('cal.water')}</span>
+    <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-sm text-muted">
+      <span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-pain"></span>{t('cal.headache')}</span>
+      <span class="flex items-center gap-1.5"><span class="h-1 w-3.5 rounded-full bg-water"></span>{t('cal.water')}</span>
       {#each data.medications as med (med.id)}
         <span class="flex items-center gap-1.5">
-          <span class="size-2 rounded-full" style:background-color={intakeColor({ medId: med.id, name: med.name, category: med.category }, data.medications)}></span>{med.name}
+          <span class="size-2.5 rounded-full" style:background-color={intakeColor({ medId: med.id, name: med.name, category: med.category }, data.medications)}></span>{med.name}
         </span>
       {/each}
+      <InfoButton class="-ml-2" title={t('tab.calendar')} text={t('cal.medsHint')} />
     </div>
-    <p class="mt-1 px-1 text-xs text-muted">{t('cal.medsHint')}</p>
   </section>
 
   <section class="grid grid-cols-3 gap-2">
     <div class="card p-3">
       <p class="text-2xl font-semibold text-pain tabular">{summary.headache}</p>
-      <p class="text-xs text-muted">{t('cal.headacheDays')}</p>
+      <p class="text-xs leading-tight hyphens-auto text-muted">{t('cal.headacheDays')}</p>
     </div>
     <div class="card p-3">
       <p class="text-2xl font-semibold text-med tabular">{summary.med}</p>
-      <p class="text-xs text-muted">{t('cal.medDays')}</p>
+      <p class="text-xs leading-tight hyphens-auto text-muted">{t('cal.medDays')}</p>
     </div>
     <div class="card p-3">
       <p class="text-2xl font-semibold text-water tabular">{formatLiters(summary.water)}</p>
-      <p class="text-xs text-muted">{t('cal.avgWater')}</p>
+      <p class="text-xs leading-tight hyphens-auto text-muted">{t('cal.avgWater')}</p>
     </div>
   </section>
 
   <section class="card p-4">
-    <h2 class="text-sm font-semibold">{t('cal.rolling')}</h2>
-    <p class="mb-3 text-xs text-muted">{t('cal.rollingHint', { n: CHRONIC_DAYS })}</p>
+    <CardHeading class="mb-3" title={t('cal.rolling')} info={t('cal.rollingHint', { n: CHRONIC_DAYS })} />
     <TimelineChart
       keys={rolling.map((r) => r.key)}
       bands={rolling.map((r) => hDays.has(r.key))}

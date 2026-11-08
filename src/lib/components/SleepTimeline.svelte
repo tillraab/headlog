@@ -128,7 +128,7 @@
 <div class="flex flex-col gap-3 select-none">
   <p class="text-center">
     <span class="text-lg font-semibold text-primary tabular">{formatDuration(asleep)}</span>
-    <span class="text-xs text-muted">{t('sleep.asleepTotal')}</span>
+    <span class="text-sm text-muted">{t('sleep.asleepTotal')}</span>
   </p>
   <div class="grid grid-cols-2 gap-3">
     <label class="flex min-w-0 flex-col text-xs text-muted">
@@ -200,7 +200,7 @@
   {/snippet}
 
   {#snippet axis(within: Span, step: number, label: string)}
-    <div class="relative mt-1 h-4 text-2xs text-muted tabular">
+    <div class="relative mt-1 h-4 text-axis text-muted tabular">
       {#each ticks(within, step) as h (h)}
         <span class="absolute -translate-x-1/2" style:left="{pct(h, within)}%">{format(h, label)}</span>
       {/each}
@@ -220,7 +220,7 @@
       <div class="mt-2 flex flex-wrap gap-2">
         {#each night.breaks as b, i (i)}
           <button
-            class="press rounded-full px-3 py-1.5 text-xs font-medium tabular {selected === i ? 'bg-caution text-white' : 'bg-caution/15 text-caution'}"
+            class="press min-h-11 rounded-full px-3 py-1.5 text-sm font-medium tabular {selected === i ? 'bg-caution text-white' : 'bg-caution/15 text-caution'}"
             onclick={() => select(selected === i ? null : i)}
           >
             {hm(b.start)}–{hm(b.end)} · {formatDuration(b.end - b.start)}
@@ -244,14 +244,13 @@
     {/if}
   </div>
 
-  <div class="flex min-h-10 items-center gap-2 text-sm">
+  <div class="flex min-h-11 flex-wrap items-center gap-2">
     {#if sel}
       <span class="flex-1 font-medium text-caution tabular">{t('sleep.breakLabel', { from: hm(sel.start), to: hm(sel.end) })}</span>
-      <button class="press rounded-xl px-3 py-2 font-medium text-over" onclick={removeBreak}>{t('sleep.removeBreak')}</button>
+      <button class="press min-h-11 rounded-xl px-3 py-2 font-medium text-over" onclick={removeBreak}>{t('sleep.removeBreak')}</button>
     {:else}
-      <span class="flex-1 text-xs text-muted">{night.breaks.length ? t('sleep.breaks', { n: night.breaks.length, d: formatDuration(awake) }) : t('sleep.noBreaks')}</span>
+      <span class="flex-1 text-sm text-muted">{night.breaks.length ? t('sleep.breaks', { n: night.breaks.length, d: formatDuration(awake) }) : t('sleep.noBreaks')}</span>
     {/if}
-    <button class="press rounded-xl bg-surface-2 px-3 py-2 font-medium" onclick={addBreak}>{t('sleep.addBreak')}</button>
+    <button class="press min-h-11 rounded-xl bg-surface-2 px-3 py-2 font-medium" onclick={addBreak}>{t('sleep.addBreak')}</button>
   </div>
-  <p class="text-xs text-muted">{t('sleep.dragHint')}</p>
 </div>

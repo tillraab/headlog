@@ -41,17 +41,16 @@
   }
 </script>
 
-<Sheet id="medList" title={t('set.meds')}>
-  <p class="mb-3 text-xs text-muted">{t('set.medsHint')}</p>
+<Sheet id="medList" title={t('set.meds')} info={t('set.medsHint')}>
   <ul class="card flex flex-col p-1">
     {#each data.medications as med, i (med.id)}
       <li class="rounded-xl {openMed === med.id ? 'bg-surface-2' : ''}">
         <div class="flex items-center gap-2 py-1 pl-3">
           <button class="press flex flex-1 items-center gap-3 py-2 text-left" onclick={() => (openMed = openMed === med.id ? null : med.id)}>
-            <span class="size-3.5 rounded-full" style:background-color={med.color}></span>
-            <span class="flex flex-col">
+            <span class="size-4 shrink-0 rounded-full" style:background-color={med.color}></span>
+            <span class="flex min-w-0 flex-col">
               <span class="text-body font-medium">{med.name} <span class="text-muted">{med.dose}</span></span>
-              <span class="text-xs text-muted">
+              <span class="text-sm text-muted">
                 {t(`cat.${med.category}`)}{med.limitDays ? ` · ${t('set.limitOption', { n: med.limitDays, m: med.limitWindow ?? 30 })}` : ''}
               </span>
             </span>
@@ -74,11 +73,11 @@
                 {#each CATEGORIES as c (c)}<option value={c}>{t(`cat.${c}`)}</option>{/each}
               </select>
             </label>
-            <p class="col-span-2 -mt-1 rounded-lg bg-surface px-2.5 py-2 text-xs text-muted">{t(`catDesc.${med.category}`)}</p>
+            <p class="col-span-2 -mt-1 rounded-lg bg-surface px-3 py-2 text-sm text-muted">{t(`catDesc.${med.category}`)}</p>
 
             <div class="col-span-2 flex flex-col gap-1 text-xs text-muted">
               {t('set.limitDays')}
-              <div class="flex items-center gap-2 text-sm text-fg">
+              <div class="flex flex-wrap items-center gap-2 text-base text-fg">
                 {t('set.limitMax')}
                 <input
                   class="w-16 bg-surface text-center"
@@ -100,19 +99,23 @@
                 />
                 {t('set.limitDaysUnit')}
               </div>
-              <span>{t('set.limitHint')}</span>
+              <span class="text-sm">{t('set.limitHint')}</span>
             </div>
-            <div class="col-span-2 flex items-center gap-2">
+            <div class="col-span-2 flex flex-wrap items-center gap-1">
               {#each MED_COLORS as color (color)}
                 <button
-                  class="press size-7 rounded-full {med.color === color ? 'ring-2 ring-fg ring-offset-2 ring-offset-surface-2' : ''}"
-                  style:background-color={color}
+                  class="press grid size-11 place-items-center rounded-full"
                   onclick={() => updateMed(med, { color })}
                   aria-label={color}
-                ></button>
+                >
+                  <span
+                    class="size-8 rounded-full {med.color === color ? 'ring-2 ring-fg ring-offset-2 ring-offset-surface-2' : ''}"
+                    style:background-color={color}
+                  ></span>
+                </button>
               {/each}
-              <button class="press ml-auto grid size-9 place-items-center rounded-full text-over" onclick={() => deleteMedication(med.id)} aria-label={t('edit.delete')}>
-                <Trash2 size={18} />
+              <button class="press ml-auto grid size-11 place-items-center rounded-full text-over" onclick={() => deleteMedication(med.id)} aria-label={t('edit.delete')}>
+                <Trash2 size={22} />
               </button>
             </div>
           </div>
@@ -120,8 +123,8 @@
       </li>
     {/each}
     <li>
-      <button class="press flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-primary" onclick={addMed}>
-        <Plus size={18} />{t('set.addMed')}
+      <button class="press flex min-h-12 w-full items-center gap-2 rounded-xl px-3 py-3 font-medium text-primary" onclick={addMed}>
+        <Plus size={22} />{t('set.addMed')}
       </button>
     </li>
   </ul>

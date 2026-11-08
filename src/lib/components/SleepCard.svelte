@@ -25,10 +25,10 @@
 {#if night && night.source !== 'manual'}
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-center gap-3">
-      <span class="grid size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary"><Moon size={20} /></span>
+      <span class="grid size-11 shrink-0 place-items-center rounded-full bg-primary/15 text-primary"><Moon size={22} /></span>
       <div class="flex-1">
         <p class="text-xs text-muted">{t('sleep.card.title')}</p>
-        <p class="font-semibold tabular">
+        <p class="text-lg font-semibold tabular">
           {hm(night.start)}–{hm(night.end)} · {formatDuration(night.asleepMs)}
         </p>
         {#if night.breaks.length}
@@ -36,16 +36,16 @@
         {/if}
       </div>
     </div>
-    <p class="text-xs text-muted">{t('sleep.card.question')}</p>
+    <p class="text-muted">{t('sleep.card.question')}</p>
     <div class="grid grid-cols-2 gap-2">
-      <button class="press rounded-xl bg-surface-2 py-2.5 text-sm font-medium" onclick={() => openNight(day)}>{t('sleep.card.fix')}</button>
-      <button class="press rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-fg" onclick={confirm}>{t('sleep.card.ok')}</button>
+      <button class="press min-h-11 rounded-xl bg-surface-2 py-2.5 font-medium" onclick={() => openNight(day)}>{t('sleep.card.fix')}</button>
+      <button class="press min-h-11 rounded-xl bg-primary py-2.5 font-semibold text-primary-fg" onclick={confirm}>{t('sleep.card.ok')}</button>
     </div>
   </section>
 {:else if !night && data.settings.sleep.enabled}
   <section class="card flex items-center gap-3 p-4">
-    <span class="grid size-10 shrink-0 place-items-center rounded-full bg-surface-2 text-muted"><Moon size={20} /></span>
-    <p class="flex-1 text-sm text-muted">{t('sleep.card.none')}</p>
+    <span class="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-muted"><Moon size={22} /></span>
+    <p class="flex-1 text-muted">{t('sleep.card.none')}</p>
     <button class="press btn-primary" onclick={() => openNight(day)}>{t('sleep.card.add')}</button>
   </section>
 {/if}

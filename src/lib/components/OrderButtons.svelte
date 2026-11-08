@@ -7,14 +7,14 @@
   let { list, index, table }: { list: { id: number; order: number }[]; index: number; table: 'medications' | 'drinkPresets' } = $props();
 </script>
 
-<button class="press grid size-9 place-items-center rounded-full disabled:opacity-30" disabled={index === 0} onclick={() => swapOrder(table, list[index], list[index - 1])} aria-label={t('a11y.up')}>
-  <ArrowUp size={16} />
+<button class="press grid size-11 place-items-center rounded-full disabled:opacity-30" disabled={index === 0} onclick={() => swapOrder(table, list[index], list[index - 1])} aria-label={t('a11y.up')}>
+  <ArrowUp size={20} />
 </button>
 <button
-  class="press grid size-9 place-items-center rounded-full disabled:opacity-30"
+  class="press grid size-11 place-items-center rounded-full disabled:opacity-30"
   disabled={index === list.length - 1}
   onclick={() => swapOrder(table, list[index], list[index + 1])}
   aria-label={t('a11y.down')}
 >
-  <ArrowDown size={16} />
+  <ArrowDown size={20} />
 </button>

@@ -20,8 +20,21 @@
   --color-ok: #16a26b;
   --color-caution: #d98a04;
   --color-over: #dc3a3a;
-  --text-2xs: 10px;
-  --text-caption: 11px;
+  /* Type scale for a phone held at arm's length: body 16 px, secondary 14 px, nothing under 12 px but chart axes. */
+  --text-axis: 10px;
+  --text-axis--line-height: 1;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.35;
+  --text-xs: 14px;
+  --text-xs--line-height: 1.4;
+  --text-sm: 16px;
+  --text-sm--line-height: 1.45;
+  --text-body: 16px;
+  --text-body--line-height: 1.45;
+  --text-base: 17px;
+  --text-base--line-height: 1.5;
+  --text-lg: 19px;
+  --text-lg--line-height: 1.4;
   --text-display: 44px;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
@@ -48,6 +61,7 @@ body {
   height: 100%;
   background: var(--color-bg);
   color: var(--color-fg);
+  overflow-wrap: break-word;
   overscroll-behavior: none;
   /* Like a native app: a long press on a label does not select text. Fields stay selectable. */
   -webkit-user-select: none;
@@ -79,7 +93,7 @@ body {
 
 /** The main button of a card. */
 @utility btn-primary {
-  @apply rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg;
+  @apply min-h-11 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg;
 }
 
 @utility no-scrollbar {
@@ -105,7 +119,7 @@ body {
     border-radius: 0.75rem;
     padding: 0.6rem 0.75rem;
     width: 100%;
-    font-size: 15px;
+    font-size: 16px;
     color: inherit;
     outline: none;
     border: 1px solid transparent;

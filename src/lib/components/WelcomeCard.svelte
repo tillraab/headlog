@@ -24,23 +24,23 @@
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-start justify-between gap-3">
       <div>
-        <h2 class="font-semibold">{t('welcome.title')}</h2>
-        <p class="text-sm text-muted">{t('welcome.hint')}</p>
+        <h2 class="text-lg font-semibold">{t('welcome.title')}</h2>
+        <p class="text-muted">{t('welcome.hint')}</p>
       </div>
-      <button class="press -mt-1 -mr-1 grid size-8 shrink-0 place-items-center rounded-full text-muted" onclick={dismiss} aria-label={t('edit.cancel')}>
-        <X size={16} />
+      <button class="press -mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted" onclick={dismiss} aria-label={t('edit.cancel')}>
+        <X size={22} />
       </button>
     </div>
     <ol class="flex flex-col gap-2">
       {#each steps as step, i (step.sheet)}
         <li>
-          <button class="press flex w-full items-center gap-3 rounded-xl bg-surface-2 px-3 py-2.5 text-left text-sm" onclick={() => openSheet(step.sheet)}>
-            <span class="text-xl">{step.icon}</span>
+          <button class="press flex w-full items-center gap-3 rounded-xl bg-surface-2 px-3 py-3 text-left" onclick={() => openSheet(step.sheet)}>
+            <span class="text-2xl">{step.icon}</span>
             <span class="flex-1"><span class="text-muted">{i + 1}.</span> {t(step.title)}</span>
           </button>
         </li>
       {/each}
     </ol>
-    <p class="text-xs text-muted">{t('welcome.demo')}</p>
+    <p class="text-sm text-muted">{t('welcome.demo')}</p>
   </section>
 {/if}

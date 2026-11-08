@@ -53,7 +53,7 @@
   });
 
   /** Fixed height for the detail box, so the charts below never move: date, value rows, two extra lines. */
-  const boxHeight = $derived(2.4 + Math.ceil(rows.length / 2) * 1.05 + (details ? 2.1 : 0));
+  const boxHeight = $derived(2.6 + Math.ceil(rows.length / 2) * 1.3 + (details ? 2.5 : 0));
 
   /** Weekly ticks up to 45 days, the 1st and 15th up to 120 days, otherwise the 1st of each month. */
   const ticks = $derived.by(() => {
@@ -110,12 +110,12 @@
   {#each rows as row (row.label)}
     {@const s = scale(row)}
     <div class="flex flex-col gap-1">
-      <div class="flex items-baseline justify-between pl-10 text-xs">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-2 pl-10 text-xs">
         <span class="font-semibold">{row.label}</span>
-        <span class="truncate pl-2 text-muted tabular">{row.summary}</span>
+        <span class="ml-auto text-muted tabular">{row.summary}</span>
       </div>
       <div class="flex gap-1">
-        <div class="flex h-12 w-9 shrink-0 flex-col justify-between text-right text-2xs leading-none text-muted tabular">
+        <div class="flex h-12 w-9 shrink-0 flex-col justify-between text-right text-axis leading-none text-muted tabular">
           <span>{row.format(s.max)}</span>
           <span>{row.format(s.min)}</span>
         </div>
@@ -177,7 +177,7 @@
     </div>
   {/each}
 
-  <div class="relative ml-10 h-4 text-2xs text-muted">
+  <div class="relative ml-10 h-4 text-axis text-muted">
     {#each ticks as tick (tick.i)}
       <span class="absolute -translate-x-1/2 whitespace-nowrap" style:left="{(tick.i / n) * 100}%">{tick.label}</span>
     {/each}

@@ -7,7 +7,7 @@
   const tone = $derived({ ok: 'bg-ok/12 text-ok', caution: 'bg-caution/15 text-caution', over: 'bg-over/12 text-over' }[rule.status]);
 </script>
 
-<span class="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap {tone}">
+<span class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap {tone}">
   <span class="font-semibold tabular">{rule.count}/{rule.limit}</span>
   <span>{t('tenTwenty.badge')}</span>
 </span>

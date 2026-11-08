@@ -83,54 +83,54 @@
   }
 </script>
 
-<Sheet id="editor" {title}>
+<Sheet id="editor" {title} info={current?.kind === 'sleep' ? [t('sleep.dragHint'), t('sleep.editHint')] : undefined}>
   {#if current}
     <div class="flex flex-col gap-4">
       {#if current.kind === 'episode'}
         {@const ep = current.item}
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{t('edit.start')}</span>
+        <label class="flex flex-col gap-1">
+          <span class="text-sm text-muted">{t('edit.start')}</span>
           <input type="datetime-local" value={toLocalInput(ep.start)} onchange={(e) => (ep.start = readTime(e.currentTarget, ep.start))} />
         </label>
-        <label class="flex items-center gap-2 text-sm">
+        <label class="flex min-h-11 items-center gap-3">
           <input
             type="checkbox"
-            class="size-5 accent-primary"
+            class="size-6 accent-primary"
             checked={ep.end === null}
             onchange={(e) => (ep.end = e.currentTarget.checked ? null : Math.max(Date.now(), ep.start + MINUTE))}
           />
           {t('edit.ongoing')}
         </label>
         {#if ep.end !== null}
-          <label class="flex flex-col gap-1 text-sm">
-            <span class="text-muted">{t('edit.end')}</span>
+          <label class="flex flex-col gap-1">
+            <span class="text-sm text-muted">{t('edit.end')}</span>
             <input type="datetime-local" value={toLocalInput(ep.end)} onchange={(e) => (ep.end = readTime(e.currentTarget, ep.end ?? ep.start))} />
           </label>
         {/if}
-        <div class="flex flex-col gap-2 text-sm">
-          <span class="text-muted">{t('today.intensity')}</span>
+        <div class="flex flex-col gap-2">
+          <span class="text-sm text-muted">{t('today.intensity')}</span>
           <IntensityPicker value={ep.intensity} onchange={(v) => (ep.intensity = v)} />
         </div>
-        <div class="flex flex-col gap-2 text-sm">
-          <span class="text-muted">{t('edit.tags')}</span>
+        <div class="flex flex-col gap-2">
+          <span class="text-sm text-muted">{t('edit.tags')}</span>
           <div class="flex flex-wrap gap-2">
             {#each TAGS as tag (tag)}
               <button
-                class="press rounded-full px-3 py-1.5 text-sm {ep.tags.includes(tag) ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
+                class="press min-h-11 rounded-full px-4 py-2 {ep.tags.includes(tag) ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
                 onclick={() => toggleTag(tag)}>{tagLabel(tag)}</button
               >
             {/each}
           </div>
         </div>
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{t('edit.note')}</span>
+        <label class="flex flex-col gap-1">
+          <span class="text-sm text-muted">{t('edit.note')}</span>
           <textarea rows="2" bind:value={ep.note} placeholder={t('edit.notePlaceholder')}></textarea>
         </label>
       {:else if current.kind === 'intake'}
         {@const intake = current.item}
         {#if intake.id === undefined}
-          <label class="flex flex-col gap-1 text-sm">
-            <span class="text-muted">{t('edit.intake')}</span>
+          <label class="flex flex-col gap-1">
+            <span class="text-sm text-muted">{t('edit.intake')}</span>
             <select bind:value={intake.medId}>
               {#each data.medications as med (med.id)}
                 <option value={med.id}>{med.name} {med.dose}</option>
@@ -140,16 +140,16 @@
         {:else}
           <p class="text-body font-medium">{intake.name} <span class="text-muted">{intake.dose}</span></p>
         {/if}
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{t('edit.time')}</span>
+        <label class="flex flex-col gap-1">
+          <span class="text-sm text-muted">{t('edit.time')}</span>
           <input type="datetime-local" value={toLocalInput(intake.time)} onchange={(e) => (intake.time = readTime(e.currentTarget, intake.time))} />
         </label>
-        <div class="flex flex-col gap-2 text-sm">
-          <span class="text-muted">{t('edit.relief')}</span>
+        <div class="flex flex-col gap-2">
+          <span class="text-sm text-muted">{t('edit.relief')}</span>
           <div class="grid grid-cols-3 gap-2">
             {#each RELIEFS as r (r)}
               <button
-                class="press rounded-xl py-2.5 {intake.relief === r ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
+                class="press min-h-11 rounded-xl py-2.5 {intake.relief === r ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
                 onclick={() => (intake.relief = intake.relief === r ? null : r)}>{reliefLabels()[r]}</button
               >
             {/each}
@@ -166,34 +166,33 @@
             }
           />
         {/key}
-        <p class="text-xs text-muted">{t('sleep.editHint')}</p>
       {:else}
         {@const drink = current.item}
         {#if drink.id === undefined}
           <div class="grid grid-cols-4 gap-2">
             {#each data.drinkPresets as p (p.id)}
               <button
-                class="press flex flex-col items-center rounded-xl py-2 text-xs {drink.presetId === p.id ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
+                class="press flex min-w-0 flex-col items-center rounded-xl py-2 text-sm {drink.presetId === p.id ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
                 onclick={() => Object.assign(drink, fromPreset(p))}
               >
-                <span class="text-xl">{p.emoji}</span>{p.name}
+                <span class="text-2xl">{p.emoji}</span><span class="max-w-full truncate px-1">{p.name}</span>
               </button>
             {/each}
           </div>
         {:else}
           <p class="text-body font-medium">{drink.emoji} {drink.name}</p>
         {/if}
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{t('edit.amount')}</span>
+        <label class="flex flex-col gap-1">
+          <span class="text-sm text-muted">{t('edit.amount')}</span>
           <input type="number" inputmode="numeric" min="0" step="50" bind:value={drink.ml} />
         </label>
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{t('edit.time')}</span>
+        <label class="flex flex-col gap-1">
+          <span class="text-sm text-muted">{t('edit.time')}</span>
           <input type="datetime-local" value={toLocalInput(drink.time)} onchange={(e) => (drink.time = readTime(e.currentTarget, drink.time))} />
         </label>
       {/if}
 
-      {#if error}<p class="text-sm text-over">{error}</p>{/if}
+      {#if error}<p class="text-over">{error}</p>{/if}
 
       <div class="mt-2 flex gap-2">
         {#if current.kind !== 'sleep' && current.item.id !== undefined}

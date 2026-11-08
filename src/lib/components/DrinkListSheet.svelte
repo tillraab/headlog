@@ -25,7 +25,7 @@
   }
 </script>
 
-<Sheet id="drinkList" title={t('set.drinks')}>
+<Sheet id="drinkList" title={t('set.drinks')} info={t('set.drinksHint')}>
   <div class="card mb-4 p-4">
     <label class="flex items-center justify-between gap-4 text-body">
       {t('set.waterGoal')}
@@ -36,17 +36,16 @@
       </select>
     </label>
   </div>
-  <p class="mb-3 text-xs text-muted">{t('set.drinksHint')}</p>
   <ul class="card flex flex-col p-1">
     {#each data.drinkPresets as preset, i (preset.id)}
       <li class="rounded-xl {openDrink === preset.id ? 'bg-surface-2' : ''}">
         <div class="flex items-center gap-2 py-1 pl-3">
           <button class="press flex flex-1 items-center gap-3 py-2 text-left" onclick={() => (openDrink = openDrink === preset.id ? null : preset.id)}>
             <span class="text-2xl">{preset.emoji}</span>
-            <span class="flex flex-col">
+            <span class="flex min-w-0 flex-col">
               <span class="text-body font-medium">{preset.name} <span class="text-muted tabular">{preset.ml} ml</span></span>
               {#if preset.caffeineMg || preset.alcohol}
-                <span class="text-xs text-muted">
+                <span class="text-sm text-muted">
                   {[preset.caffeineMg ? t('drink.caffeineShort', { mg: preset.caffeineMg }) : '', preset.alcohol ? t('drink.alcohol') : ''].filter(Boolean).join(' · ')}
                 </span>
               {/if}
@@ -77,24 +76,24 @@
                 onchange={(e) => updateDrink(preset, { caffeineMg: Math.max(0, Math.round(Number(e.currentTarget.value))) || undefined })}
               />
             </label>
-            <label class="flex items-end gap-2 pb-2.5 text-sm">
+            <label class="flex items-end gap-2 pb-2.5">
               <input
                 type="checkbox"
-                class="size-5 accent-primary"
+                class="size-6 accent-primary"
                 checked={preset.alcohol ?? false}
                 onchange={(e) => updateDrink(preset, { alcohol: e.currentTarget.checked || undefined })}
               />
               {t('drink.alcohol')}
             </label>
-            {#if preset.alcohol}<p class="col-span-2 -mt-1 text-xs text-muted">{t('drink.alcoholHint')}</p>{/if}
+            {#if preset.alcohol}<p class="col-span-2 -mt-1 text-sm text-muted">{t('drink.alcoholHint')}</p>{/if}
             <div class="col-span-2 flex flex-wrap items-center gap-1">
               {#each EMOJIS as emoji (emoji)}
-                <button class="press grid size-9 place-items-center rounded-full text-xl {preset.emoji === emoji ? 'bg-surface' : ''}" onclick={() => updateDrink(preset, { emoji })}>
+                <button class="press grid size-11 place-items-center rounded-full text-2xl {preset.emoji === emoji ? 'bg-surface' : ''}" onclick={() => updateDrink(preset, { emoji })}>
                   {emoji}
                 </button>
               {/each}
-              <button class="press ml-auto grid size-9 place-items-center rounded-full text-over" onclick={() => deleteDrinkPreset(preset.id)} aria-label={t('edit.delete')}>
-                <Trash2 size={18} />
+              <button class="press ml-auto grid size-11 place-items-center rounded-full text-over" onclick={() => deleteDrinkPreset(preset.id)} aria-label={t('edit.delete')}>
+                <Trash2 size={22} />
               </button>
             </div>
           </div>
@@ -102,8 +101,8 @@
       </li>
     {/each}
     <li>
-      <button class="press flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-primary" onclick={addDrink}>
-        <Plus size={18} />{t('set.addDrink')}
+      <button class="press flex min-h-12 w-full items-center gap-2 rounded-xl px-3 py-3 font-medium text-primary" onclick={addDrink}>
+        <Plus size={22} />{t('set.addDrink')}
       </button>
     </li>
   </ul>
