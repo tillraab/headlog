@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.26.4] - 2026-11-08
+
 ### Changed
 
 - Insights, the hour view and the calendar day mark the day before a pressure drop of more than 5 hPa instead of the day the pressure has already fallen. That is the day the forecast counts as unfavourable, and the info texts explain the orange marks.
