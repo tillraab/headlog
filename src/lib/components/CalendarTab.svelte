@@ -11,6 +11,7 @@
   import DaySheet from './DaySheet.svelte';
   import InfoButton from './InfoButton.svelte';
   import TimelineChart from './TimelineChart.svelte';
+  import { SOURCES } from '$lib/sources';
 
   /** Days shown in the rolling chart. */
   const ROLLING_SPAN = 90;
@@ -119,7 +120,7 @@
   </section>
 
   <section class="card p-4">
-    <CardHeading class="mb-3" title={t('cal.rolling')} info={t('cal.rollingHint', { n: CHRONIC_DAYS })} />
+    <CardHeading class="mb-3" title={t('cal.rolling')} info={t('cal.rollingHint', { n: CHRONIC_DAYS })} sources={SOURCES.chronic} />
     <TimelineChart
       keys={rolling.map((r) => r.key)}
       bands={rolling.map((r) => hDays.has(r.key))}

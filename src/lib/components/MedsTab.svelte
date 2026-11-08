@@ -11,6 +11,7 @@
   import { DAY, keyToDate } from '$lib/days';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
+  import { SOURCES } from '$lib/sources';
 
   /** Days the effect of each medication looks back on. */
   const EFFECT_WINDOW_DAYS = 90;
@@ -42,7 +43,7 @@
   </header>
 
   <section class="card flex flex-col items-center p-4">
-    <CardHeading class="self-stretch" title={t('tenTwenty.title')} info={t('tenTwenty.explain')} />
+    <CardHeading class="self-stretch" title={t('tenTwenty.title')} info={t('tenTwenty.explain')} sources={SOURCES.medication} />
     <div class="relative size-44">
       <svg viewBox="0 0 160 160" class="pointer-events-none size-full rotate-135">
         <circle cx="80" cy="80" r={R} fill="none" stroke="var(--color-surface-2)" stroke-width="14" stroke-linecap="round" stroke-dasharray="{C * arc} {C}" />
@@ -54,7 +55,7 @@
           stroke="var(--color-over)"
           stroke-opacity="0.25"
           stroke-width="14"
-          stroke-dasharray="0 {C * arc * ((rule.limit + 0.5) / (rule.limit + 5))} {C * arc * (4.5 / (rule.limit + 5))} {C}"
+          stroke-dasharray="0 {C * arc * ((rule.allowed + 0.5) / (rule.limit + 5))} {C * arc * ((rule.limit + 4.5 - rule.allowed) / (rule.limit + 5))} {C}"
         />
         <circle
           cx="80"
@@ -131,7 +132,7 @@
           label: t('tenTwenty.short'),
           summary: t('tenTwenty.trendLimit', { n: rule.limit }),
           values: rolling.map((r) => r.count),
-          colors: rolling.map((r) => STATUS_COLOR[ruleStatus(r.count, rule.limit)]),
+          colors: rolling.map((r) => STATUS_COLOR[ruleStatus(r.count, rule.allowed)]),
           color: 'var(--color-ok)',
           kind: 'bars',
           format: (v) => String(Math.round(v)),
@@ -193,7 +194,7 @@
   {/if}
 
   <section class="card p-4">
-    <CardHeading class="mb-2" title={`${t('overuse.title')} · ${fmt(clock.now, 'LLLL')}`} info={[t('overuse.hint'), t('overuse.notCounted')]} />
+    <CardHeading class="mb-2" title={`${t('overuse.title')} · ${fmt(clock.now, 'LLLL')}`} info={[t('overuse.hint'), t('overuse.notCounted')]} sources={SOURCES.medication} />
     <ul class="flex flex-col gap-3">
       {#each overuse as row (row.key)}
         <li class="flex flex-col gap-1">

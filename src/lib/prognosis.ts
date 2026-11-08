@@ -1,8 +1,8 @@
 import { addDays, getHours, getMinutes } from 'date-fns';
-import { alcoholDays, average, caffeineByDay, caffeineDropOn, firstDrinkDay, usualCaffeine, usualCaffeineByTime, waterByDay } from './analysis';
+import { alcoholDays, average, caffeineByDay, caffeineDropOn, firstDrinkDay, poorNight, sleepEfficiency, usualCaffeine, usualCaffeineByTime, waterByDay } from './analysis';
 import type { Drink, Night, WeatherDay } from './db';
 import { dayKey, HOUR, lastDays } from './days';
-import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, MIN_USUAL_CAFFEINE_BY_NOW, SHORT_SLEEP_HOURS } from './thresholds';
+import { CAFFEINE_DROP, LOW_HYDRATION, MIN_USUAL_CAFFEINE, MIN_USUAL_CAFFEINE_BY_NOW } from './thresholds';
 import { isPressureDrop } from './weather';
 
 export type Light = 'green' | 'yellow' | 'red';
@@ -27,7 +27,7 @@ export interface Prognosis {
   bad: number;
   weather: { status: Status; today?: WeatherDay; tomorrow?: WeatherDay; drop: number };
   hydration: { status: Status; today: number; yesterday: number | null; expected: number; goal: number; behind: boolean; lowYesterday: boolean };
-  sleep: { status: Status; night?: Night; average: number | null };
+  sleep: { status: Status; night?: Night; average: number | null; efficiency: number | null; short: boolean; fragmented: boolean };
   alcohol: { status: Status; yesterday: boolean; today: boolean };
   caffeine: {
     status: Status;
@@ -56,7 +56,7 @@ export function expectedByNow(goalMl: number, now: number): number {
 }
 
 /**
- * Traffic light for today: today's pressure drop, hydration yesterday and today,
+ * Traffic light for today: a pressure drop from today to tomorrow, hydration yesterday and today,
  * last night's sleep, alcohol and caffeine. Each unfavourable factor counts; none is green,
  * 1 yellow, 2 or more red. Unknown factors (no weather, no sleep data) do not count.
  */
@@ -67,9 +67,9 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
 
   const todayWeather = input.weather.get(today);
   const tomorrowWeather = input.weather.get(tomorrow);
-  // Only today counts; tomorrow's forecast is shown for information and counts in the evening warning.
-  const drop = todayWeather?.pressureDrop ?? 0;
-  const weatherStatus: Status = !todayWeather ? 'unknown' : isPressureDrop(drop) ? 'bad' : 'ok';
+  // Migraine is more frequent on the day before a fall in pressure, so tomorrow's drop counts for today.
+  const drop = tomorrowWeather?.pressureDrop ?? 0;
+  const weatherStatus: Status = !tomorrowWeather ? 'unknown' : isPressureDrop(drop) ? 'bad' : 'ok';
 
   const water = waterByDay(input.drinks);
   const first = firstDrinkDay(input.drinks);
@@ -85,7 +85,8 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   const recent = lastDays(now, 7).map((k) => input.sleep.get(k)).filter((n) => n !== undefined);
   const recentMs = average(recent.map((n) => n.asleepMs));
   const sleepAverage = recentMs === null ? null : recentMs / HOUR;
-  const sleepStatus: Status = !night ? 'unknown' : night.asleepMs < SHORT_SLEEP_HOURS * HOUR ? 'bad' : 'ok';
+  const poor = night ? poorNight(night) : { short: false, fragmented: false };
+  const sleepStatus: Status = !night ? 'unknown' : poor.short || poor.fragmented ? 'bad' : 'ok';
 
   const alcohol = alcoholDays(input.drinks);
   const tracksAlcohol = input.drinks.some((d) => d.alcohol);
@@ -109,7 +110,7 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
     bad,
     weather: { status: weatherStatus, today: todayWeather, tomorrow: tomorrowWeather, drop },
     hydration: { status: hydrationStatus, today: todayMl, yesterday: yesterdayMl, expected, goal: input.goalMl, behind: behindToday, lowYesterday },
-    sleep: { status: sleepStatus, night, average: sleepAverage },
+    sleep: { status: sleepStatus, night, average: sleepAverage, efficiency: night ? sleepEfficiency(night) : null, ...poor },
     alcohol: { status: alcoholStatus, yesterday: alcohol.has(yesterday), today: alcohol.has(today) },
     caffeine: { status: caffeineStatus, today: caffeineToday, yesterday: caffeine.get(yesterday) ?? 0, usual, usualByNow, todayLow, yesterdayLow, tooEarly }
   };
@@ -137,17 +138,17 @@ export interface TomorrowRisk {
 
 /**
  * The outlook for tomorrow as it stands at `at`, for the evening warning. Only what can still matter
- * tomorrow counts: a pressure drop tomorrow, today's total below three quarters of the goal (tomorrow's
+ * tomorrow counts: a pressure drop from tomorrow to the day after, today's total below three quarters of the goal (tomorrow's
  * "yesterday"), and alcohol today. Last night's sleep and today's caffeine say nothing about tomorrow.
  * 0 unfavourable is green, 1 yellow, 2 or more red; unknown factors do not count.
  */
 export function tomorrowRisk(input: PrognosisInput, at: number): TomorrowRisk {
   const today = dayKey(at);
-  const tomorrow = input.weather.get(dayKey(addDays(at, 1)));
+  const dayAfter = input.weather.get(dayKey(addDays(at, 2)));
   const drinks = input.drinks.filter((d) => d.time <= at);
   const first = firstDrinkDay(drinks);
   const statuses: [TomorrowFactor, Status][] = [
-    ['weather', !tomorrow ? 'unknown' : isPressureDrop(tomorrow.pressureDrop) ? 'bad' : 'ok'],
+    ['weather', !dayAfter ? 'unknown' : isPressureDrop(dayAfter.pressureDrop) ? 'bad' : 'ok'],
     ['hydration', first === null ? 'unknown' : (waterByDay(drinks).get(today) ?? 0) < input.goalMl * LOW_HYDRATION ? 'bad' : 'ok'],
     ['alcohol', !drinks.some((d) => d.alcohol) ? 'unknown' : alcoholDays(drinks).has(today) ? 'bad' : 'ok']
   ];

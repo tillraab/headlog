@@ -31,6 +31,12 @@
     </div>
     <div class="flex flex-col gap-3 px-5 pb-6 text-base leading-relaxed">
       {#each info.open.text as paragraph, i (i)}<p>{paragraph}</p>{/each}
+      {#if info.open.sources.length}
+        <h3 class="mt-1 text-sm font-semibold text-muted">{t('info.sources')}</h3>
+        <ol class="flex list-decimal flex-col gap-2 pl-5 text-sm break-words text-muted select-text">
+          {#each info.open.sources as source (source)}<li>{source}</li>{/each}
+        </ol>
+      {/if}
     </div>
   </div>
 {/if}

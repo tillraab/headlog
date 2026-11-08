@@ -74,7 +74,12 @@ function factorText(f: DayFactors): string[] {
   const parts: string[] = [];
   if (f.pressure !== undefined) parts.push(t('pdf.f.pressure', { n: Math.round(f.pressure) }));
   if (f.hydration !== undefined) parts.push(t('pdf.f.hydration', { ml: formatLiters(f.hydration) }));
-  if (f.sleep !== undefined) parts.push(t('pdf.f.sleep', { d: formatDuration(f.sleep * HOUR) }));
+  if (f.sleep !== undefined)
+    parts.push(
+      f.sleepEfficiency !== undefined
+        ? t('pdf.f.sleepFragmented', { d: formatDuration(f.sleep * HOUR), pct: Math.round(f.sleepEfficiency * 100) })
+        : t('pdf.f.sleep', { d: formatDuration(f.sleep * HOUR) })
+    );
   if (f.alcohol) parts.push(t('pdf.f.alcohol'));
   if (f.caffeine !== undefined) parts.push(t('pdf.f.caffeine', { mg: Math.round(f.caffeine) }));
   return parts;
@@ -436,7 +441,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     rolling.forEach((r, i) => {
       if (!r.count) return;
       const bh = ((box.bottom - box.top) * r.count) / max;
-      doc.setFillColor(...STATUS_COLOR[ruleStatus(r.count, input.limit)]);
+      doc.setFillColor(...STATUS_COLOR[ruleStatus(r.count, input.limit - 1)]);
       doc.rect(box.left + i * step, box.bottom - bh, Math.max(0.15, step * 0.85), bh, 'F');
     });
     const ly = box.bottom - ((box.bottom - box.top) * input.limit) / max;

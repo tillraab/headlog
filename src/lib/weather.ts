@@ -103,7 +103,7 @@ async function get(url: string): Promise<WeatherDay[]> {
 }
 
 /**
- * Stores weather for every day from `firstDay` to tomorrow. Older days come once from the archive;
+ * Stores weather for every day from `firstDay` to the day after tomorrow. Older days come once from the archive;
  * the last two weeks and the forecast are fetched again on every sync.
  */
 export async function syncWeather(database: HeadLogDb, place: Place, firstDay: string, today = Date.now()) {
@@ -118,7 +118,7 @@ export async function syncWeather(database: HeadLogDb, place: Place, firstDay: s
       await database.weather.bulkPut(days);
     }
   }
-  const days = await get(`https://api.open-meteo.com/v1/forecast?${coords}&past_days=${RECENT_DAYS + 1}&forecast_days=2&${VARIABLES}`);
+  const days = await get(`https://api.open-meteo.com/v1/forecast?${coords}&past_days=${RECENT_DAYS + 1}&forecast_days=3&${VARIABLES}`);
   await database.weather.bulkPut(days);
 }
 

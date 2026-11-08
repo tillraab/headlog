@@ -4,7 +4,7 @@
   import { showInfo, tap } from '$lib/ui.svelte';
 
   /** An (i) button that opens an explanation of `title`, so the text does not have to sit on the screen. */
-  let { title, text, class: cls = '' }: { title: string; text: string | string[]; class?: string } = $props();
+  let { title, text, sources, class: cls = '' }: { title: string; text: string | string[]; sources?: readonly string[]; class?: string } = $props();
 </script>
 
 <button
@@ -16,7 +16,7 @@
     e.preventDefault();
     e.stopPropagation();
     tap();
-    showInfo(title, text);
+    showInfo(title, text, sources);
   }}
 >
   <Info size={20} />

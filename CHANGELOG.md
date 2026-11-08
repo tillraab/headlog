@@ -4,7 +4,10 @@
 
 ### Changed
 
-- The rule explanations (i) in the forecast and the 10/20 rule name their sources and say how strong the evidence is: hydration, sleep and alcohol have weak or mixed evidence, the caffeine limit of 100 mg is compared with the 200 mg of the diagnostic criteria.
+- The weather factor follows the study it is based on: today is unfavourable when tomorrow's daily mean pressure is forecast to be more than 5 hPa lower, since migraine was more frequent on the day before such a drop. The evening warning looks at the drop from tomorrow to the day after, and Insights and the doctor report compare headache days with a drop on the following day.
+- The sleep factor counts a night as unfavourable when you slept under 5 hours or were asleep for under 85 % of it (fragmented sleep), instead of any night under 6 hours. Studies found no link between short sleep alone and migraine, but one with fragmented sleep. The forecast shows how much of the night you were asleep.
+- The 10/20 rule shows "over the limit" from 10 medication days in 30, as the German migraine guideline (fewer than 10 days) and ICHD-3 (overuse from 10 days) put it. Personal limits per medication still allow the days you set.
+- Every rule explanation (i) names the strength of the evidence, and a Sources list under it gives the full references (author, year, title, journal, DOI). All references were checked against the original papers and guidelines, which corrected several claims.
 
 ## [0.25.0] - 2026-11-08
 

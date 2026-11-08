@@ -2,8 +2,10 @@
 
 /** Below this share of the hydration goal, or of today's pace, hydration counts as unfavourable. */
 export const LOW_HYDRATION = 0.75;
-/** A night under this many hours counts as short. */
-export const SHORT_SLEEP_HOURS = 6;
+/** A night under this many hours asleep counts as very short. */
+export const SHORT_SLEEP_HOURS = 5;
+/** Below this share of the night spent asleep (sleep efficiency), the night counts as fragmented. */
+export const MIN_SLEEP_EFFICIENCY = 0.85;
 /** Caffeine under this share of the usual amount counts as a drop. */
 export const CAFFEINE_DROP = 0.5;
 /** Below this usual daily caffeine, a drop is not judged. */

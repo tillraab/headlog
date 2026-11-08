@@ -15,12 +15,17 @@ describe('fromLocalInput', () => {
 describe('showInfo', () => {
   it('shows one text as one paragraph', () => {
     showInfo('Title', 'One paragraph.');
-    expect(info.open).toEqual({ title: 'Title', text: ['One paragraph.'] });
+    expect(info.open).toEqual({ title: 'Title', text: ['One paragraph.'], sources: [] });
   });
 
   it('keeps paragraphs given as a list', () => {
     showInfo('Title', ['First.', 'Second.']);
     expect(info.open?.text).toEqual(['First.', 'Second.']);
+  });
+
+  it('keeps the sources apart from the text', () => {
+    showInfo('Title', 'Text', ['Author (2020). Title.']);
+    expect(info.open?.sources).toEqual(['Author (2020). Title.']);
   });
 });
 
