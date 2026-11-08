@@ -183,7 +183,9 @@ export async function updateWeather(force = false) {
   const { enabled, place } = data.settings.weather;
   if (!enabled || !place) return;
   const last = Number(localStorage.getItem(WEATHER_SYNC_KEY) ?? 0);
-  if (!force && Date.now() - last < WEATHER_SYNC_HOURS * HOUR) return;
+  // The evening warning needs the forecast for the day after tomorrow, so its absence forces a sync.
+  const ahead = data.weather.has(dayKey(Date.now() + 2 * DAY));
+  if (!force && ahead && Date.now() - last < WEATHER_SYNC_HOURS * HOUR) return;
   const times = [...data.episodes.map((e) => e.start), ...data.intakes.map((i) => i.time), ...data.drinks.map((d) => d.time)];
   const first = dayKey(Math.min(Date.now() - WEATHER_BACKFILL_DAYS * DAY, ...times));
   await syncWeather(db, $state.snapshot(place), first);

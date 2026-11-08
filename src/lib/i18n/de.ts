@@ -171,6 +171,8 @@ export const de: Record<keyof typeof en, string> = {
   'prog.tip.sleep': 'Heute Pausen einplanen und früh ins Bett.',
   'prog.tip.alcohol': 'Extra Wasser dazu trinken.',
   'prog.tip.caffeine': 'Dein gewohnter Kaffee oder Tee kann Entzugskopfschmerz vorbeugen.',
+  'risk.tonight': 'Heute um {hour}: Warnung, {factors}. Getränke eintragen kann das noch ändern.',
+  'risk.tonightNone': 'Heute um {hour}: keine Warnung, für morgen bisher nichts ungünstig (Luftdruck von morgen auf übermorgen, heutige Getränke, Alkohol heute).',
   'risk.setting': 'Abends warnen, wenn morgen nicht grün aussieht',
   'tl.title': 'Verlauf',
   'tl.tapHint': 'Tippe oder wische über ein Diagramm, um die Werte eines Tages zu sehen.',

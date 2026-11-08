@@ -169,6 +169,8 @@ export const en = {
   'prog.tip.sleep': 'Plan breaks today and go to bed early.',
   'prog.tip.alcohol': 'Drink extra water.',
   'prog.tip.caffeine': 'Your usual coffee or tea can prevent a withdrawal headache.',
+  'risk.tonight': 'Tonight at {hour}: warning, {factors}. Logging drinks can still change it.',
+  'risk.tonightNone': 'Tonight at {hour}: no warning, nothing unfavourable for tomorrow so far (pressure from tomorrow to the day after, today’s drinks, alcohol today).',
   'risk.setting': 'Warn in the evening when tomorrow does not look green',
   'tl.title': 'Timeline',
   'tl.tapHint': 'Tap or drag across a chart to see the values of a day.',
