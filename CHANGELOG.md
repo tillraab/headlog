@@ -6,7 +6,7 @@
 
 - Larger text and icons throughout for easier reading on a phone: body text 16 px, secondary text 14 px, nothing smaller than 12 px except chart axes. Icon buttons, list rows and chips are at least 44 px tall.
 - Long explanations moved behind an (i) button that opens them in a small sheet: how the forecast works and the rule of each factor, the 10/20 rule, personal limits, how well medication works, medication overuse, the calendar dots, the rolling headache count, the Insights charts, the sleep editor, the medication and drink lists, the doctor report and the Settings sections (sleep, weather, cloud backup, backup, drink reminder, hydration reminders). Tap outside, press Back or Escape to close it.
-- The logo in the app icon is about 10% larger, with a white margin kept inside the round icon.
+- the logo in the app icon is about 20% larger, with a white margin kept inside the round icon.
 
 ## [0.23.1] - 2026-11-08
 

@@ -94,20 +94,20 @@
 
 {#snippet hydrationCard()}
   <section class="card flex flex-col gap-3 p-4">
-    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-      <h2 class="flex items-center gap-2 text-lg font-semibold">
-        <Droplets size={22} class="text-water" />
+    <div class="flex items-center justify-between gap-2">
+      <h2 class="flex items-center gap-1.5 text-base font-semibold">
+        <Droplets size={22} class="shrink-0 text-water" />
         {t('today.water')}
         {#if hydration.current >= 1}
-          <span class="rounded-full bg-water-soft px-2 py-0.5 text-sm font-semibold text-water tabular" title={t('streak.best', { n: hydration.best })}>
+          <span class="shrink-0 rounded-full bg-water-soft px-2 py-0.5 text-sm font-semibold text-water tabular" title={t('streak.best', { n: hydration.best })}>
             🔥 {hydration.current}
           </span>
         {/if}
-        <button class="press -my-2 grid size-11 place-items-center rounded-full text-muted" onclick={() => openSheet('drinkList')} aria-label={t('set.drinks')}>
+        <button class="press -my-2 -ml-1 grid size-11 shrink-0 place-items-center rounded-full text-muted" onclick={() => openSheet('drinkList')} aria-label={t('set.drinks')}>
           <Pencil size={20} />
         </button>
       </h2>
-      <p class="ml-auto tabular">
+      <p class="ml-auto shrink-0 text-right whitespace-nowrap tabular">
         <span class="font-semibold">{formatLiters(waterMl)}</span>
         <span class="text-muted">{waterPct >= 1 ? `· ${t('today.goalReached')} 🎉` : t('today.goal', { goal: formatLiters(data.settings.waterGoalMl) })}</span>
       </p>
@@ -143,15 +143,15 @@
 
 {#snippet medsCard()}
   <section class="card flex flex-col gap-3 p-4">
-    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-      <h2 class="flex items-center gap-2 text-lg font-semibold">
-        <Pill size={22} class="text-med" />
+    <div class="flex items-center justify-between gap-2">
+      <h2 class="flex items-center gap-1.5 text-base font-semibold">
+        <Pill size={22} class="shrink-0 text-med" />
         {t('today.meds')}
-        <button class="press -my-2 grid size-11 place-items-center rounded-full text-muted" onclick={() => openSheet('medList')} aria-label={t('set.meds')}>
+        <button class="press -my-2 -ml-1 grid size-11 shrink-0 place-items-center rounded-full text-muted" onclick={() => openSheet('medList')} aria-label={t('set.meds')}>
           <Pencil size={20} />
         </button>
       </h2>
-      <button class="press ml-auto" onclick={() => onOpenTab('meds')}><RuleBadge {rule} /></button>
+      <button class="press ml-auto shrink-0" onclick={() => onOpenTab('meds')}><RuleBadge {rule} /></button>
     </div>
     {#if meds.length}
       <div class="grid grid-cols-2 gap-2">
