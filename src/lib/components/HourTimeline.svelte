@@ -81,9 +81,9 @@
     const weather = pressure.find((p) => p.start <= shown && p.end > shown);
     const values = [
       { key: 'headache', value: episode ? `${episode.intensity}/10` : '–' },
-      { key: 'hydration', value: ml === null ? '–' : `${formatLiters(ml)} / ${formatLiters(goal)}` },
+      { key: 'hydration', value: ml === null ? '–' : formatLiters(ml) },
       { key: 'sleep', value: sleeping ? t('hv.asleep') : data.sleep.size && shown <= now ? t('hv.awake') : '–' },
-      { key: 'pressure', value: weather ? String(Math.round(weather.value)) : '–' }
+      { key: 'pressure', value: weather ? `${Math.round(weather.value)} hPa` : '–' }
     ] as const;
     const near = (time: number) => Math.abs(time - shown) <= NEAR;
     const drinks = data.drinks.filter((d) => near(d.time)).sort((a, b) => a.time - b.time);
@@ -92,14 +92,21 @@
     return { values: values.filter((v) => row(v.key)), details };
   });
 
-  const boxHeight = $derived(2.6 + Math.ceil(rows.length / 2) * 1.3 + 3.75);
+  /** Every readout line is one line of 1.25rem: the date and three detail lines, so the box never changes height. */
+  const DETAIL_LINES = 3;
+  const boxHeight = (1 + DETAIL_LINES) * 1.25 + 1;
+  const valueOf = (key: Row['key']) => lines?.values.find((v) => v.key === key)?.value;
 </script>
 
 {#snippet frame(r: Row, content: Snippet, axis: [string, string])}
   <div class="flex flex-col gap-1">
-    <div class="flex flex-wrap items-baseline justify-between gap-x-2 pl-10 text-xs">
-      <span class="font-semibold">{r.label}</span>
-      <span class="ml-auto text-muted tabular">{r.summary}</span>
+    <div class="flex items-baseline gap-x-2 pl-10 text-xs whitespace-nowrap">
+      <span class="shrink-0 font-semibold">{r.label}</span>
+      {#if valueOf(r.key) !== undefined}
+        <span class="ml-auto shrink-0 rounded-full px-2 font-semibold tabular" style:color={r.color} style:background-color="color-mix(in oklab, {r.color} 16%, transparent)">{valueOf(r.key)}</span>
+      {:else}
+        <span class="ml-auto min-w-0 truncate text-muted tabular">{r.summary}</span>
+      {/if}
     </div>
     <div class="flex gap-1">
       <div class="flex h-12 w-9 shrink-0 flex-col justify-between text-right text-axis leading-none text-muted tabular">
@@ -208,26 +215,16 @@
 {/snippet}
 
 <div class="flex flex-col gap-3">
-  <div class="overflow-hidden rounded-xl bg-surface-2 px-3 py-2 text-xs" style:height="{boxHeight}rem">
+  <div class="overflow-hidden rounded-xl bg-surface-2 px-3 py-2 text-xs leading-5" style:height="{boxHeight}rem">
     {#if shown === null || !lines}
       <p class="text-muted">{t('hv.tapHint')}</p>
     {:else}
-      <p class="mb-1 font-semibold">
+      <p class="truncate font-semibold">
         {fmt(shown, 'EEEE, d. MMMM, HH:mm')}
         {#if shown > now}<span class="font-normal text-muted">· {t('tl.forecast')}</span>{/if}
       </p>
-      <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 tabular">
-        {#each lines.values as v (v.key)}
-          {@const r = row(v.key)!}
-          <span class="flex items-center gap-1.5">
-            <span class="size-2 shrink-0 rounded-full" style:background-color={r.color}></span>
-            <span class="text-muted">{r.label}:</span>
-            <span class="font-medium">{v.value}</span>
-          </span>
-        {/each}
-      </div>
-      {#each lines.details.slice(0, 3) as line, i (i)}
-        <p class="mt-0.5 truncate text-muted">{line}</p>
+      {#each lines.details.slice(0, DETAIL_LINES) as line, i (i)}
+        <p class="truncate text-muted">{line}</p>
       {/each}
     {/if}
   </div>
