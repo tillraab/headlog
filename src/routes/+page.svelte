@@ -130,7 +130,7 @@
         HeadLog
       </span>
       <button class="press -mr-2 grid size-11 place-items-center rounded-full text-muted" onclick={() => openSheet('settings')} aria-label={t('set.title')}>
-        <Settings size={24} />
+        <Settings size={22} />
       </button>
     </div>
   </header>
@@ -154,7 +154,7 @@
     <div class="mx-auto grid max-w-lg grid-cols-4">
       {#each tabs as tab, i (i)}
         <button
-          class="press flex flex-col items-center gap-0.5 py-2 text-xs font-medium {active === i ? 'text-primary' : 'text-muted'}"
+          class="press flex flex-col items-center gap-0.5 py-2 text-caption font-medium {active === i ? 'text-primary' : 'text-muted'}"
           onclick={() => {
             tap();
             show(i);
@@ -162,7 +162,7 @@
           aria-current={active === i ? 'page' : undefined}
         >
           <span class="grid h-8 w-16 place-items-center rounded-full transition-colors {active === i ? 'bg-primary/12' : ''}">
-            <tab.icon size={24} strokeWidth={active === i ? 2.4 : 2} />
+            <tab.icon size={21} strokeWidth={active === i ? 2.4 : 2} />
           </span>
           {tab.label}
         </button>
