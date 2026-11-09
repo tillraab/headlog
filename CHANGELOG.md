@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Each forecast tile opens its own sheet. Weather: daily mean pressure from yesterday to the day after tomorrow with the orange marks. Hydration: today's running total against the pace to the goal and three quarters of it. Alcohol: the last 7 days. Caffeine: today against what you usually have by each time of day. Each with the key numbers and the rule (i). The forecast details open from the header.
+- The night editor shows asleep, in bed and the share asleep with their limits, and whether the night counts as unfavourable. The numbers update while you edit.
+
 ## [0.29.1] - 2026-11-09
 
 ### Changed

@@ -9,7 +9,7 @@
   import type { Night } from '$lib/db';
   import { formatDuration, hm, HOUR, MINUTE } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
-  import { awakeMs, nightSpan, onPeriods, screenEvents, sleepSegments, typedSleepTime } from '$lib/sleep';
+  import { nightSpan, onPeriods, screenEvents, sleepSegments, typedSleepTime } from '$lib/sleep';
   import { tap } from '$lib/ui.svelte';
 
   let { night = $bindable() }: { night: Night } = $props();
@@ -45,8 +45,6 @@
   type Handle = 'start' | 'end' | 'breakStart' | 'breakEnd';
   let dragging = $state<{ handle: Handle; track: Element; within: Span } | null>(null);
 
-  const awake = $derived(awakeMs(night));
-  const asleep = $derived(Math.max(0, night.end - night.start - awake));
   const segments = $derived(sleepSegments(night));
 
   function timeAt(clientX: number, track: Element, within: Span): number {
@@ -126,10 +124,6 @@
 </script>
 
 <div class="flex flex-col gap-3 select-none">
-  <p class="text-center">
-    <span class="text-lg font-semibold text-primary tabular">{formatDuration(asleep)}</span>
-    <span class="text-sm text-muted">{t('sleep.asleepTotal')}</span>
-  </p>
   <div class="grid grid-cols-2 gap-3">
     <label class="flex min-w-0 flex-col text-xs text-muted">
       {t('sleep.asleep')}
@@ -249,7 +243,7 @@
       <span class="flex-1 font-medium text-caution tabular">{t('sleep.breakLabel', { from: hm(sel.start), to: hm(sel.end) })}</span>
       <button class="press min-h-11 rounded-xl px-3 py-2 font-medium text-over" onclick={removeBreak}>{t('sleep.removeBreak')}</button>
     {:else}
-      <span class="flex-1 text-sm text-muted">{night.breaks.length ? t('sleep.breaks', { n: night.breaks.length, d: formatDuration(awake) }) : t('sleep.noBreaks')}</span>
+      <span class="flex-1"></span>
     {/if}
     <button class="press min-h-11 rounded-xl bg-surface-2 px-3 py-2 font-medium" onclick={addBreak}>{t('sleep.addBreak')}</button>
   </div>

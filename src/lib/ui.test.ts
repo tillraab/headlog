@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AWAY_RESET_MS, awayLongEnough, closeAllSheets, closeTopSheet, fromLocalInput, info, openSheet, sheets, showInfo, toLocalInput } from './ui.svelte';
+import { AWAY_RESET_MS, awayLongEnough, closeAllSheets, factorSheet, openFactor, closeTopSheet, fromLocalInput, info, openSheet, sheets, showInfo, toLocalInput } from './ui.svelte';
 
 describe('fromLocalInput', () => {
   it.each(['', 'garbage', '2026-13-40T99:99'])('returns null for %j', (value) => {
@@ -63,5 +63,13 @@ describe('awayLongEnough', () => {
     [0, AWAY_RESET_MS, true]
   ] as const)('after hiding at %s and returning at %i is %s', (hiddenAt, now, expected) => {
     expect(awayLongEnough(hiddenAt, now)).toBe(expected);
+  });
+});
+
+describe('openFactor', () => {
+  it('opens the factor sheet on the chosen factor', () => {
+    closeAllSheets();
+    openFactor('caffeine');
+    expect([factorSheet.key, sheets.stack]).toEqual(['caffeine', ['factor']]);
   });
 });

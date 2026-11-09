@@ -8,6 +8,7 @@
   import MedListSheet from '$lib/components/MedListSheet.svelte';
   import Celebration from '$lib/components/Celebration.svelte';
   import EditorSheet from '$lib/components/EditorSheet.svelte';
+  import FactorSheet from '$lib/components/FactorSheet.svelte';
   import InfoPopover from '$lib/components/InfoPopover.svelte';
   import InsightsTab from '$lib/components/InsightsTab.svelte';
   import MedsTab from '$lib/components/MedsTab.svelte';
@@ -172,6 +173,7 @@
 </div>
 
 <EditorSheet />
+<FactorSheet />
 <SettingsSheet />
 <MedListSheet />
 <DrinkListSheet />

@@ -7,7 +7,7 @@
   import { LOW_HYDRATION, MIN_SLEEP_EFFICIENCY, SHORT_SLEEP_HOURS } from '$lib/thresholds';
   import { openNight } from '$lib/editor.svelte';
   import { clock, data } from '$lib/store.svelte';
-  import { openSheet } from '$lib/ui.svelte';
+  import { openFactor, openSheet } from '$lib/ui.svelte';
   import InfoButton from './InfoButton.svelte';
   import TrafficLight, { LIGHT_COLOR } from './TrafficLight.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
@@ -68,14 +68,14 @@
       label: t('prog.weather'),
       status: p.weather.status,
       value: p.weather.status === 'unknown' ? '–' : p.weather.drop >= 1 ? `−${Math.round(p.weather.drop)} hPa` : t('prog.stable'),
-      onclick: toggle
+      onclick: () => openFactor('weather')
     },
     {
       icon: '💧',
       label: t('prog.hydration'),
       status: p.hydration.status,
       value: p.hydration.status === 'unknown' ? '–' : `${formatLiters(p.hydration.today)}`,
-      onclick: toggle
+      onclick: () => openFactor('hydration')
     },
     {
       icon: '😴',
@@ -89,14 +89,14 @@
       label: t('prog.alcohol'),
       status: p.alcohol.status,
       value: p.alcohol.status === 'unknown' ? '–' : t('prog.alcoholTile', { today: p.alcohol.drinksToday }),
-      onclick: toggle
+      onclick: () => openFactor('alcohol')
     },
     {
       icon: '☕',
       label: t('prog.caffeine'),
       status: p.caffeine.status,
       value: `${Math.round(p.caffeine.today)} mg`,
-      onclick: toggle
+      onclick: () => openFactor('caffeine')
     }
   ]);
 
