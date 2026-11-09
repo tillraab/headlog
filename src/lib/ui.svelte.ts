@@ -76,11 +76,14 @@ export function closeAllSheets() {
   closeInfo();
 }
 
-/** The explanation an info button opened, shown above every sheet until it is closed. */
-export const info = $state<{ open: { title: string; text: string[]; sources: readonly string[] } | null }>({ open: null });
+/** A paragraph of an explanation, or a section with its own heading. */
+export type InfoPart = string | { title: string; body: string };
 
-export function showInfo(title: string, text: string | string[], sources: readonly string[] = []) {
-  info.open = { title, text: typeof text === 'string' ? [text] : text, sources };
+/** The explanation an info button opened, shown above every sheet until it is closed. */
+export const info = $state<{ open: { title: string; text: InfoPart[]; sources: readonly string[] } | null }>({ open: null });
+
+export function showInfo(title: string, text: InfoPart | InfoPart[], sources: readonly string[] = []) {
+  info.open = { title, text: Array.isArray(text) ? text : [text], sources };
 }
 
 export function closeInfo() {

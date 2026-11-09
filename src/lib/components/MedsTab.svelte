@@ -43,7 +43,10 @@
   </header>
 
   <section class="card flex flex-col items-center p-4">
-    <CardHeading class="self-stretch" title={t('tenTwenty.title')} info={t('tenTwenty.explain')} sources={SOURCES.medication} />
+    <CardHeading class="self-stretch" title={t('tenTwenty.title')} info={[
+        { title: t('info.rule'), body: t('tenTwenty.rule') },
+        { title: t('info.evidence'), body: t('tenTwenty.evidence') }
+      ]} sources={SOURCES.medication} />
     <div class="relative size-44">
       <svg viewBox="0 0 160 160" class="pointer-events-none size-full rotate-135">
         <circle cx="80" cy="80" r={R} fill="none" stroke="var(--color-surface-2)" stroke-width="14" stroke-linecap="round" stroke-dasharray="{C * arc} {C}" />

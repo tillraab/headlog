@@ -80,15 +80,21 @@
   const title = $derived(key === 'tomorrow' ? t('prog.tomorrowChecks') : t(`prog.${key}`));
   const info = $derived(
     key === 'tomorrow'
-      ? [t('prog.tomorrowRule'), t('prog.tomorrowInfo')]
+      ? [
+          { title: t('info.rule'), body: t('prog.tomorrowRule') },
+          { title: t('info.why'), body: t('prog.tomorrowInfo') }
+        ]
       : [
-          `${t('prog.ruleLabel')} ${
-            key === 'hydration'
-              ? t('prog.rule.hydration', { pace: formatLiters(p.hydration.expected * LOW_HYDRATION), yesterday: formatLiters(p.hydration.goal * LOW_HYDRATION) })
-              : key === 'weather'
-                ? t('prog.rule.weather', { limit: PRESSURE_DROP_HPA })
-                : t(`prog.rule.${key}`)
-          }`
+          {
+            title: t('info.rule'),
+            body:
+              key === 'hydration'
+                ? t('prog.rule.hydration', { pace: formatLiters(p.hydration.expected * LOW_HYDRATION), yesterday: formatLiters(p.hydration.goal * LOW_HYDRATION) })
+                : key === 'weather'
+                  ? t('prog.rule.weather', { limit: PRESSURE_DROP_HPA })
+                  : t(`prog.rule.${key}`)
+          },
+          { title: t('info.evidence'), body: t(`prog.evidence.${key}`) }
         ]
   );
   const sources = $derived(key === 'tomorrow' ? [] : SOURCES[key]);

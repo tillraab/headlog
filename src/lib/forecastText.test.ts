@@ -10,7 +10,7 @@ const forecast = (drinks: Drink[]) => prognosis({ drinks, sleep: new Map(), weat
 
 describe('whyText', () => {
   it('says there is no weather without a home town', () => {
-    expect(whyText(forecast([]), 'weather')).toBe('no home town set, so there is no weather.');
+    expect(whyText(forecast([]), 'weather')).toBe('no home town set');
   });
 
   it('names the amount and the pace when behind on drinks', () => {
@@ -18,7 +18,7 @@ describe('whyText', () => {
   });
 
   it('names the day of the alcohol', () => {
-    expect(whyText(forecast([drink('2026-03-09T20:00', 330, true), drink('2026-03-10T09:00', 1500)]), 'alcohol')).toBe('alcohol yesterday.');
+    expect(whyText(forecast([drink('2026-03-09T20:00', 330, true), drink('2026-03-10T09:00', 1500)]), 'alcohol')).toBe('alcohol yesterday');
   });
 
   it('says when no night is known yet', () => {

@@ -23,6 +23,11 @@ describe('showInfo', () => {
     expect(info.open?.text).toEqual(['First.', 'Second.']);
   });
 
+  it('keeps sections with their headings', () => {
+    showInfo('Title', [{ title: 'Rule', body: 'Under 5 h.' }]);
+    expect(info.open?.text).toEqual([{ title: 'Rule', body: 'Under 5 h.' }]);
+  });
+
   it('keeps the sources apart from the text', () => {
     showInfo('Title', 'Text', ['Author (2020). Title.']);
     expect(info.open?.sources).toEqual(['Author (2020). Title.']);

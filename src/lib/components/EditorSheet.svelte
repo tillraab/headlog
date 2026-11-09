@@ -90,7 +90,11 @@
   id="editor"
   {title}
   info={current?.kind === 'sleep'
-    ? [`${t('prog.ruleLabel')} ${t('prog.rule.sleep', { limit: SHORT_SLEEP_HOURS, pct: Math.round(MIN_SLEEP_EFFICIENCY * 100) })}`, t('sleep.dragHint'), t('sleep.editHint')]
+    ? [
+        { title: t('info.rule'), body: t('prog.rule.sleep', { limit: SHORT_SLEEP_HOURS, pct: Math.round(MIN_SLEEP_EFFICIENCY * 100) }) },
+        { title: t('info.evidence'), body: t('prog.evidence.sleep') },
+        { title: t('info.editing'), body: `${t('sleep.dragHint')} ${t('sleep.editHint')}` }
+      ]
     : undefined}
   sources={current?.kind === 'sleep' ? SOURCES.sleep : undefined}
 >
