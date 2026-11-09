@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.27.3] - 2026-11-09
+
 ### Changed
 
 - The charts in Insights run on to the day after tomorrow when the forecast covers it, so the drop behind an orange mark on tomorrow is drawn too.
