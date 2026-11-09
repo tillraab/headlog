@@ -11,7 +11,7 @@ The guide is stored at 720p because GitHub does not accept files over 100 MB.
 
 ## How they were made
 
-Every phone screen in the videos is a screen recording of the real app (v0.20.6 to v0.22.0) on an Android emulator, not a mock-up. The notifications are real ones, triggered by moving the emulator's clock.
+Every phone screen in the videos is a screen recording of the real app on an Android emulator, not a mock-up: v0.31.0 in the teaser, v0.20.6 to v0.22.0 in the guide. The notifications are real ones, triggered by moving the emulator's clock.
 
 1. **Narration.** The script is a Markdown file with one `[beat]` line per section, for example `[forecast] A traffic light shows your headache risk for today…`. Each beat is spoken by the local text-to-speech model Kokoro (voice `af_heart`). The result is one WAV file plus a JSON file with the start time of every beat and every sentence. The sentences become the subtitles.
 2. **Recording.** A Node script drives the emulator over `adb`: it taps, types, scrolls, sets the clock and records each step with `screenrecord` as its own clip (install, demo data, a headache episode, the sleep editor, the notifications, setup and so on). The display runs at 720 x 1600 so the software renderer reaches about 20 frames per second. Where the WebView does not expose its buttons to `uiautomator`, the script taps positions measured from screenshots.
