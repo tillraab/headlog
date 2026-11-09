@@ -594,3 +594,41 @@ export function dayFactors(
   if (caffeineDropOn(caffeine, first, key) || caffeineDropOn(caffeine, first, before)) factors.caffeine = caffeine.get(key) ?? 0;
   return factors;
 }
+
+/** Today's running total of caffeine up to `now`, one point per caffeinated drink, in time order. */
+export function caffeineCurve(drinks: Drink[], now: number): { time: number; mg: number }[] {
+  const today = dayKey(now);
+  let total = 0;
+  return drinks
+    .filter((d) => d.caffeineMg && d.time <= now && dayKey(d.time) === today)
+    .sort((a, b) => a.time - b.time)
+    .map((d) => ({ time: d.time, mg: (total += d.caffeineMg ?? 0) }));
+}
+
+/** What is usual by each step of `stepMinutes` through `day`, or null before enough days are logged. */
+export function usualCaffeineCurve(drinks: Drink[], day: string, stepMinutes = 30): { minutes: number; mg: number }[] | null {
+  const first = firstDrinkDay(drinks);
+  if (usualCaffeineByTime(drinks, first, day, 24 * 60) === null) return null;
+  return Array.from({ length: (24 * 60) / stepMinutes + 1 }, (_, i) => ({ minutes: i * stepMinutes, mg: usualCaffeineByTime(drinks, first, day, i * stepMinutes) ?? 0 }));
+}
+
+/** Alcoholic drinks per day over the last `days` days up to `now`, oldest first. */
+export function alcoholPerDay(drinks: Drink[], now: number, days = 7): { key: string; n: number }[] {
+  const counts = new Map<string, number>();
+  for (const d of drinks) if (d.alcohol && d.time <= now) counts.set(dayKey(d.time), (counts.get(dayKey(d.time)) ?? 0) + 1);
+  return lastDays(now, days).map((key) => ({ key, n: counts.get(key) ?? 0 }));
+}
+
+/**
+ * The daily weather from yesterday to the day after tomorrow, days without weather left out. `offset` is
+ * the day relative to today; `marked` is a day before a pressure drop, which the forecast counts.
+ */
+export function pressureAround(weather: Map<string, WeatherDay>, now: number): { key: string; offset: number; weather: WeatherDay; marked: boolean }[] {
+  return [-1, 0, 1, 2].flatMap((offset) => {
+    const key = dayKey(addDays(now, offset));
+    const w = weather.get(key);
+    if (!w) return [];
+    const drop = dropToNextDay(weather, key);
+    return [{ key, offset, weather: w, marked: drop !== null && isPressureDrop(drop) }];
+  });
+}

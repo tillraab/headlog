@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, average, monthlyCounts, conflictingOngoing, medicationEffect, monthSummary, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
+import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, monthSummary, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
 import { prognosis } from './prognosis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import type { MedCategory } from './medication';
@@ -468,5 +468,62 @@ describe('monthlyCounts', () => {
   it('goes back whole months from the 31st', () => {
     const months = monthlyCounts({ episodes: [], intakes: [] }, at('2026-03-31T12:00'), 3).map((m) => m.month.getMonth());
     expect(months).toEqual([0, 1, 2]);
+  });
+});
+
+describe('sleepEfficiency and poorNight', () => {
+  const H = 3600000;
+  const night = (inBedHours: number, asleepHours: number) => ({ start: 0, end: inBedHours * H, asleepMs: asleepHours * H });
+
+  it('gives the share of the night spent asleep', () => {
+    expect(sleepEfficiency(night(8, 6))).toBe(0.75);
+  });
+
+  it.each([
+    ['a 6 h continuous night', night(6, 6), { short: false, fragmented: false }],
+    ['under 5 h asleep', night(4.9, 4.9), { short: true, fragmented: false }],
+    ['8 h in bed with 1.5 h awake', night(8, 6.5), { short: false, fragmented: true }]
+  ] as const)('judges %s', (_, n, expected) => {
+    expect(poorNight(n)).toEqual(expected);
+  });
+});
+
+describe('caffeineCurve', () => {
+  const coffee = (time: string, mg: number): Drink => ({ ...drink(time, 200), caffeineMg: mg });
+
+  it('adds up today\'s caffeine in time order, up to now', () => {
+    const drinks = [coffee('2026-03-10T13:00', 80), coffee('2026-03-10T08:00', 100), coffee('2026-03-09T08:00', 100), coffee('2026-03-10T16:00', 50), drink('2026-03-10T09:00', 250)];
+    expect(caffeineCurve(drinks, at('2026-03-10T15:00')).map((pt) => pt.mg)).toEqual([100, 180]);
+  });
+});
+
+describe('usualCaffeineCurve', () => {
+  const coffee = (time: string): Drink => ({ ...drink(time, 200), caffeineMg: 100 });
+
+  it('is null before 7 days are logged', () => {
+    expect(usualCaffeineCurve([coffee('2026-03-09T08:00')], '2026-03-10')).toBeNull();
+  });
+
+  it('rises at the time of day the usual coffee is taken', () => {
+    const drinks = lastDays(at('2026-03-09T12:00'), 8).map((k) => coffee(`${k}T08:00`));
+    const curve = usualCaffeineCurve(drinks, '2026-03-10', 60)!;
+    expect([curve[7].mg, curve[9].mg]).toEqual([0, 100]);
+  });
+});
+
+describe('alcoholPerDay', () => {
+  it('counts alcoholic drinks per day over the last week, oldest first', () => {
+    const beer = (time: string): Drink => ({ ...drink(time, 330), alcohol: true });
+    const days = alcoholPerDay([beer('2026-03-09T20:00'), beer('2026-03-09T21:00'), beer('2026-03-01T20:00'), drink('2026-03-10T09:00', 250)], at('2026-03-10T15:00'));
+    expect([days.length, days.at(-2), days.at(-1)]).toEqual([7, { key: '2026-03-09', n: 2 }, { key: '2026-03-10', n: 0 }]);
+  });
+});
+
+describe('pressureAround', () => {
+  const w = (day: string, drop: number): WeatherDay => ({ day, pressure: 1000, pressureDrop: drop, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 });
+
+  it('marks the days before a drop, from yesterday to the day after tomorrow', () => {
+    const weather = new Map(['2026-03-09', '2026-03-10', '2026-03-11', '2026-03-12', '2026-03-13'].map((k, i) => [k, w(k, [0, 0, 8, 2, 9][i])]));
+    expect(pressureAround(weather, at('2026-03-10T12:00')).map((d) => [d.offset, d.marked])).toEqual([[-1, false], [0, true], [1, false], [2, true]]);
   });
 });

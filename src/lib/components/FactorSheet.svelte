@@ -1,14 +1,14 @@
 <script lang="ts">
   import { addDays, startOfDay } from 'date-fns';
-  import { alcoholDays, caffeineByDay, firstDrinkDay, hydrationCurve, usualCaffeine, usualCaffeineByTime } from '$lib/analysis';
-  import { dayKey, formatLiters, hm, HOUR, keyToDate, lastDays } from '$lib/days';
+  import { alcoholDays, alcoholPerDay, caffeineByDay, caffeineCurve, firstDrinkDay, hydrationCurve, pressureAround, usualCaffeine, usualCaffeineCurve } from '$lib/analysis';
+  import { dayKey, formatLiters, hm, HOUR, keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
   import { expectedByNow, prognosis, prognosisInput, type Status } from '$lib/prognosis';
   import { SOURCES } from '$lib/sources';
   import { clock, data } from '$lib/store.svelte';
   import { LOW_HYDRATION } from '$lib/thresholds';
   import { factorSheet } from '$lib/ui.svelte';
-  import { dropToNextDay, isPressureDrop, PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
+  import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
   import Sheet from './Sheet.svelte';
 
   /** A day chart: hours from 0 to 24 across, one or more lines, a marker at the current time. */
@@ -50,31 +50,21 @@
   /** Today's running total of caffeine, and what is usual by each half hour. */
   const caffeine = $derived.by(() => {
     const start = startOfDay(clock.now).getTime();
-    const drinks = data.drinks.filter((d) => d.caffeineMg && dayKey(d.time) === today && d.time <= clock.now).sort((a, b) => a.time - b.time);
-    let total = 0;
-    const points = drinks.map((d) => ({ hour: (d.time - start) / HOUR, value: (total += d.caffeineMg ?? 0) }));
-    const first = firstDrinkDay(data.drinks);
-    const usual = Array.from({ length: 49 }, (_, i) => ({ hour: i / 2, value: usualCaffeineByTime(data.drinks, first, today, i * 30) ?? 0 }));
-    return { today: [{ hour: 0, value: 0 }, ...points, { hour: nowHour, value: total }], usual, usualDay: usualCaffeine(caffeineByDay(data.drinks), first, today) };
+    const points = caffeineCurve(data.drinks, clock.now).map((pt) => ({ hour: (pt.time - start) / HOUR, value: pt.mg }));
+    const usual = (usualCaffeineCurve(data.drinks, today) ?? []).map((pt) => ({ hour: pt.minutes / 60, value: pt.mg }));
+    const total = points.at(-1)?.value ?? 0;
+    return {
+      today: [{ hour: 0, value: 0 }, ...points, { hour: nowHour, value: total }],
+      usual,
+      usualDay: usualCaffeine(caffeineByDay(data.drinks), firstDrinkDay(data.drinks), today)
+    };
   });
 
-  /** Alcoholic drinks per day over the last week, oldest first. */
-  const alcohol = $derived(
-    lastDays(clock.now, 7).map((k) => ({ key: k, n: data.drinks.filter((d) => d.alcohol && dayKey(d.time) === k && d.time <= clock.now).length }))
-  );
+  const alcohol = $derived(alcoholPerDay(data.drinks, clock.now));
   const alcoholToday = $derived(data.drinks.filter((d) => d.alcohol && dayKey(d.time) === today && d.time <= clock.now).sort((a, b) => a.time - b.time));
   const tracksAlcohol = $derived(alcoholDays(data.drinks).size > 0);
 
-  /** Daily mean pressure from yesterday to the day after tomorrow, with the drop to the next day. */
-  const pressure = $derived(
-    [-1, 0, 1, 2].flatMap((n) => {
-      const k = dayKey(addDays(clock.now, n));
-      const w = data.weather.get(k);
-      if (!w) return [];
-      const drop = dropToNextDay(data.weather, k);
-      return [{ key: k, n, w, marked: drop !== null && isPressureDrop(drop) }];
-    })
-  );
+  const pressure = $derived(pressureAround(data.weather, clock.now).map((d) => ({ key: d.key, n: d.offset, w: d.weather, marked: d.marked })));
   const pressureRange = $derived.by(() => {
     const values = pressure.map((d) => d.w.pressure);
     const min = Math.floor(Math.min(...values) - 3);
