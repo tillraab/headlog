@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Drink, Night, WeatherDay } from './db';
 import { dayKey as dayKeyOf } from './days';
-import { badFactors, expectedByNow, prognosis, tomorrowRisk, type PrognosisInput } from './prognosis';
+import { expectedByNow, prognosis, tomorrowRisk, type PrognosisInput } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
 const now = at('2026-03-10T14:30');
@@ -136,7 +136,7 @@ describe('prognosis at the thresholds', () => {
       }),
       now
     );
-    expect(badFactors(p)).toEqual(['weather', 'hydration', 'sleep', 'alcohol']);
+    expect((['weather', 'hydration', 'sleep', 'alcohol', 'caffeine'] as const).filter((k) => p[k].status === 'bad')).toEqual(['weather', 'hydration', 'sleep', 'alcohol']);
   });
 
   it('counts alcohol yesterday, which tomorrowRisk leaves out', () => {

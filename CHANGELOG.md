@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The forecast card has no dropdown any more. Each tile opens its sheet with the status and reason in one line, a one-line tip when unfavourable, a chart with a y axis and the key numbers. The Tomorrow row opens Tomorrow's risk with its three checks.
+- Every info box (i) of the forecast, the sleep editor and the 10/20 rule has sections: Rule, What studies show and Sources.
+- The headache button reads "Track headache" with "Time and details can be changed later." The "Started earlier?" link is gone; the time is changed in the entry.
+- Order on Today: without a headache the button, hydration, forecast, medication and the log; during a headache the headache, medication, hydration, forecast and the log.
+- The drink buttons show one row; "All drinks" folds out the rest.
+
 ## [0.30.0] - 2026-11-09
 
 ### Added

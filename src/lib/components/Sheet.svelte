@@ -4,7 +4,7 @@
   import InfoButton from './InfoButton.svelte';
   import { fade, fly } from 'svelte/transition';
   import { t } from '$lib/i18n.svelte';
-  import { closeSheet, sheets, type SheetId } from '$lib/ui.svelte';
+  import { closeSheet, sheets, type InfoPart, type SheetId } from '$lib/ui.svelte';
 
   let {
     id,
@@ -13,7 +13,7 @@
     info,
     sources,
     children
-  }: { id: SheetId; title: string; full?: boolean; info?: string | string[]; sources?: readonly string[]; children: Snippet } = $props();
+  }: { id: SheetId; title: string; full?: boolean; info?: InfoPart | InfoPart[]; sources?: readonly string[]; children: Snippet } = $props();
 
   const open = $derived(sheets.stack.includes(id));
   const z = $derived(50 + sheets.stack.indexOf(id) * 2);

@@ -41,8 +41,8 @@ export function tap(style: 'light' | 'medium' | 'heavy' = 'light') {
 /** Every sheet of the app, by the id it opens with. */
 export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor';
 
-/** The forecast factor the factor sheet shows. Sleep has its own night editor. */
-export const factorSheet = $state<{ key: 'weather' | 'hydration' | 'alcohol' | 'caffeine' }>({ key: 'hydration' });
+/** What the factor sheet shows: a forecast factor or tomorrow's risk. Sleep has its own night editor. */
+export const factorSheet = $state<{ key: 'weather' | 'hydration' | 'alcohol' | 'caffeine' | 'tomorrow' }>({ key: 'hydration' });
 
 export function openFactor(key: typeof factorSheet.key) {
   factorSheet.key = key;
@@ -76,11 +76,14 @@ export function closeAllSheets() {
   closeInfo();
 }
 
-/** The explanation an info button opened, shown above every sheet until it is closed. */
-export const info = $state<{ open: { title: string; text: string[]; sources: readonly string[] } | null }>({ open: null });
+/** A paragraph of an explanation, or a section with its own heading. */
+export type InfoPart = string | { title: string; body: string };
 
-export function showInfo(title: string, text: string | string[], sources: readonly string[] = []) {
-  info.open = { title, text: typeof text === 'string' ? [text] : text, sources };
+/** The explanation an info button opened, shown above every sheet until it is closed. */
+export const info = $state<{ open: { title: string; text: InfoPart[]; sources: readonly string[] } | null }>({ open: null });
+
+export function showInfo(title: string, text: InfoPart | InfoPart[], sources: readonly string[] = []) {
+  info.open = { title, text: Array.isArray(text) ? text : [text], sources };
 }
 
 export function closeInfo() {

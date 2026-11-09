@@ -1,7 +1,7 @@
 <script lang="ts">
   import { RELIEFS } from '$lib/db';
   import { hydrationMl } from '$lib/drinks';
-  import { Droplets, Pencil, Pill, Zap } from '@lucide/svelte';
+  import { ChevronDown, Droplets, Pencil, Pill, Zap } from '@lucide/svelte';
   import { isToday, startOfDay } from 'date-fns';
   import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty, waterOn } from '$lib/analysis';
   import { DAY, formatDuration, formatLiters, hm, HOUR, MINUTE } from '$lib/days';
@@ -28,16 +28,17 @@
   const forecast = $derived(
     prognosis(prognosisInput(data), clock.now)
   );
-  let forecastOpen = $state(false);
-  $effect(() => {
-    if (home.resets) forecastOpen = false;
-  });
   let forecastCard = $state<HTMLDivElement>();
+  /** Drink buttons in one row; the rest folds out. */
+  const DRINK_ROW = 4;
+  let allDrinks = $state(false);
+  $effect(() => {
+    if (home.resets) allDrinks = false;
+  });
 
-  /** Opens the forecast and scrolls to it, from the marker at the top. */
+  /** Scrolls to the forecast, from the marker at the top. */
   function showForecast() {
-    forecastOpen = true;
-    requestAnimationFrame(() => forecastCard?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    forecastCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   const dayStart = $derived(startOfDay(clock.now).getTime());
   const rule = $derived(tenTwenty(new Set(intakeDays(data.intakes).keys()), clock.now, data.settings.limit));
@@ -83,10 +84,6 @@
     return () => remove(table, id);
   }
 
-  function earlier() {
-    edit({ kind: 'episode', item: { start: Date.now() - 30 * MINUTE, end: null, intensity: 5, tags: [], note: '' } });
-  }
-
   /** Celebrates reaching today's hydration goal, with the streak it extends. */
   function cheer() {
     const days = hydrationStreak(data.drinks, data.settings.waterGoalMl, Date.now()).current;
@@ -124,7 +121,7 @@
       </p>
     {/if}
     <div class="grid grid-cols-4 gap-2">
-      {#each presets as preset (preset.id)}
+      {#each allDrinks ? presets : presets.slice(0, DRINK_ROW) as preset (preset.id)}
         <button
           class="press flex min-w-0 flex-col items-center gap-0.5 rounded-2xl bg-surface-2 py-3"
           onclick={async () => {
@@ -141,7 +138,19 @@
         </button>
       {/each}
     </div>
+    {#if presets.length > DRINK_ROW}
+      <button class="press -my-1 flex min-h-11 items-center justify-center gap-1 text-sm font-medium text-muted" onclick={() => (allDrinks = !allDrinks)} aria-expanded={allDrinks}>
+        {allDrinks ? t('today.fewerDrinks') : t('today.moreDrinks', { n: presets.length - DRINK_ROW })}
+        <ChevronDown size={18} class="transition-transform {allDrinks ? 'rotate-180' : ''}" />
+      </button>
+    {/if}
   </section>
+{/snippet}
+
+{#snippet forecastCardBlock()}
+  <div bind:this={forecastCard} class="scroll-mt-4">
+    <PrognosisCard />
+  </div>
 {/snippet}
 
 {#snippet medsCard()}
@@ -254,7 +263,7 @@
       </div>
     </section>
   {:else}
-    <section class="flex flex-col items-center gap-2">
+    <section>
       <button
         class="press group relative flex h-36 w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-3xl bg-pain text-white shadow-lg shadow-pain/25"
         onclick={start}
@@ -263,7 +272,6 @@
         <span class="text-2xl font-semibold">{t('today.start')}</span>
         <span class="text-sm opacity-90">{t('today.startHint')}</span>
       </button>
-      <button class="press min-h-11 px-3 font-medium text-muted underline underline-offset-4" onclick={earlier}>{t('today.startedEarlier')}</button>
     </section>
   {/if}
 
@@ -292,14 +300,12 @@
   {#if ongoing}
     {@render medsCard()}
     {@render hydrationCard()}
+    {@render forecastCardBlock()}
   {:else}
     {@render hydrationCard()}
+    {@render forecastCardBlock()}
     {@render medsCard()}
   {/if}
-
-  <div bind:this={forecastCard} class="scroll-mt-4">
-    <PrognosisCard bind:open={forecastOpen} />
-  </div>
 
   <section class="card p-2">
     <h2 class="px-2 pt-2 pb-1 text-lg font-semibold">{t('today.log')}</h2>
