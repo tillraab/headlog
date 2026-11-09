@@ -76,7 +76,7 @@ The Bun version is pinned in `packageManager` in `package.json`; CI uses the sam
 
 ### UI
 
-- Colors, radii and type sizes are tokens in `src/app.css` (`bg-surface`, `text-pain`, `text-med`, `text-water`, `text-caption`, `text-axis`, …). The type scale is raised for reading on a phone: `text-sm` is body text (16 px), `text-xs` secondary text (14 px), `text-caption` the smallest text (12 px), `text-axis` only for chart axes. Use the `card`, `press`, `tabular` utilities.
+- Colors, radii and type sizes are tokens in `src/app.css` (`bg-surface`, `text-pain`, `text-med`, `text-water`, `text-caption`, `text-axis`, …). The type scale is raised for reading on a phone: `text-sm` is body text (15 px), `text-xs` secondary text (13 px), `text-caption` the smallest text (12 px), `text-axis` only for chart axes. Use the `card`, `press`, `tabular` utilities.
 - Touch targets are at least 44 px (`size-11`, `min-h-11`); icons in buttons 20–24 px.
 - Text that explains rather than labels goes behind an (i) button: `InfoButton`, `CardHeading info=…` or `Sheet info=…`. Keep short labels and instructions needed to act on the screen.
 - Frequent actions are one tap. Reversible actions show an undo toast instead of a confirmation; `confirm()` only for replacing or deleting all data.
