@@ -11,8 +11,9 @@
     title,
     full = false,
     info,
+    sources,
     children
-  }: { id: SheetId; title: string; full?: boolean; info?: string | string[]; children: Snippet } = $props();
+  }: { id: SheetId; title: string; full?: boolean; info?: string | string[]; sources?: readonly string[]; children: Snippet } = $props();
 
   const open = $derived(sheets.stack.includes(id));
   const z = $derived(50 + sheets.stack.indexOf(id) * 2);
@@ -36,7 +37,7 @@
   >
     <div class="flex items-center gap-1 px-5 pt-4 pb-2 {full ? 'safe-top' : ''}">
       <h2 class="min-w-0 text-lg font-semibold">{title}</h2>
-      {#if info}<InfoButton {title} text={info} />{/if}
+      {#if info}<InfoButton {title} text={info} {sources} />{/if}
       <button class="press -mr-2 ml-auto grid size-11 shrink-0 place-items-center rounded-full hover:bg-surface-2" onclick={() => closeSheet(id)} aria-label={t('a11y.close')}>
         <X size={24} />
       </button>

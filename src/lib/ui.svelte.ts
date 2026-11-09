@@ -39,7 +39,15 @@ export function tap(style: 'light' | 'medium' | 'heavy' = 'light') {
 }
 
 /** Every sheet of the app, by the id it opens with. */
-export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day';
+export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor';
+
+/** The forecast factor the factor sheet shows. Sleep has its own night editor. */
+export const factorSheet = $state<{ key: 'weather' | 'hydration' | 'alcohol' | 'caffeine' }>({ key: 'hydration' });
+
+export function openFactor(key: typeof factorSheet.key) {
+  factorSheet.key = key;
+  openSheet('factor');
+}
 
 /** Open sheets, newest last. The Android back button closes the newest one. */
 /** After this long in the background the app opens on top of Today again, with the forecast closed. */
