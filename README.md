@@ -7,13 +7,14 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/today.png" alt="Today" width="200">
-  <img src="docs/screenshots/meds.png" alt="10/20 rule" width="200">
-  <img src="docs/screenshots/calendar.png" alt="Calendar" width="200">
-  <img src="docs/screenshots/insights-dark.png" alt="Insights, dark theme" width="200">
+  <img src="docs/screenshots/today.png" alt="Today" width="160">
+  <img src="docs/screenshots/forecast.png" alt="Forecast traffic light" width="160">
+  <img src="docs/screenshots/meds.png" alt="10/20 rule" width="160">
+  <img src="docs/screenshots/calendar.png" alt="Calendar" width="160">
+  <img src="docs/screenshots/insights-dark.png" alt="Insights hour by hour, dark theme" width="160">
 </p>
 
-<p align="center"><a href="https://github.com/tillraab/headlog/releases/latest">Download the latest APK</a></p>
+<p align="center"><a href="https://github.com/tillraab/headlog/releases/latest">Download the latest APK</a> · <a href="docs/videos/HeadLog-teaser.en.mp4">Teaser video (47 s)</a> · <a href="docs/videos/HeadLog-guide.en.mp4">Guide video (4:35)</a></p>
 
 ## Features
 
@@ -22,12 +23,13 @@
 - **Hydration.** Your own drink buttons (glass 250 ml, bottle 700 ml, coffee, tea, ...) and a daily goal with a progress bar, right at the top of Today.
 - **Calendar.** Headache days shaded by intensity, dots for medication days and days you hit your water goal. Tap a day to see, edit or add entries after the fact.
 - **10/20 rule.** Take acute headache medication on fewer than 10 out of any 30 days, as the German migraine guideline (DGN/DMKG) advises. HeadLog shows your current count, what taking something today would mean, when the next medication day drops out of the window, a 90-day rolling trend, and the monthly overuse thresholds per medication type (ICHD-3). Preventive medication doesn't count. The limit is configurable.
-- **Forecast traffic light** on Today: weather (pressure forecast), hydration and last night's sleep as tiles, plus alcohol and caffeine. Green with no unfavourable factor, yellow with one, red with two or more. A coloured circle next to the date always shows it. Tap for every number and a tip. An evening notification warns when tomorrow does not look green, counting only what matters for tomorrow: a pressure drop tomorrow, too little to drink today and alcohol today.
-- **Weather and sleep:** daily weather at your home town (Open-Meteo, only the town's coordinates are sent) and a sleep estimate from screen activity, with wake breaks. Each morning Today shows last night with Looks right / Correct until it is confirmed, and an optional notification asks the same. Later edits go through the sleep tile of the forecast. The sleep editor is a timeline: drag falling asleep and waking up, tap a wake break to edit it magnified, and see when the screen was on.
-- **Insights** over 3, 7, 30, 90 or 365 days (3 and 7 days hour by hour, with tomorrow's pressure forecast): a timeline of headaches, hydration, sleep and air pressure with headache days marked, a comparison of headache days with other days, headache and medication days per month, average duration and intensity, which weekdays and times of day headaches start, how much you drank the day before a headache compared to the day before a clear day, how well each medication helped, and your most common triggers.
+- **Forecast traffic light** on Today with five factors as tiles: weather (a pressure drop of more than 5 hPa from today to tomorrow), hydration (yesterday, and today against your pace), last night's sleep (under 5 hours, or asleep under 85 % of the night), alcohol and a drop in caffeine. Green with no unfavourable factor, yellow with one, red with two or more. Tap for every number, a tip and the rule behind each factor. Each rule's (i) names its studies, how strong the evidence is, and lists the full references.
+- **Tomorrow's risk** as a row under the tiles, and an optional evening notification when tomorrow does not look green. It counts only what matters for tomorrow: a pressure drop from tomorrow to the day after, too little to drink today and alcohol today. Settings shows what tonight's warning will say.
+- **Weather and sleep:** daily weather at your home town (Open-Meteo, only the town's coordinates are sent) and a sleep estimate from screen activity, with wake breaks. Each morning Today shows last night with Looks right / Correct until it is confirmed, and an optional notification asks the same. The sleep editor is a timeline: drag falling asleep and waking up, tap a wake break to edit it magnified, and see when the screen was on.
+- **Insights** over 3, 7, 30, 90 or 365 days: a timeline of headaches, hydration, sleep and air pressure, hour by hour for 3 and 7 days, running on into the pressure forecast. Tap or drag across it to see the values at that moment and what happened around it. Orange marks the days before a pressure drop. Also a comparison of headache days with other days, headache and medication days per month, average duration and intensity, weekdays and times of day headaches start, how well each medication helped, and your most common triggers.
 - **Doctor report (PDF)** on one page for 1 to 12 months, from Insights or Settings: key figures, a headache calendar, charts of headache and medication days per month and of the 10/20 rule over time, medication with how often it helped and your limits, and the most common triggers. CSV with every entry for the same period.
 - **Personal limits per medication**, e.g. at most 5 triptan days in any 30 days, shown on the button, in the Meds tab and in the report.
-- **Reminders:** a notification one hour after taking medication asking whether it helped (answer right in the notification), reminders at noon and in the evening if you are behind your hydration goal, and, if you like, a reminder to drink when you have not logged a drink for a while (default: 2 hours, between 8:00 and 20:00).
+- **Reminders:** after taking medication, a question whether it helped (default after one hour; answer right in the notification), during a headache a question every few hours whether it is still there, reminders at noon and in the evening if you are behind your hydration goal, and, if you like, a reminder to drink when you have not logged a drink for a while (default: 2 hours, between 8:00 and 20:00).
 - **Undo instead of "are you sure?"** Every quick action shows an undo button.
 - **Backup** as a JSON file and **CSV export** for your doctor, both through the Android share sheet.
 - **Optional cloud backup** to a secret gist in your GitHub account, updated whenever you leave the app. Every backup is kept as a version, so you can go back to any earlier state by date and time.
@@ -87,16 +89,7 @@ cd android && ./gradlew assembleRelease
 
 ### Releasing
 
-Add the changes under a new version heading in [CHANGELOG.md](CHANGELOG.md), bump `version` in `package.json`, commit, then push a tag:
-
-```bash
-git tag v0.2.0
-git push origin v0.2.0
-```
-
-The [Android Release](.github/workflows/android-release.yml) workflow tests, builds and signs the APK and publishes it as a GitHub release with the changelog section as release notes. Obtainium picks it up from there.
-
-Signing uses the repository secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. Android only installs an update when it is signed with the same key, so keep a copy of the keystore somewhere safe.
+Releases are published by the maintainer. The steps are in [CLAUDE.md](CLAUDE.md#releases).
 
 ## Tech stack
 
