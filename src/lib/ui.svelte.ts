@@ -42,6 +42,17 @@ export function tap(style: 'light' | 'medium' | 'heavy' = 'light') {
 export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day';
 
 /** Open sheets, newest last. The Android back button closes the newest one. */
+/** After this long in the background the app opens on top of Today again, with the forecast closed. */
+export const AWAY_RESET_MS = 5 * 60_000;
+
+/** Counts the returns to the top of Today, so the tab can reset its own state. */
+export const home = $state({ resets: 0 });
+
+/** Whether a return at `now` after hiding at `hiddenAt` should start on top of Today again. */
+export function awayLongEnough(hiddenAt: number | null, now: number): boolean {
+  return hiddenAt !== null && now - hiddenAt >= AWAY_RESET_MS;
+}
+
 export const sheets = $state<{ stack: SheetId[] }>({ stack: [] });
 
 export function openSheet(id: SheetId) {
