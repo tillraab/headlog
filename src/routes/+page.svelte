@@ -20,7 +20,7 @@
   import { confirmNight, data, endEpisode, load, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
   import { applyDrinkReminders, applyHeadacheChecks, applyReminders, applyRiskAlert, applySleepChecks, onNotificationAction, planAll } from '$lib/reminders';
   import { syncQuietly } from '$lib/sync.svelte';
-  import { applyTheme, closeAllSheets, closeTopSheet, openSheet, tap } from '$lib/ui.svelte';
+  import { applyTheme, awayLongEnough, closeAllSheets, closeTopSheet, home, openSheet, tap } from '$lib/ui.svelte';
 
   const tabs = $derived([
     { id: 'today', label: t('tab.today'), icon: House },
@@ -41,6 +41,14 @@
   function onScroll() {
     if (!pager) return;
     active = Math.round(pager.scrollLeft / pager.clientWidth);
+  }
+
+  /** Starts on top of Today with every sheet closed, as after opening the app fresh. */
+  function backToToday() {
+    closeAllSheets();
+    show(0, false);
+    pager?.querySelector('section')?.scrollTo({ top: 0 });
+    home.resets++;
   }
 
   /** Reschedules reminders after every change and on return to the app. */
@@ -64,8 +72,14 @@
       void updateWeather().catch(() => {});
       void updateSleep().catch(() => {});
     });
+    let hiddenAt: number | null = null;
     const onHide = () => {
-      if (document.visibilityState === 'hidden') return syncQuietly();
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+        return syncQuietly();
+      }
+      if (awayLongEnough(hiddenAt, Date.now())) backToToday();
+      hiddenAt = null;
       reschedule();
       void updateWeather().catch(() => {});
       void updateSleep().catch(() => {});

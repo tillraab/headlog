@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Back in the app after 5 minutes or more, HeadLog starts on top of Today again with the forecast details closed and every sheet closed. A shorter switch to another app leaves everything as it was.
+
 ## [0.27.3] - 2026-11-09
 
 ### Changed

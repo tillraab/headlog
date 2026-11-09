@@ -8,7 +8,7 @@
   import { edit } from '$lib/editor.svelte';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache, type EntryTable } from '$lib/store.svelte';
-  import { celebrate, openSheet, tap, toast } from '$lib/ui.svelte';
+  import { celebrate, home, openSheet, tap, toast } from '$lib/ui.svelte';
   import { prognosis, prognosisInput } from '$lib/prognosis';
   import PrognosisCard from './PrognosisCard.svelte';
   import { LIGHT_COLOR } from './TrafficLight.svelte';
@@ -29,6 +29,9 @@
     prognosis(prognosisInput(data), clock.now)
   );
   let forecastOpen = $state(false);
+  $effect(() => {
+    if (home.resets) forecastOpen = false;
+  });
   let forecastCard = $state<HTMLDivElement>();
 
   /** Opens the forecast and scrolls to it, from the marker at the top. */

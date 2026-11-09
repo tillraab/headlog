@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { closeAllSheets, closeTopSheet, fromLocalInput, info, openSheet, sheets, showInfo, toLocalInput } from './ui.svelte';
+import { AWAY_RESET_MS, awayLongEnough, closeAllSheets, closeTopSheet, fromLocalInput, info, openSheet, sheets, showInfo, toLocalInput } from './ui.svelte';
 
 describe('fromLocalInput', () => {
   it.each(['', 'garbage', '2026-13-40T99:99'])('returns null for %j', (value) => {
@@ -53,5 +53,15 @@ describe('closeTopSheet', () => {
   it('returns false when nothing is open', () => {
     closeAllSheets();
     expect(closeTopSheet()).toBe(false);
+  });
+});
+
+describe('awayLongEnough', () => {
+  it.each([
+    [null, 0, false],
+    [0, AWAY_RESET_MS - 1, false],
+    [0, AWAY_RESET_MS, true]
+  ] as const)('after hiding at %s and returning at %i is %s', (hiddenAt, now, expected) => {
+    expect(awayLongEnough(hiddenAt, now)).toBe(expected);
   });
 });
