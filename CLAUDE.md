@@ -108,4 +108,4 @@ Releases are cut from `main` only.
 2. Tag the merged commit on `main`: `git checkout main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z`.
 3. `.github/workflows/android-release.yml` checks that the tag matches `version` in `package.json`, then tests, builds, signs and publishes `headlog-X.Y.Z.apk`. Obtainium picks it up.
 
-`versionCode` is `major*10000 + minor*100 + patch` and must grow with every release. The signing key is a repository secret; the owner keeps the keystore outside the repository. Android only installs updates signed with the same key, so never change the signing setup.
+`versionCode` is `major*10000 + minor*100 + patch` and must grow with every release. The signing key is in the repository secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`; the owner keeps the keystore outside the repository. Only the owner can push the release tag. Android only installs updates signed with the same key, so never change the signing setup.
