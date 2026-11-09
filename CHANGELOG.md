@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-11-10
+
 ### Changed
 
 - The forecast card has no dropdown any more. Each tile opens its sheet with the status and reason in one line, a one-line tip when unfavourable, a chart with a y axis and the key numbers. The Tomorrow row opens Tomorrow's risk with its three checks.
