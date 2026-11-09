@@ -21,7 +21,7 @@ export const en = {
   'today.moreDrinks': 'All drinks (+{n})',
   'today.fewerDrinks': 'Fewer drinks',
   'today.start': 'Track headache',
-  'today.startHint': 'Tap when it begins. Time and details can be changed later.',
+  'today.startHint': 'Time and details can be changed later.',
   'today.since': 'since',
   'today.ongoing': 'Ongoing headache',
   'today.end': 'Headache is gone',

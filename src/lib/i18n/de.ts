@@ -23,7 +23,7 @@ export const de: Record<keyof typeof en, string> = {
   'today.moreDrinks': 'Alle Getränke (+{n})',
   'today.fewerDrinks': 'Weniger Getränke',
   'today.start': 'Kopfschmerz erfassen',
-  'today.startHint': 'Tippen, wenn es losgeht. Zeit und Details später änderbar.',
+  'today.startHint': 'Zeit und Details später änderbar.',
   'today.since': 'seit',
   'today.ongoing': 'Kopfschmerz läuft',
   'today.end': 'Kopfschmerz ist weg',
