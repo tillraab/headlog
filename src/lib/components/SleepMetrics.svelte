@@ -13,7 +13,6 @@
   const share = $derived(sleepEfficiency(n));
   const poor = $derived(poorNight(n));
   const bad = $derived(poor.short || poor.fragmented);
-  const awake = $derived(n.end - n.start - n.asleepMs);
   const min = Math.round(MIN_SLEEP_EFFICIENCY * 100);
   const pct = $derived(Math.round(share * 100));
   const color = $derived(bad ? 'var(--color-over)' : 'var(--color-ok)');
@@ -41,10 +40,9 @@
     </span>
     <span class="min-w-0 text-muted">{reason}</span>
   </p>
-  <div class="grid grid-cols-2 gap-2">
-    {@render metric(t('sm.asleep'), formatDuration(n.asleepMs), poor.short)}
+  <div class="grid grid-cols-3 gap-2">
+    {@render metric(t('sm.asleep'), formatDuration(n.asleepMs), poor.short, t('sm.asleepHint', { limit: SHORT_SLEEP_HOURS }))}
     {@render metric(t('sm.inBed'), formatDuration(n.end - n.start))}
     {@render metric(t('sm.share'), `${pct} %`, poor.fragmented, t('sm.shareHint', { min }))}
-    {@render metric(t('sm.breaks'), n.breaks.length ? t('sm.breaksValue', { n: n.breaks.length, d: formatDuration(awake) }) : t('sm.none'))}
   </div>
 </div>
