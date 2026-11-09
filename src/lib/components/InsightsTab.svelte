@@ -25,9 +25,20 @@
 
   const keys = $derived(lastDays(clock.now, span));
   const stats = $derived(periodStats(data, clock.now, span));
-  /** The charts run on into tomorrow when the weather forecast covers it. */
-  const forecastKey = $derived(dayKey(addDays(clock.now, 1)));
-  const chartKeys = $derived(data.weather.has(forecastKey) ? [...keys, forecastKey] : keys);
+  /**
+   * The charts run on into the forecast days the weather covers, up to the day after tomorrow, so the
+   * drop behind a mark on tomorrow is drawn too.
+   */
+  const forecastKeys = $derived.by(() => {
+    const ahead: string[] = [];
+    for (const n of [1, 2]) {
+      const key = dayKey(addDays(clock.now, n));
+      if (!data.weather.has(key)) break;
+      ahead.push(key);
+    }
+    return ahead;
+  });
+  const chartKeys = $derived([...keys, ...forecastKeys]);
   const series = $derived(timeline(data, chartKeys, clock.now));
   const streak = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
   const months = $derived(monthlyCounts(data, clock.now, span === 365 ? 12 : 6));
