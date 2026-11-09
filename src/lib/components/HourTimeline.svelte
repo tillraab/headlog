@@ -9,7 +9,7 @@
   import type { Snippet } from 'svelte';
   import { hydrationCurve } from '$lib/analysis';
   import { intakeColor } from '$lib/colors';
-  import { formatLiters, HOUR, keyToDate, MINUTE } from '$lib/days';
+  import { dayKey, formatLiters, HOUR, keyToDate, MINUTE } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
   import { data } from '$lib/store.svelte';
   import { entryDetailLines } from '$lib/format';
@@ -88,7 +88,11 @@
     const near = (time: number) => Math.abs(time - shown) <= NEAR;
     const drinks = data.drinks.filter((d) => near(d.time)).sort((a, b) => a.time - b.time);
     const meds = intakes.filter((i) => near(i.time));
-    const details = entryDetailLines({ episodes: episode ? [episode] : [], intakes: meds, drinks });
+    const drop = dropToNextDay(data.weather, dayKey(shown));
+    const details = [
+      ...(drop !== null && isPressureDrop(drop) ? [t('tl.detailDrop', { n: Math.round(drop) })] : []),
+      ...entryDetailLines({ episodes: episode ? [episode] : [], intakes: meds, drinks })
+    ];
     return { values: values.filter((v) => row(v.key)), details };
   });
 

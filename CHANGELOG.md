@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The charts in Insights run on to the day after tomorrow when the forecast covers it, so the drop behind an orange mark on tomorrow is drawn too.
+- Tapping a marked day in the hour view shows "🌧️ Pressure −7 hPa the next day" in the box above the charts.
+
 ## [0.27.2] - 2026-11-08
 
 ### Changed

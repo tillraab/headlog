@@ -56,14 +56,16 @@ export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lan
     if (time <= today) drinks.push({ time, ...fromPreset(preset) });
   };
 
-  for (let i = DAYS - 1; i >= -1; i--) {
+  for (let i = DAYS - 1; i >= -2; i--) {
     const day = startOfDay(addDays(today, -i));
     const key = dayKey(day);
     const isToday = i === 0;
     const isTomorrow = i === -1;
+    const isDayAfter = i === -2;
 
-    // A front passes now and then: pressure falls for a day, then recovers. Today and tomorrow always bring one.
-    const front = isTomorrow || isToday || rnd() < 0.12;
+    // A front passes now and then: pressure falls for a day, then recovers. Today and tomorrow always bring one,
+    // the day after tomorrow recovers.
+    const front = !isDayAfter && (isTomorrow || isToday || rnd() < 0.12);
     const before = pressure;
     pressure = front ? pressure - 7 - rnd() * 5 : pressure + (1016 - pressure) * 0.3 + (rnd() - 0.5) * 4;
     weather.push({
@@ -76,7 +78,7 @@ export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lan
       precipitation: front ? Math.round(rnd() * 80) / 10 : 0,
       code: front ? 61 : rnd() < 0.5 ? 2 : 0
     });
-    if (isTomorrow) break;
+    if (i < 0) continue;
 
     // The night ending this morning: short now and then, last night always. Sometimes a child wakes you.
     const shortNight = isToday || rnd() < 0.25;
