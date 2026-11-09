@@ -10,6 +10,7 @@
   import { closeSheet, fromLocalInput, toast, toLocalInput } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import SleepTimeline from './SleepTimeline.svelte';
+  import SleepMetrics from './SleepMetrics.svelte';
   import Sheet from './Sheet.svelte';
   import { MINUTE } from '$lib/days';
 
@@ -156,6 +157,7 @@
           </div>
         </div>
       {:else if current.kind === 'sleep'}
+        <SleepMetrics night={current.item as Night} />
         {#key current.item.day}
           <SleepTimeline
             bind:night={

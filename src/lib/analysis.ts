@@ -168,7 +168,7 @@ export function sleepEfficiency(night: Pick<Night, 'start' | 'end' | 'asleepMs'>
 
 /**
  * Whether a night may favour a headache: very short (under 5 h asleep) or fragmented (under 85 % of
- * it asleep). Fragmented sleep, not a short night, went with next-day migraine in Bertisch et al. 2019.
+ * it asleep). Low sleep efficiency, not a short night, went with migraine in Bertisch et al. 2020.
  */
 export function poorNight(night: Pick<Night, 'start' | 'end' | 'asleepMs'>): { short: boolean; fragmented: boolean } {
   return { short: night.asleepMs < SHORT_SLEEP_HOURS * HOUR, fragmented: sleepEfficiency(night) < MIN_SLEEP_EFFICIENCY };
