@@ -13,6 +13,8 @@
   import SleepMetrics from './SleepMetrics.svelte';
   import Sheet from './Sheet.svelte';
   import { MINUTE } from '$lib/days';
+  import { SOURCES } from '$lib/sources';
+  import { MIN_SLEEP_EFFICIENCY, SHORT_SLEEP_HOURS } from '$lib/thresholds';
 
   const current = $derived(editor.current);
   const title = $derived(
@@ -84,7 +86,14 @@
   }
 </script>
 
-<Sheet id="editor" {title} info={current?.kind === 'sleep' ? [t('sleep.dragHint'), t('sleep.editHint')] : undefined}>
+<Sheet
+  id="editor"
+  {title}
+  info={current?.kind === 'sleep'
+    ? [`${t('prog.ruleLabel')} ${t('prog.rule.sleep', { limit: SHORT_SLEEP_HOURS, pct: Math.round(MIN_SLEEP_EFFICIENCY * 100) })}`, t('sleep.dragHint'), t('sleep.editHint')]
+    : undefined}
+  sources={current?.kind === 'sleep' ? SOURCES.sleep : undefined}
+>
   {#if current}
     <div class="flex flex-col gap-4">
       {#if current.kind === 'episode'}

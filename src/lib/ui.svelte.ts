@@ -41,8 +41,8 @@ export function tap(style: 'light' | 'medium' | 'heavy' = 'light') {
 /** Every sheet of the app, by the id it opens with. */
 export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor';
 
-/** The forecast factor the factor sheet shows. Sleep has its own night editor. */
-export const factorSheet = $state<{ key: 'weather' | 'hydration' | 'alcohol' | 'caffeine' }>({ key: 'hydration' });
+/** What the factor sheet shows: a forecast factor or tomorrow's risk. Sleep has its own night editor. */
+export const factorSheet = $state<{ key: 'weather' | 'hydration' | 'alcohol' | 'caffeine' | 'tomorrow' }>({ key: 'hydration' });
 
 export function openFactor(key: typeof factorSheet.key) {
   factorSheet.key = key;

@@ -3,7 +3,9 @@
   import { alcoholDays, alcoholPerDay, caffeineByDay, caffeineCurve, firstDrinkDay, hydrationCurve, pressureAround, usualCaffeine, usualCaffeineCurve } from '$lib/analysis';
   import { dayKey, formatLiters, hm, HOUR, keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
-  import { expectedByNow, prognosis, prognosisInput, type Status } from '$lib/prognosis';
+  import { expectedByNow, prognosis, prognosisInput, tomorrowRisk, type Status } from '$lib/prognosis';
+  import { whyText } from '$lib/forecastText';
+  import { LIGHT_COLOR } from './TrafficLight.svelte';
   import { SOURCES } from '$lib/sources';
   import { clock, data } from '$lib/store.svelte';
   import { LOW_HYDRATION } from '$lib/thresholds';
@@ -24,7 +26,8 @@
   const today = $derived(dayKey(clock.now));
   const yesterday = $derived(dayKey(addDays(clock.now, -1)));
   const nowHour = $derived((clock.now - startOfDay(clock.now).getTime()) / HOUR);
-  const status = $derived(p[key].status);
+  const tomorrow = $derived(tomorrowRisk(prognosisInput(data), clock.now));
+  const status: Status = $derived(key === 'tomorrow' ? (tomorrow.light === 'green' ? 'ok' : 'bad') : p[key].status);
 
   const x = (hour: number) => PAD.left + (hour / 24) * (W - PAD.left - PAD.right);
   const y = (value: number, max: number) => H - PAD.bottom - (value / max) * (H - PAD.top - PAD.bottom);
@@ -74,15 +77,21 @@
   const px = (i: number) => PAD.left + ((i + 0.5) / Math.max(pressure.length, 1)) * (W - PAD.left - PAD.right);
   const py = (v: number) => H - PAD.bottom - ((v - pressureRange.min) / (pressureRange.max - pressureRange.min)) * (H - PAD.top - PAD.bottom);
 
-  const title = $derived(t(`prog.${key}`));
+  const title = $derived(key === 'tomorrow' ? t('prog.tomorrowChecks') : t(`prog.${key}`));
   const info = $derived(
-    key === 'hydration'
-      ? t('prog.rule.hydration', { pace: formatLiters(p.hydration.expected * LOW_HYDRATION), yesterday: formatLiters(p.hydration.goal * LOW_HYDRATION) })
-      : key === 'weather'
-        ? t('prog.rule.weather', { limit: PRESSURE_DROP_HPA })
-        : t(`prog.rule.${key}`)
+    key === 'tomorrow'
+      ? [t('prog.tomorrowRule'), t('prog.tomorrowInfo')]
+      : [
+          `${t('prog.ruleLabel')} ${
+            key === 'hydration'
+              ? t('prog.rule.hydration', { pace: formatLiters(p.hydration.expected * LOW_HYDRATION), yesterday: formatLiters(p.hydration.goal * LOW_HYDRATION) })
+              : key === 'weather'
+                ? t('prog.rule.weather', { limit: PRESSURE_DROP_HPA })
+                : t(`prog.rule.${key}`)
+          }`
+        ]
   );
-  const sources = $derived(SOURCES[key]);
+  const sources = $derived(key === 'tomorrow' ? [] : SOURCES[key]);
 
   const waterMax = $derived(Math.max(p.hydration.goal, water.at(-1)?.value ?? 0) * 1.1);
   const caffeineMax = $derived(Math.max(50, ...caffeine.today.map((pt) => pt.value), ...caffeine.usual.map((pt) => pt.value)) * 1.15);
@@ -101,8 +110,10 @@
       <line x1={x(h)} x2={x(h)} y1={PAD.top} y2={H - PAD.bottom} stroke="var(--color-line)" />
       <text x={x(h)} y={H - 6} text-anchor={h === 24 ? 'end' : h === 0 ? 'start' : 'middle'} class="fill-muted text-axis">{String(h).padStart(2, '0')}:00</text>
     {/each}
-    <text x={PAD.left - 4} y={PAD.top + 8} text-anchor="end" class="fill-muted text-axis">{format(max)}</text>
-    <text x={PAD.left - 4} y={H - PAD.bottom} text-anchor="end" class="fill-muted text-axis">0</text>
+    {#each [0, 0.5, 1] as share (share)}
+      <line x1={PAD.left} x2={W - PAD.right} y1={y(max * share, max)} y2={y(max * share, max)} stroke="var(--color-line)" />
+      <text x={PAD.left - 4} y={y(max * share, max) + 3} text-anchor="end" class="fill-muted text-axis">{share ? format(max * share) : '0'}</text>
+    {/each}
     {#each lines as line, i (i)}
       <path d={path(line, max)} fill="none" stroke={line.color} stroke-width={line.width ?? 2} stroke-dasharray={line.dash} stroke-linejoin="round" />
     {/each}
@@ -117,11 +128,32 @@
   </span>
 {/snippet}
 
-<Sheet id="factor" {title} info={[info]} {sources}>
+<Sheet id="factor" {title} {info} {sources}>
   <div class="flex flex-col gap-4 text-sm">
-    <span class="self-start rounded-full px-2.5 py-0.5 text-xs font-semibold" style:color={STATUS[status]} style:background-color="color-mix(in oklab, {STATUS[status]} 14%, transparent)">
-      {t(`prog.status.${status}`)}
-    </span>
+    {#if key === 'tomorrow'}
+      <p class="flex items-center gap-2">
+        <span class="size-3 shrink-0 rounded-full" style:background-color={LIGHT_COLOR[tomorrow.light]}></span>
+        <span class="font-semibold" style:color={tomorrow.light === 'green' ? undefined : LIGHT_COLOR[tomorrow.light]}>{t(`prog.tomorrowLight.${tomorrow.light}`)}</span>
+      </p>
+      <div class="flex flex-col gap-2 rounded-2xl bg-surface p-3">
+        {#each tomorrow.statuses as [k, s] (k)}
+          <p class="flex items-center gap-2">
+            <span class="size-2.5 shrink-0 rounded-full" style:background-color={STATUS[s]}></span>
+            <span class="min-w-0 flex-1">{t(`prog.tomorrowCheck.${k}`)}</span>
+            <span class="shrink-0 text-xs font-semibold" style:color={STATUS[s]}>{t(`prog.status.${s}`)}</span>
+          </p>
+        {/each}
+      </div>
+      <p class="text-muted">{t('prog.tomorrowRule')}</p>
+    {:else}
+      <p class="flex items-start gap-2">
+        <span class="mt-0.5 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold" style:color={STATUS[status]} style:background-color="color-mix(in oklab, {STATUS[status]} 14%, transparent)">
+          {t(`prog.status.${status}`)}
+        </span>
+        <span class="min-w-0">{whyText(p, key)}</span>
+      </p>
+      {#if status === 'bad'}<p class="rounded-xl bg-surface p-3">💡 {t(`prog.tip.${key}`)}</p>{/if}
+    {/if}
 
     {#if key === 'hydration'}
       <div class="rounded-2xl bg-surface p-3">
@@ -191,8 +223,10 @@
       {#if pressure.length}
         <div class="rounded-2xl bg-surface p-3">
           <svg viewBox="0 0 {W} {H}" class="w-full" role="img" aria-label={title}>
-            <text x={PAD.left - 4} y={PAD.top + 8} text-anchor="end" class="fill-muted text-axis">{pressureRange.max}</text>
-            <text x={PAD.left - 4} y={H - PAD.bottom} text-anchor="end" class="fill-muted text-axis">{pressureRange.min}</text>
+            {#each [pressureRange.min, Math.round((pressureRange.min + pressureRange.max) / 2), pressureRange.max] as v (v)}
+              <line x1={PAD.left} x2={W - PAD.right} y1={py(v)} y2={py(v)} stroke="var(--color-line)" />
+              <text x={PAD.left - 4} y={py(v) + 3} text-anchor="end" class="fill-muted text-axis">{v}</text>
+            {/each}
             {#each pressure as d, i (d.key)}
               {#if d.marked}<line x1={px(i) - 26} x2={px(i) + 26} y1={PAD.top} y2={PAD.top} stroke="var(--color-caution)" stroke-width="4" />{/if}
               {#if i}<line x1={px(i - 1)} x2={px(i)} y1={py(pressure[i - 1].w.pressure)} y2={py(d.w.pressure)} stroke="var(--color-muted)" stroke-width="2" stroke-dasharray={d.n > 0 ? '4 3' : undefined} />{/if}

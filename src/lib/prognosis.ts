@@ -117,18 +117,6 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   };
 }
 
-/** The unfavourable factors, in a fixed order. */
-export function badFactors(p: Prognosis): FactorKey[] {
-  const all: [FactorKey, Status][] = [
-    ['weather', p.weather.status],
-    ['hydration', p.hydration.status],
-    ['sleep', p.sleep.status],
-    ['alcohol', p.alcohol.status],
-    ['caffeine', p.caffeine.status]
-  ];
-  return all.filter(([, s]) => s === 'bad').map(([k]) => k);
-}
-
 export type TomorrowFactor = 'weather' | 'hydration' | 'alcohol';
 
 export interface TomorrowRisk {
