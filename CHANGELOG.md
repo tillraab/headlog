@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-11-09
+
 ### Changed
 
 - Text a step smaller: body 15 px, secondary text 13 px, headings 18 px. Tab icons 21 px with 12 px labels, settings gear 22 px. Input fields stay 16 px and buttons and rows at least 44 px tall.
