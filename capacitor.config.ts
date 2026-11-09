@@ -4,7 +4,7 @@ const config: CapacitorConfig = {
   appId: 'de.tillraab.headlog',
   appName: 'HeadLog',
   webDir: 'build',
-  backgroundColor: '#f7f6fb',
+  backgroundColor: '#f5f5f4',
   plugins: {
     SystemBars: {
       insetsHandling: 'css'

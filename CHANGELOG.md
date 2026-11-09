@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- New look: neutral graphite greys instead of the lavender tint, in light and dark, with violet kept for buttons, the active tab and highlights. Headache red, medication amber, water blue and the traffic light are unchanged. The splash screen uses the new background.
+
 ## [0.28.0] - 2026-11-09
 
 ### Changed

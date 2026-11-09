@@ -44,7 +44,7 @@ for (const dir of readdirSync(RES).filter((d) => d.startsWith('drawable') && exi
   const [w, h] = [png.readUInt32BE(16), png.readUInt32BE(20)];
   const size = Math.round(Math.min(w, h) * 0.3);
   await page.setViewportSize({ width: w, height: h });
-  await page.setContent(`<body style="margin:0;background:#f7f6fb;display:grid;place-items:center;width:${w}px;height:${h}px"><div style="width:${size}px;height:${size}px">${square}</div></body>`);
+  await page.setContent(`<body style="margin:0;background:#f5f5f4;display:grid;place-items:center;width:${w}px;height:${h}px"><div style="width:${size}px;height:${size}px">${square}</div></body>`);
   await page.screenshot({ path: `${RES}/${dir}/splash.png` });
 }
 
