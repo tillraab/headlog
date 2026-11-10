@@ -1,11 +1,11 @@
 <script lang="ts">
   import { ChevronLeft, ChevronRight } from '@lucide/svelte';
-  import { addMonths, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
+  import { addDays, addMonths, differenceInCalendarDays, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
   import { headacheDays, intakeDays, monthSummary, rollingDays, ruleStatus, tenTwenty, waterByDay, type RuleStatus } from '$lib/analysis';
-  import { dayKey, dayRange, formatLiters, keyToDate } from '$lib/days';
+  import { dayKey, dayRange, formatLiters, keyToDate, setRangeEnd } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
-  import { openSheet } from '$lib/ui.svelte';
+  import { home, openSheet } from '$lib/ui.svelte';
   import { intakeColor } from '$lib/colors';
   import CardHeading from './CardHeading.svelte';
   import DaySheet from './DaySheet.svelte';
@@ -13,8 +13,8 @@
   import TimelineChart from './TimelineChart.svelte';
   import { SOURCES } from '$lib/sources';
 
-  /** Days shown in the rolling chart. */
-  const ROLLING_SPAN = 90;
+  /** Days the rolling chart shows unless another range is chosen; it returns to this after a while away. */
+  const ROLLING_DAYS = 30;
   /** From 15 headache days a month, ICHD-3 speaks of chronic headache (chronic migraine: for more than 3 months). */
   const CHRONIC_DAYS = 15;
 
@@ -29,10 +29,23 @@
   const today = $derived(dayKey(clock.now));
   const summary = $derived(monthSummary(data, month, clock.now));
 
-  const rolling = $derived(rollingDays(new Set(hDays.keys()), clock.now, ROLLING_SPAN));
+  /** The range the rolling chart shows, as day keys; null is the last 30 days. */
+  let range = $state<{ from: string; to: string } | null>(null);
+  $effect(() => {
+    if (home.resets) range = null;
+  });
+  const rangeTo = $derived(range?.to ?? today);
+  const rangeFrom = $derived(range?.from ?? dayKey(addDays(clock.now, -(ROLLING_DAYS - 1))));
+  const rangeDays = $derived(Math.max(1, differenceInCalendarDays(keyToDate(rangeTo), keyToDate(rangeFrom)) + 1));
+
+  function setRange(end: 'from' | 'to', value: string) {
+    if (value) range = setRangeEnd({ from: rangeFrom, to: rangeTo }, end, value, today, ROLLING_DAYS);
+  }
+
+  const rolling = $derived(rollingDays(new Set(hDays.keys()), keyToDate(rangeTo), rangeDays));
   /** Days with acute medication; preventive medication does not count for the 10/20 rule. */
   const acuteDays = $derived(new Set(intakeDays(data.intakes).keys()));
-  const medRolling = $derived(rollingDays(acuteDays, clock.now, ROLLING_SPAN));
+  const medRolling = $derived(rollingDays(acuteDays, keyToDate(rangeTo), rangeDays));
   const rule = $derived(tenTwenty(acuteDays, clock.now, data.settings.limit));
   const RULE_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-med)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
 
@@ -131,7 +144,18 @@
       info={[t('cal.rollingHint', { n: CHRONIC_DAYS }), t('cal.rollingMedHint', { n: rule.limit })]}
       sources={[...SOURCES.chronic, ...SOURCES.medication]}
     />
+    <div class="mb-3 flex flex-col gap-1 text-sm">
+      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <input type="date" class="min-w-0 py-1.5 tabular" value={rangeFrom} max={today} onchange={(e) => setRange('from', e.currentTarget.value)} aria-label={t('cal.rangeFrom')} />
+        <span class="text-muted">–</span>
+        <input type="date" class="min-w-0 py-1.5 tabular" value={rangeTo} max={today} onchange={(e) => setRange('to', e.currentTarget.value)} aria-label={t('cal.rangeTo')} />
+      </div>
+      {#if range}
+        <button class="press -mb-1 min-h-9 self-end px-1 font-medium text-primary" onclick={() => (range = null)}>{t('cal.rangeReset', { n: ROLLING_DAYS })}</button>
+      {/if}
+    </div>
     <TimelineChart
+      showLast
       keys={rolling.map((r) => r.key)}
       bands={rolling.map((r) => hDays.has(r.key))}
       rows={[
