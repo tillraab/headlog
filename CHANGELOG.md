@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Meds: all limits as wheels, two per row: the 10/20 rule, the overuse limit of each class used in the last 30 days and each personal limit. Each wheel has its own (i) with its rule, what studies show and sources. Overuse now counts the last 30 days instead of the calendar month; ICHD-3 says days per month without fixing which month.
+- Calendar: the month tiles are gone. A tapped day lists headaches and medication in time order, then its factors (weather, sleep, hydration, caffeine, alcohol); each factor opens the same sheet as on Today, for that day. The hydration sheet lists the day's drinks, each one editable.
+- Insights: 3, 7 or 30 days, or a custom From–To range. Headache and medication days show the count and the rate per 30 days, marked as extrapolated for shorter periods, then average intensity and duration and the daily averages for drinks, sleep and caffeine. The hydration card is gone and the PDF report button sits at the bottom.
+
 ## [0.32.0] - 2026-11-10
 
 ### Changed
