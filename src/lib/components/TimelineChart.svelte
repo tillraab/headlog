@@ -33,7 +33,8 @@
     bands,
     keys,
     details,
-    forecast = 0
+    forecast = 0,
+    showLast = false
   }: {
     rows: Row[];
     bands: boolean[];
@@ -41,6 +42,8 @@
     details?: (index: number) => string[];
     /** Trailing days that are a forecast: shaded, with dashed lines. */
     forecast?: number;
+    /** Shows the values of the last day until another day is tapped. */
+    showLast?: boolean;
   } = $props();
 
   const H = 48;
@@ -49,7 +52,7 @@
   let selectedKey = $state<string | null>(null);
   const selected = $derived.by(() => {
     const index = selectedKey === null ? -1 : keys.indexOf(selectedKey);
-    return index < 0 ? null : index;
+    return index >= 0 ? index : showLast && n ? n - 1 : null;
   });
 
   /** Fixed height for the detail box, so the charts below never move: date, value rows, two extra lines. */
@@ -142,7 +145,7 @@
           {/if}
           {#if row.kind === 'bars'}
             {#each row.values as v, i (i)}
-              {#if v}<rect x={i + 0.15} width="0.7" y={s.y(v)} height={H - 2 - s.y(v)} fill={row.colors?.[i] ?? row.color} opacity={selected === null || selected === i ? 1 : 0.5} />{/if}
+              {#if v}<rect x={i + 0.15} width="0.7" y={s.y(v)} height={H - 2 - s.y(v)} fill={row.colors?.[i] ?? row.color} opacity={selectedKey === null || selected === i ? 1 : 0.5} />{/if}
             {/each}
           {:else}
             {#each row.values as v, i (i)}

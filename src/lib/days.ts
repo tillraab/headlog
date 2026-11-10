@@ -53,3 +53,13 @@ export function formatDuration(ms: number): string {
 export function formatLiters(ml: number): string {
   return `${num(ml / 1000, 1, 2)} l`;
 }
+
+/**
+ * A date range with one end set to `value`: never past `today`, and the other end follows when they would
+ * cross. Null when the result is the default range of the last `days` days.
+ */
+export function setRangeEnd(range: { from: string; to: string }, end: 'from' | 'to', value: string, today: string, days: number): { from: string; to: string } | null {
+  const next = { ...range, [end]: value > today ? today : value };
+  if (next.from > next.to) next[end === 'from' ? 'to' : 'from'] = next[end];
+  return next.to === today && next.from === dayKey(addDays(keyToDate(today), -(days - 1))) ? null : next;
+}
