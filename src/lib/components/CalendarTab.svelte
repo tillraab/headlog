@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ChevronLeft, ChevronRight } from '@lucide/svelte';
   import { addMonths, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
-  import { headacheDays, intakeDays, monthSummary, rollingDays, waterByDay } from '$lib/analysis';
+  import { headacheDays, intakeDays, monthSummary, rollingDays, ruleStatus, tenTwenty, waterByDay, type RuleStatus } from '$lib/analysis';
   import { dayKey, dayRange, formatLiters, keyToDate } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -30,6 +30,11 @@
   const summary = $derived(monthSummary(data, month, clock.now));
 
   const rolling = $derived(rollingDays(new Set(hDays.keys()), clock.now, ROLLING_SPAN));
+  /** Days with acute medication; preventive medication does not count for the 10/20 rule. */
+  const acuteDays = $derived(new Set(intakeDays(data.intakes).keys()));
+  const medRolling = $derived(rollingDays(acuteDays, clock.now, ROLLING_SPAN));
+  const rule = $derived(tenTwenty(acuteDays, clock.now, data.settings.limit));
+  const RULE_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-med)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
 
   function open(key: string) {
     selected = key;
@@ -120,13 +125,18 @@
   </section>
 
   <section class="card p-4">
-    <CardHeading class="mb-3" title={t('cal.rolling')} info={t('cal.rollingHint', { n: CHRONIC_DAYS })} sources={SOURCES.chronic} />
+    <CardHeading
+      class="mb-3"
+      title={t('cal.rolling')}
+      info={[t('cal.rollingHint', { n: CHRONIC_DAYS }), t('cal.rollingMedHint', { n: rule.limit })]}
+      sources={[...SOURCES.chronic, ...SOURCES.medication]}
+    />
     <TimelineChart
       keys={rolling.map((r) => r.key)}
       bands={rolling.map((r) => hDays.has(r.key))}
       rows={[
         {
-          label: t('cal.headacheDays'),
+          label: t('cal.headacheDaysRow'),
           summary: t('cal.rollingNow', { n: rolling[rolling.length - 1].count }),
           values: rolling.map((r) => r.count),
           colors: rolling.map((r) => (r.count >= CHRONIC_DAYS ? 'var(--color-over)' : 'var(--color-pain)')),
@@ -134,6 +144,16 @@
           kind: 'bars',
           format: (v) => String(Math.round(v)),
           reference: CHRONIC_DAYS
+        },
+        {
+          label: t('cal.medDays'),
+          summary: t('cal.rollingNow', { n: medRolling[medRolling.length - 1].count }),
+          values: medRolling.map((r) => r.count),
+          colors: medRolling.map((r) => RULE_COLOR[ruleStatus(r.count, rule.allowed)]),
+          color: 'var(--color-med)',
+          kind: 'bars',
+          format: (v) => String(Math.round(v)),
+          reference: rule.limit
         }
       ]}
     />

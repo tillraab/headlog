@@ -5,8 +5,7 @@
   import { edit } from '$lib/editor.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import CardHeading from './CardHeading.svelte';
-  import TimelineChart from './TimelineChart.svelte';
-  import { intakeDays, medicationEffect, medicationLimits, overuseRows, rollingDays, ruleStatus, tenTwenty, type RuleStatus } from '$lib/analysis';
+  import { intakeDays, medicationEffect, medicationLimits, overuseRows, tenTwenty, type RuleStatus } from '$lib/analysis';
   import { medColor } from '$lib/colors';
   import { DAY, keyToDate } from '$lib/days';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
@@ -18,7 +17,6 @@
   const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   const medDays = $derived(new Set(intakeDays(data.intakes).keys()));
   const rule = $derived(tenTwenty(medDays, clock.now, data.settings.limit));
-  const rolling = $derived(rollingDays(medDays, clock.now, 90));
   const overuse = $derived(overuseRows(data.intakes, new Date(clock.now)));
   const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
   /** Intakes and relief ratings per medication name over the last 90 days. */
@@ -125,25 +123,6 @@
   {/if}
 
 
-  <section class="card p-4">
-    <CardHeading class="mb-3" title={t('tenTwenty.trend')} />
-    <TimelineChart
-      keys={rolling.map((r) => r.key)}
-      bands={rolling.map(() => false)}
-      rows={[
-        {
-          label: t('tenTwenty.short'),
-          summary: t('tenTwenty.trendLimit', { n: rule.limit }),
-          values: rolling.map((r) => r.count),
-          colors: rolling.map((r) => STATUS_COLOR[ruleStatus(r.count, rule.allowed)]),
-          color: 'var(--color-ok)',
-          kind: 'bars',
-          format: (v) => String(Math.round(v)),
-          reference: rule.limit
-        }
-      ]}
-    />
-  </section>
 
   {#if effect.length}
     <section class="card p-4">
