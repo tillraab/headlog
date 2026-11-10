@@ -202,3 +202,14 @@ export function splitBreaksAt(breaks: { start: number; end: number }[], parked: 
   const all = [...breaks, ...parked].sort((a, b) => a.start - b.start);
   return { breaks: all.filter((b) => b.start >= time), parked: all.filter((b) => b.start < time) };
 }
+
+/**
+ * The start for the chosen start choice once each choice is moved by `shift`: the choice itself, or, when that
+ * leaves under `minSleep` before a wake break, the next choice that does not. Lowering `shift` again returns
+ * to the chosen one.
+ */
+export function startForChoice(choices: number[], chosen: number, shift: number, breaks: { start: number; end: number }[], minSleep: number): number {
+  const fits = (time: number) => !breaks.some((b) => b.end > time && b.start < time + minSleep);
+  const index = choices.findIndex((time, i) => i >= chosen && fits(time + shift));
+  return choices[index >= 0 ? index : chosen] + shift;
+}

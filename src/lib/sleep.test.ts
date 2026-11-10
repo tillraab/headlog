@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { awakeMs, defaultNight, estimateNight, manualNight, nightSpan, nightStartChoices, onPeriods, sleepSegments, splitBreaksAt, typedSleepTime, type ScreenEvent } from './sleep';
+import { awakeMs, defaultNight, estimateNight, manualNight, nightSpan, nightStartChoices, onPeriods, sleepSegments, splitBreaksAt, startForChoice, typedSleepTime, type ScreenEvent } from './sleep';
 
 const at = (s: string) => new Date(s).getTime();
 const off = (s: string): ScreenEvent => ({ time: at(s), on: false });
@@ -181,5 +181,23 @@ describe('nightStartChoices and splitBreaksAt', () => {
     const later = splitBreaksAt(night.breaks, [], 1.7 * H);
     const back = splitBreaksAt(later.breaks, later.parked, 0);
     expect([later.breaks.length, later.parked.length, back.breaks]).toEqual([1, 1, night.breaks]);
+  });
+});
+
+describe('startForChoice', () => {
+  const M = 60000;
+  const choices = [0, 106 * M];
+  const breaks = [{ start: 36 * M, end: 106 * M }];
+
+  it('keeps the chosen start when enough sleep is left before the wake break', () => {
+    expect(startForChoice(choices, 0, 15 * M, breaks, 20 * M)).toBe(15 * M);
+  });
+
+  it('moves past the wake break when too little sleep is left', () => {
+    expect(startForChoice(choices, 0, 30 * M, breaks, 20 * M)).toBe(136 * M);
+  });
+
+  it('returns to the chosen start when the time to fall asleep goes down again', () => {
+    expect([30, 15].map((n) => startForChoice(choices, 0, n * M, breaks, 20 * M))).toEqual([136 * M, 15 * M]);
   });
 });

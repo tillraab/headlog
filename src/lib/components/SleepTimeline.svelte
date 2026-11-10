@@ -9,7 +9,7 @@
   import type { Night } from '$lib/db';
   import { formatDuration, hm, HOUR, MINUTE } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
-  import { FALL_ASLEEP_OPTIONS, nightSpan, nightStartChoices, onPeriods, screenEvents, sleepSegments, splitBreaksAt, typedSleepTime } from '$lib/sleep';
+  import { FALL_ASLEEP_OPTIONS, nightSpan, nightStartChoices, onPeriods, screenEvents, sleepSegments, splitBreaksAt, startForChoice, typedSleepTime } from '$lib/sleep';
   import { data } from '$lib/store.svelte';
   import { tap } from '$lib/ui.svelte';
 
@@ -71,6 +71,7 @@
     const b = night.breaks;
     const i = selected ?? 0;
     const before = Math.floor(time / (15 * MINUTE));
+    if (handle === 'start') chosen = null;
     if (handle === 'start') night.start = clamp(time, span.from, (b[0]?.start ?? night.end) - MIN_GAP);
     if (handle === 'end') night.end = clamp(time, (b.at(-1)?.end ?? night.start) + MIN_GAP, span.to);
     if (handle === 'breakStart') b[i].start = clamp(time, (i ? b[i - 1].end : night.start) + MIN_GAP, b[i].end - MIN_GAP);
@@ -134,21 +135,30 @@
   let fallAsleep = $state(usualFallAsleep);
   /** Wake breaks before the chosen start; they are kept until saving, so another choice brings them back. */
   let parked = $state<{ start: number; end: number }[]>([]);
-  /** Each choice moved by this night's time to fall asleep, without those that would leave under 20 minutes of sleep before the next wake break. */
-  const startChoices = $derived.by(() => {
-    const all = [...night.breaks, ...parked];
-    return baseChoices
-      .map((c) => ({ ...c, time: c.time + (fallAsleep - usualFallAsleep) * MINUTE }))
-      .filter((c) => !all.some((b) => b.end > c.time && b.start < c.time + MIN_FIRST_SLEEP));
-  });
+  const shift = $derived((fallAsleep - usualFallAsleep) * MINUTE);
+  const allBreaks = () => [...night.breaks, ...parked];
+  /** The start choice the night follows, by its place in `baseChoices`; null once the start is set by hand. */
+  let chosen = $state<number | null>(0);
+  /** Each choice moved by this night's time to fall asleep, without those that would leave under 20 minutes of sleep before a wake break. */
+  const startChoices = $derived(
+    baseChoices
+      .map((c, index) => ({ ...c, index, time: c.time + shift }))
+      .filter((c) => !allBreaks().some((b) => b.end > c.time && b.start < c.time + MIN_FIRST_SLEEP))
+  );
 
+  function choose(index: number) {
+    chosen = index;
+    startAt(baseChoices[index].time + shift);
+  }
 
   function setFallAsleep(minutes: number) {
-    const target = night.start + (minutes - fallAsleep) * MINUTE;
+    const before = shift;
     fallAsleep = minutes;
-    const first = night.breaks[0];
-    if (first && target > first.start - MIN_FIRST_SLEEP) startAt(first.end + Math.max(0, (minutes - usualFallAsleep) * MINUTE));
-    else night.start = clamp(target, span.from, night.end - MIN_FIRST_SLEEP);
+    if (chosen === null) {
+      night.start = clamp(night.start + shift - before, span.from, (night.breaks[0]?.start ?? night.end) - MIN_FIRST_SLEEP);
+      return;
+    }
+    startAt(startForChoice(baseChoices.map((c) => c.time), chosen, shift, allBreaks(), MIN_FIRST_SLEEP));
   }
 
   function startAt(time: number) {
@@ -200,7 +210,7 @@
       {#each startChoices as choice (choice.time)}
         <button
           class="press min-h-9 rounded-full px-3 text-sm font-medium tabular {night.start === choice.time ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
-          onclick={() => startAt(choice.time)}
+          onclick={() => choose(choice.index)}
           aria-pressed={night.start === choice.time}
         >
           {hm(choice.time)}
