@@ -121,6 +121,25 @@
   }
 
   const sel = $derived(selected !== null ? night.breaks[selected] : undefined);
+
+  /** A wake break at least this long may be where the night really began, e.g. after watching TV. */
+  const START_BREAK = 15 * MINUTE;
+  /** Where the night may have begun: the estimate, or the end of a longer wake break, as the editor opened. */
+  const startChoices = [
+    { time: night.start, awake: 0 },
+    ...night.breaks.filter((b) => b.end - b.start >= START_BREAK).map((b) => ({ time: b.end, awake: b.end - b.start }))
+  ];
+  /** Wake breaks before the chosen start; they are kept until saving, so another choice brings them back. */
+  let parked: { start: number; end: number }[] = [];
+
+  function startAt(time: number) {
+    tap();
+    const all = [...night.breaks, ...parked].sort((a, b) => a.start - b.start);
+    night.breaks = all.filter((b) => b.start >= time);
+    parked = all.filter((b) => b.start < time);
+    night.start = time;
+    select(null);
+  }
 </script>
 
 <div class="flex flex-col gap-3 select-none">
@@ -150,6 +169,22 @@
       />
     </label>
   </div>
+
+  {#if startChoices.length > 1}
+    <div class="-mt-1 flex flex-wrap items-center gap-2">
+      <span class="text-xs text-muted">{t('sleep.startedAt')}</span>
+      {#each startChoices as choice (choice.time)}
+        <button
+          class="press min-h-9 rounded-full px-3 text-sm font-medium tabular {night.start === choice.time ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
+          onclick={() => startAt(choice.time)}
+          aria-pressed={night.start === choice.time}
+        >
+          {hm(choice.time)}
+          <span class="font-normal opacity-80">· {choice.awake ? t('sleep.afterAwake', { d: formatDuration(choice.awake) }) : t('sleep.estimated')}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
 
   {#snippet bar(within: Span, handles: [Handle, number][], ontap?: (e: MouseEvent) => void)}
     <div
