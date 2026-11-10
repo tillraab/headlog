@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The time to fall asleep is only added at the start of the night and after a wake phase of 10 minutes or more. After a shorter one, like a look at the time, sleep continues right away, so the wake phase is as long as the screen was on. The sleep info box (i) and the Settings hint explain it.
+
 ## [0.31.2] - 2026-11-10
 
 ### Added

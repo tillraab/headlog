@@ -5,7 +5,7 @@
   import { fromMedication } from '$lib/medication';
   import { editor } from '$lib/editor.svelte';
   import { reliefLabels, t, tagLabel, TAGS } from '$lib/i18n.svelte';
-  import { manualNight } from '$lib/sleep';
+  import { manualNight, SHORT_WAKE_MINUTES } from '$lib/sleep';
   import { data, remove, saveDrink, saveEpisode, saveIntake, saveNight, type EntryTable } from '$lib/store.svelte';
   import { closeSheet, fromLocalInput, toast, toLocalInput } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
@@ -91,7 +91,7 @@
   {title}
   info={current?.kind === 'sleep'
     ? [
-        { title: t('info.rule'), body: t('prog.rule.sleep', { limit: SHORT_SLEEP_HOURS, pct: Math.round(MIN_SLEEP_EFFICIENCY * 100) }) },
+        { title: t('info.rule'), body: t('prog.rule.sleep', { limit: SHORT_SLEEP_HOURS, pct: Math.round(MIN_SLEEP_EFFICIENCY * 100), fall: data.settings.sleep.fallAsleepMinutes, short: SHORT_WAKE_MINUTES }) },
         { title: t('info.evidence'), body: t('prog.evidence.sleep') },
         { title: t('info.editing'), body: `${t('sleep.dragHint')} ${t('sleep.editHint')}` }
       ]
