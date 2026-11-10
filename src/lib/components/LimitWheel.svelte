@@ -1,6 +1,17 @@
 <script lang="ts">
-  /** A day count against its limit as a three-quarter ring, with the limit's name and period below. */
-  let { count, limit, title, period, color }: { count: number; limit: number; title: string; period: string; color: string } = $props();
+  import { Info } from '@lucide/svelte';
+  import { showInfo, tap, type InfoPart } from '$lib/ui.svelte';
+
+  /** A day count against its limit as a three-quarter ring, with the limit's name and period below; a tap explains the limit. */
+  let {
+    count,
+    limit,
+    title,
+    period,
+    color,
+    info,
+    sources = []
+  }: { count: number; limit: number; title: string; period: string; color: string; info: InfoPart[]; sources?: readonly string[] } = $props();
 
   const R = 40;
   const C = 2 * Math.PI * R;
@@ -10,7 +21,15 @@
   const limitAt = $derived(1 / 1.25);
 </script>
 
-<div class="flex min-w-0 flex-col items-center rounded-2xl bg-surface-2 px-2 pt-3 pb-2">
+<button
+  class="press relative flex min-w-0 flex-col items-center rounded-2xl bg-surface-2 px-2 pt-3 pb-2"
+  aria-haspopup="dialog"
+  onclick={() => {
+    tap();
+    showInfo(title, info, sources);
+  }}
+>
+  <Info size={18} class="absolute top-2 right-2 text-muted" />
   <div class="relative size-24">
     <svg viewBox="0 0 100 100" class="size-full rotate-135">
       <circle cx="50" cy="50" r={R} fill="none" stroke="var(--color-surface)" stroke-width="9" stroke-linecap="round" stroke-dasharray="{C * ARC} {C}" />
@@ -32,4 +51,4 @@
   </div>
   <p class="-mt-3 max-w-full truncate text-center text-sm font-semibold">{title}</p>
   <p class="max-w-full truncate text-center text-xs text-muted">{period}</p>
-</div>
+</button>

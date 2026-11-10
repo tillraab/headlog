@@ -38,18 +38,20 @@
   </header>
 
   <section class="card flex flex-col gap-3 p-4">
-    <CardHeading
-      title={t('meds.limits')}
-      info={[
-        { title: t('info.rule'), body: t('tenTwenty.rule') },
-        { title: t('info.evidence'), body: t('tenTwenty.evidence') },
-        { title: t('overuse.title'), body: `${t('overuse.hint')} ${t('overuse.notCounted')}` },
-        { title: t('tenTwenty.personal'), body: t('tenTwenty.personalHint') }
-      ]}
-      sources={SOURCES.medication}
-    />
+    <CardHeading title={t('meds.limits')} />
     <div class="grid grid-cols-2 gap-2">
-      <LimitWheel count={rule.count} limit={rule.limit} title={t('tenTwenty.title')} period={t('meds.inDays', { n: rule.window })} color={STATUS_COLOR[rule.status]} />
+      <LimitWheel
+        count={rule.count}
+        limit={rule.limit}
+        title={t('tenTwenty.title')}
+        period={t('meds.inDays', { n: rule.window })}
+        color={STATUS_COLOR[rule.status]}
+        info={[
+          { title: t('info.rule'), body: t('tenTwenty.rule') },
+          { title: t('info.evidence'), body: t('tenTwenty.evidence') }
+        ]}
+        sources={SOURCES.medication}
+      />
       {#each overuse as row (row.key)}
         <LimitWheel
           count={row.days}
@@ -57,10 +59,28 @@
           title={row.key === 'multiple' ? t('overuse.multiple') : t(`cat.${row.key}`)}
           period={t('meds.inDays', { n: 30 })}
           color={STATUS_COLOR[row.days >= row.limit ? 'over' : row.days >= row.limit * 0.7 ? 'caution' : 'ok']}
+          info={row.key === 'multiple'
+            ? [
+                { title: t('info.rule'), body: t('overuse.multipleRule', { limit: row.limit }) },
+                { title: t('info.evidence'), body: `${t('overuse.hint')} ${t('overuse.notCounted')}` }
+              ]
+            : [
+                { title: t('info.rule'), body: t('overuse.classRule', { cls: t(`cat.${row.key}`), limit: row.limit }) },
+                { title: t('info.which'), body: t(`catDesc.${row.key}`) },
+                { title: t('info.evidence'), body: t('overuse.hint') }
+              ]}
+          sources={SOURCES.medication}
         />
       {/each}
       {#each personal as { med, rule: r } (med.id)}
-        <LimitWheel count={r.count} limit={r.limit} title={med.name} period={t('meds.inDays', { n: r.window })} color={STATUS_COLOR[r.status]} />
+        <LimitWheel
+          count={r.count}
+          limit={r.limit}
+          title={med.name}
+          period={t('meds.inDays', { n: r.window })}
+          color={STATUS_COLOR[r.status]}
+          info={[{ title: t('info.rule'), body: t('tenTwenty.personalRule', { name: med.name, limit: r.limit, window: r.window }) }]}
+        />
       {/each}
     </div>
     <div class="flex flex-col items-center gap-0.5 text-center text-sm">
