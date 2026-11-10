@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
+import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, categoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
 import { prognosis } from './prognosis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import type { MedCategory } from './medication';
@@ -135,16 +135,16 @@ describe('rollingDays', () => {
   });
 });
 
-describe('monthlyCategoryDays', () => {
-  it('counts distinct days per category within the month', () => {
+describe('categoryDays', () => {
+  it('counts distinct days per category within the last 30 days', () => {
     const intakes = [
       intake('2026-03-01T08:00', 'triptan'),
       intake('2026-03-01T18:00', 'triptan'),
       intake('2026-03-04T08:00', 'triptan'),
       intake('2026-03-04T08:00', 'analgesic'),
-      intake('2026-02-27T08:00', 'triptan')
+      intake('2026-02-13T08:00', 'triptan')
     ];
-    expect(Object.fromEntries(monthlyCategoryDays(intakes, new Date('2026-03-15')))).toEqual({ triptan: 2, analgesic: 1 });
+    expect(Object.fromEntries(categoryDays(intakes, at('2026-03-15T12:00')))).toEqual({ triptan: 2, analgesic: 1 });
   });
 });
 
@@ -422,7 +422,7 @@ describe('medicationEffect', () => {
 });
 
 describe('overuseRows', () => {
-  const month = new Date('2026-03-15');
+  const month = at('2026-03-15T12:00');
 
   it('has no row for several classes when only one class was used', () => {
     expect(overuseRows([intake('2026-03-02T08:00', 'analgesic'), intake('2026-03-03T08:00', 'analgesic')], month)).toEqual([{ key: 'analgesic', days: 2, limit: 15 }]);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { monthlyLimitedDays } from './analysis';
+import { limitedDays } from './analysis';
 import { medColor } from './colors';
 import type { Intake, Medication } from './db';
 import { fromMedication, guessCategory, type MedCategory } from './medication';
@@ -22,7 +22,7 @@ describe('guessCategory', () => {
   });
 });
 
-describe('monthlyLimitedDays', () => {
+describe('limitedDays', () => {
   const intake = (time: string, category: MedCategory): Intake => ({ id: 1, time: new Date(time).getTime(), medId: 1, name: '', dose: '', category, relief: null });
 
   it('counts days with any class that has an overuse limit, but not preventives or antiemetics', () => {
@@ -33,7 +33,7 @@ describe('monthlyLimitedDays', () => {
       intake('2026-03-06T08:00', 'preventive'),
       intake('2026-03-07T08:00', 'antiemetic')
     ];
-    expect(monthlyLimitedDays(intakes, new Date('2026-03-15'))).toBe(2);
+    expect(limitedDays(intakes, new Date('2026-03-15T12:00'))).toBe(2);
   });
 });
 

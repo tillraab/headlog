@@ -18,7 +18,7 @@
   const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   const medDays = $derived(new Set(intakeDays(data.intakes).keys()));
   const rule = $derived(tenTwenty(medDays, clock.now, data.settings.limit));
-  const overuse = $derived(overuseRows(data.intakes, new Date(clock.now)));
+  const overuse = $derived(overuseRows(data.intakes, clock.now));
   const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
   /** Intakes and relief ratings per medication name over the last 90 days. */
   const effect = $derived(medicationEffect(data.intakes, clock.now - EFFECT_WINDOW_DAYS * DAY, clock.now, (i) => i.name));
@@ -55,7 +55,7 @@
           count={row.days}
           limit={row.limit}
           title={row.key === 'multiple' ? t('overuse.multiple') : t(`cat.${row.key}`)}
-          period={t('meds.thisMonth', { month: fmt(clock.now, 'LLLL') })}
+          period={t('meds.inDays', { n: 30 })}
           color={STATUS_COLOR[row.days >= row.limit ? 'over' : row.days >= row.limit * 0.7 ? 'caution' : 'ok']}
         />
       {/each}

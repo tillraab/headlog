@@ -5,6 +5,7 @@
   import { fmt, t } from '$lib/i18n.svelte';
   import { expectedByNow, prognosis, prognosisInput, tomorrowRisk, type Status } from '$lib/prognosis';
   import { whyText } from '$lib/forecastText';
+  import { edit } from '$lib/editor.svelte';
   import { LIGHT_COLOR } from './TrafficLight.svelte';
   import { SOURCES } from '$lib/sources';
   import { clock, data } from '$lib/store.svelte';
@@ -66,6 +67,8 @@
     };
   });
 
+  /** The drinks of the shown day, latest first, each one editable. */
+  const dayDrinks = $derived(data.drinks.filter((d) => dayKey(d.time) === dayKey(at) && d.time <= at).sort((a, b) => b.time - a.time));
   const alcohol = $derived(alcoholPerDay(data.drinks, at));
   const alcoholToday = $derived(data.drinks.filter((d) => d.alcohol && dayKey(d.time) === today && d.time <= at).sort((a, b) => a.time - b.time));
   const tracksAlcohol = $derived(alcoholDays(data.drinks).size > 0);
@@ -187,6 +190,18 @@
         {@render metric(t('fs.goal'), formatLiters(p.hydration.goal))}
         {@render metric((past ? t('fs.dayBefore') : t('fs.yesterday')), p.hydration.yesterday === null ? '–' : formatLiters(p.hydration.yesterday))}
       </div>
+      {#if dayDrinks.length}
+        <div class="flex flex-col gap-1.5">
+          <p class="text-xs font-semibold tracking-wide text-muted uppercase">{t('fs.drinks')}</p>
+          <div class="flex flex-wrap gap-1.5">
+            {#each dayDrinks as drink (drink.id)}
+              <button class="press min-h-11 rounded-full bg-surface px-3 py-1.5 text-sm tabular" onclick={() => edit({ kind: 'drink', item: drink })}>
+                {drink.emoji} {hm(drink.time)} · {drink.ml} ml
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
     {:else if key === 'caffeine'}
       <div class="rounded-2xl bg-surface p-3">
         {@render hours(caffeineMax, (v) => `${Math.round(v)} mg`, [
