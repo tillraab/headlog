@@ -1,9 +1,9 @@
 <script lang="ts">
   import { FileText } from '@lucide/svelte';
-  import { alcoholDays, average, caffeineByDay, compareDays, hydrationStreak, monthlyCounts, periodStats, timeline } from '$lib/analysis';
+  import { average, caffeineByDay, compareDays, monthlyCounts, periodStats, timeline } from '$lib/analysis';
   import { entryDetailLines, formatComparison } from '$lib/format';
-  import { addDays } from 'date-fns';
-  import { dayKey, formatDuration, formatLiters, HOUR, lastDays } from '$lib/days';
+  import { addDays, endOfDay } from 'date-fns';
+  import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays, setRangeEnd } from '$lib/days';
   import { openSheet } from '$lib/ui.svelte';
   import { fmt, num, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -15,22 +15,38 @@
   import HourTimeline from './HourTimeline.svelte';
   import TimelineChart, { type Row } from './TimelineChart.svelte';
 
-  const PERIODS = [3, 7, 30, 90, 365];
+  const PERIODS = [3, 7, 30];
   /** Up to this many days the timeline shows hours instead of days. */
   const HOUR_VIEW_DAYS = 7;
-  const REPORT_MONTHS: Record<number, number> = { 3: 1, 7: 1, 30: 1, 90: 3, 365: 12 };
   const SLEEP_REFERENCE_HOURS = 7;
-  let span = $state(90);
-  let reportMonths = $state(3);
+  /** The chosen number of days, or a From–To range when `custom` is set. */
+  let period = $state(30);
+  let custom = $state<{ from: string; to: string } | null>(null);
+  let reportMonths = $state(1);
 
-  const keys = $derived(lastDays(clock.now, span));
-  const stats = $derived(periodStats(data, clock.now, span));
+  const today = $derived(dayKey(clock.now));
+  const keys = $derived(custom ? dayRange(keyToDate(custom.from), keyToDate(custom.to)) : lastDays(clock.now, period));
+  const span = $derived(keys.length);
+  /** The end of the period: now, or the end of the range's last day. */
+  const end = $derived(custom && custom.to < today ? endOfDay(keyToDate(custom.to)).getTime() : clock.now);
+  const stats = $derived(periodStats(data, end, span));
+  /** Months the doctor report covers for this period, from 1 to 12. */
+  const reportFor = $derived(Math.min(12, Math.max(1, Math.round(span / 30))));
+
+  function openCustom() {
+    custom ??= { from: dayKey(addDays(clock.now, -89)), to: today };
+  }
+
+  function setCustom(endName: 'from' | 'to', value: string) {
+    if (value && custom) custom = setRangeEnd(custom, endName, value, today, 0) ?? custom;
+  }
   /**
    * The charts run on into the forecast days the weather covers, up to the day after tomorrow, so the
    * drop behind a mark on tomorrow is drawn too.
    */
   const forecastKeys = $derived.by(() => {
     const ahead: string[] = [];
+    if (keys.at(-1) !== today) return ahead;
     for (const n of [1, 2]) {
       const key = dayKey(addDays(clock.now, n));
       if (!data.weather.has(key)) break;
@@ -40,8 +56,7 @@
   });
   const chartKeys = $derived([...keys, ...forecastKeys]);
   const series = $derived(timeline(data, chartKeys, clock.now));
-  const streak = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
-  const months = $derived(monthlyCounts(data, clock.now, span === 365 ? 12 : 6));
+  const months = $derived(monthlyCounts(data, end, span > 180 ? 12 : 6));
   const hasData = $derived(stats.episodes > 0 || stats.intakes > 0 || stats.avgWaterMl !== null);
   const maxTag = $derived(Math.max(1, ...stats.tags.map((x) => x.count)));
 
@@ -50,10 +65,6 @@
   const caffeine = $derived.by(() => {
     const byDay = caffeineByDay(data.drinks);
     return average(keys.filter((k) => byDay.has(k)).map((k) => byDay.get(k)!));
-  });
-  const alcohol = $derived.by(() => {
-    const days = alcoholDays(data.drinks);
-    return keys.filter((k) => days.has(k)).length;
   });
 
   const rows = $derived.by(() => {
@@ -141,36 +152,46 @@
 <h1 class="text-3xl font-semibold">{t('tab.insights')}</h1>
     <div class="flex rounded-full bg-surface-2 p-1 text-xs font-medium">
       {#each PERIODS as p (p)}
-        <button class="press min-h-10 flex-auto rounded-full px-1 py-1.5 whitespace-nowrap {span === p ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => (span = p)}>
+        <button class="press min-h-10 flex-auto rounded-full px-1 py-1.5 whitespace-nowrap {!custom && period === p ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => ((period = p), (custom = null))}>
           {t('ins.days', { n: p })}
         </button>
       {/each}
+      <button class="press min-h-10 flex-auto rounded-full px-1 py-1.5 whitespace-nowrap {custom ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={openCustom}>{t('ins.custom')}</button>
     </div>
+    {#if custom}
+      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm">
+        <input type="date" class="min-w-0 py-1.5 tabular" value={custom.from} max={today} onchange={(e) => setCustom('from', e.currentTarget.value)} aria-label={t('cal.rangeFrom')} />
+        <span class="text-muted">–</span>
+        <input type="date" class="min-w-0 py-1.5 tabular" value={custom.to} max={today} onchange={(e) => setCustom('to', e.currentTarget.value)} aria-label={t('cal.rangeTo')} />
+      </div>
+    {/if}
   </header>
 
-  <button
-    class="press flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 font-semibold text-primary-fg"
-    onclick={() => {
-      reportMonths = REPORT_MONTHS[span];
-      openSheet('report');
-    }}
-  >
-    <FileText size={22} />
-    {t('pdf.insightsButton', { n: REPORT_MONTHS[span] })}
-  </button>
 
   {#if !hasData}
     <p class="card p-6 text-center text-muted">{t('ins.noData')}</p>
   {:else}
-    {@render heading(t('ins.overview'))}
+    {@render heading(t('ins.headaches'))}
+    <section class="grid grid-cols-2 gap-2">
+      {#each [
+        { label: t('ins.headacheDays'), value: String(stats.headacheDays), sub: t('ins.ofDays', { n: span }), cls: 'text-pain' },
+        { label: t('ins.medDays'), value: String(stats.medDays), sub: t('ins.ofDays', { n: span }), cls: 'text-med' },
+        { label: t('ins.avgIntensity'), value: stats.avgIntensity === null ? '–' : num(stats.avgIntensity, 1), sub: stats.avgIntensity === null ? '' : t('ins.ofTen'), cls: '' },
+        { label: t('ins.avgDuration'), value: stats.avgDurationMs === null ? '–' : formatDuration(stats.avgDurationMs), sub: '', cls: '' }
+      ] as tile (tile.label)}
+        <div class="card p-3">
+          <p class="text-xl font-semibold tabular {tile.cls}">{tile.value}<span class="ml-1 text-sm font-normal text-muted">{tile.sub}</span></p>
+          <p class="text-xs leading-tight hyphens-auto text-muted">{tile.label}</p>
+        </div>
+      {/each}
+    </section>
+
+    {@render heading(t('ins.dailyAverages'))}
     <section class="grid grid-cols-3 gap-2">
       {#each [
-        { label: t('ins.headacheDays'), value: String(stats.headacheDays), cls: 'text-pain' },
-        { label: t('ins.avgIntensity'), value: stats.avgIntensity === null ? '–' : num(stats.avgIntensity, 1), cls: '' },
-        { label: t('ins.avgDuration'), value: stats.avgDurationMs === null ? '–' : formatDuration(stats.avgDurationMs), cls: '' },
-        { label: t('ins.medDays'), value: String(stats.medDays), cls: 'text-med' },
         { label: t('ins.avgWater'), value: stats.avgWaterMl === null ? '–' : formatLiters(stats.avgWaterMl), cls: 'text-water' },
-        { label: t('sleep.avg'), value: sleepAvg === null ? '–' : formatDuration(sleepAvg * HOUR), cls: 'text-primary' }
+        { label: t('sleep.avg'), value: sleepAvg === null ? '–' : formatDuration(sleepAvg * HOUR), cls: 'text-primary' },
+        { label: t('ins.avgCaffeine'), value: caffeine === null ? '–' : `${Math.round(caffeine)} mg`, cls: '' }
       ] as tile (tile.label)}
         <div class="card p-3">
           <p class="text-xl font-semibold tabular {tile.cls}">{tile.value}</p>
@@ -197,22 +218,6 @@
       {:else}
         <p class="text-muted">{t('cmp.empty')}</p>
       {/if}
-    </section>
-
-    {@render heading(t('today.water'))}
-    <section class="card grid grid-cols-3 gap-2 p-4">
-      <div>
-        <p class="text-xl font-semibold text-water tabular">🔥 {streak.current}</p>
-        <p class="text-xs leading-tight text-muted">{t('streak.label')}<br />{t('streak.best', { n: streak.best })}</p>
-      </div>
-      <div>
-        <p class="text-xl font-semibold tabular">{caffeine === null ? '–' : `${Math.round(caffeine)} mg`}</p>
-        <p class="text-xs leading-tight text-muted">{t('drink.caffeineAvg')}</p>
-      </div>
-      <div>
-        <p class="text-xl font-semibold tabular">{alcohol}</p>
-        <p class="text-xs leading-tight text-muted">{t('drink.alcoholDays')}</p>
-      </div>
     </section>
 
     {@render heading(t('ins.patterns'))}
@@ -262,6 +267,16 @@
       </section>
     {/if}
   {/if}
+  <button
+    class="press mt-3 flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 px-4 py-3 font-semibold"
+    onclick={() => {
+      reportMonths = reportFor;
+      openSheet('report');
+    }}
+  >
+    <FileText size={22} />
+    {t('pdf.insightsButton', { n: reportFor })}
+  </button>
 </div>
 
 <ReportSheet bind:months={reportMonths} />

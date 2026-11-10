@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, monthSummary, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
+import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, monthlyCategoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
 import { prognosis } from './prognosis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import type { MedCategory } from './medication';
@@ -439,20 +439,6 @@ describe('overuseRows', () => {
 
   it('leaves out preventive medication and antiemetics', () => {
     expect(overuseRows([intake('2026-03-02T08:00', 'preventive'), intake('2026-03-02T09:00', 'antiemetic')], month)).toEqual([]);
-  });
-});
-
-describe('monthSummary', () => {
-  const now = at('2026-03-10T12:00');
-
-  it('does not count a day with only an antiemetic as a medication day', () => {
-    const data = { episodes: [], drinks: [], intakes: [intake('2026-03-02T08:00', 'antiemetic'), intake('2026-03-03T08:00', 'analgesic')] };
-    expect(monthSummary(data, new Date('2026-03-01'), now).med).toBe(1);
-  });
-
-  it('averages water over the days up to today, counting days without drinks as 0', () => {
-    const data = { episodes: [], intakes: [], drinks: [drink('2026-03-02T08:00', 2000), drink('2026-03-20T08:00', 5000)] };
-    expect(monthSummary(data, new Date('2026-03-01'), now).water).toBe(200);
   });
 });
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { addDays, startOfDay } from 'date-fns';
+  import { addDays, endOfDay, startOfDay } from 'date-fns';
   import { alcoholDays, alcoholPerDay, caffeineByDay, caffeineCurve, firstDrinkDay, hydrationCurve, pressureAround, usualCaffeine, usualCaffeineCurve } from '$lib/analysis';
   import { dayKey, formatLiters, hm, HOUR, keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
@@ -21,12 +21,15 @@
   const H = 150;
   const PAD = { left: 46, right: 14, top: 10, bottom: 20 };
 
-  const p = $derived(prognosis(prognosisInput(data), clock.now));
+  /** An earlier day is shown as it stood at its end; today as it stands now. */
+  const past = $derived(factorSheet.day !== null && factorSheet.day < dayKey(clock.now));
+  const at = $derived(past ? endOfDay(keyToDate(factorSheet.day!)).getTime() : clock.now);
+  const p = $derived(prognosis(prognosisInput(data), at));
   const key = $derived(factorSheet.key);
-  const today = $derived(dayKey(clock.now));
-  const yesterday = $derived(dayKey(addDays(clock.now, -1)));
-  const nowHour = $derived((clock.now - startOfDay(clock.now).getTime()) / HOUR);
-  const tomorrow = $derived(tomorrowRisk(prognosisInput(data), clock.now));
+  const today = $derived(dayKey(at));
+  const yesterday = $derived(dayKey(addDays(at, -1)));
+  const nowHour = $derived((at - startOfDay(at).getTime()) / HOUR);
+  const tomorrow = $derived(tomorrowRisk(prognosisInput(data), at));
   const status: Status = $derived(key === 'tomorrow' ? (tomorrow.light === 'green' ? 'ok' : 'bad') : p[key].status);
 
   const x = (hour: number) => PAD.left + (hour / 24) * (W - PAD.left - PAD.right);
@@ -44,16 +47,16 @@
 
   /** Today's running total of water, from midnight to now. */
   const water = $derived.by(() => {
-    const day = hydrationCurve(data.drinks, [today], clock.now)[0];
-    const start = startOfDay(clock.now).getTime();
+    const day = hydrationCurve(data.drinks, [today], at)[0];
+    const start = startOfDay(at).getTime();
     const points = (day?.points ?? []).map((pt) => ({ hour: (pt.time - start) / HOUR, value: pt.ml }));
     return [{ hour: 0, value: 0 }, ...points, { hour: nowHour, value: points.at(-1)?.value ?? 0 }];
   });
 
   /** Today's running total of caffeine, and what is usual by each half hour. */
   const caffeine = $derived.by(() => {
-    const start = startOfDay(clock.now).getTime();
-    const points = caffeineCurve(data.drinks, clock.now).map((pt) => ({ hour: (pt.time - start) / HOUR, value: pt.mg }));
+    const start = startOfDay(at).getTime();
+    const points = caffeineCurve(data.drinks, at).map((pt) => ({ hour: (pt.time - start) / HOUR, value: pt.mg }));
     const usual = (usualCaffeineCurve(data.drinks, today) ?? []).map((pt) => ({ hour: pt.minutes / 60, value: pt.mg }));
     const total = points.at(-1)?.value ?? 0;
     return {
@@ -63,11 +66,11 @@
     };
   });
 
-  const alcohol = $derived(alcoholPerDay(data.drinks, clock.now));
-  const alcoholToday = $derived(data.drinks.filter((d) => d.alcohol && dayKey(d.time) === today && d.time <= clock.now).sort((a, b) => a.time - b.time));
+  const alcohol = $derived(alcoholPerDay(data.drinks, at));
+  const alcoholToday = $derived(data.drinks.filter((d) => d.alcohol && dayKey(d.time) === today && d.time <= at).sort((a, b) => a.time - b.time));
   const tracksAlcohol = $derived(alcoholDays(data.drinks).size > 0);
 
-  const pressure = $derived(pressureAround(data.weather, clock.now).map((d) => ({ key: d.key, n: d.offset, w: d.weather, marked: d.marked })));
+  const pressure = $derived(pressureAround(data.weather, at).map((d) => ({ key: d.key, n: d.offset, w: d.weather, marked: d.marked })));
   const pressureRange = $derived.by(() => {
     const values = pressure.map((d) => d.w.pressure);
     const min = Math.floor(Math.min(...values) - 3);
@@ -77,7 +80,11 @@
   const px = (i: number) => PAD.left + ((i + 0.5) / Math.max(pressure.length, 1)) * (W - PAD.left - PAD.right);
   const py = (v: number) => H - PAD.bottom - ((v - pressureRange.min) / (pressureRange.max - pressureRange.min)) * (H - PAD.top - PAD.bottom);
 
-  const title = $derived(key === 'tomorrow' ? t('prog.tomorrowChecks') : t(`prog.${key}`));
+  const title = $derived(
+    (key === 'tomorrow' ? t('prog.tomorrowChecks') : t(`prog.${key}`)) + (past ? ` · ${fmt(keyToDate(factorSheet.day!), 'EEE d MMM')}` : '')
+  );
+  /** "Today" for today, the weekday for an earlier day. */
+  const dayName = (offset: number) => (past ? fmt(addDays(keyToDate(factorSheet.day!), offset), 'EEE') : offset === 0 ? t('prog.today') : offset === 1 ? t('prog.tomorrow') : '');
   const info = $derived(
     key === 'tomorrow'
       ? [
@@ -158,7 +165,7 @@
         </span>
         <span class="min-w-0">{whyText(p, key)}</span>
       </p>
-      {#if status === 'bad'}<p class="rounded-xl bg-surface p-3">💡 {t(`prog.tip.${key}`)}</p>{/if}
+      {#if status === 'bad' && !past}<p class="rounded-xl bg-surface p-3">💡 {t(`prog.tip.${key}`)}</p>{/if}
     {/if}
 
     {#if key === 'hydration'}
@@ -170,15 +177,15 @@
         ])}
       </div>
       <div class="flex flex-col gap-1 text-xs text-muted">
-        {@render legend('var(--color-water)', undefined, t('fs.legendWater'))}
+        {@render legend('var(--color-water)', undefined, past ? t('fs.legendWaterDay') : t('fs.legendWater'))}
         {@render legend('var(--color-muted)', '4 3', t('fs.legendPace'))}
         {@render legend('var(--color-caution)', '1.5 3', t('fs.legendWarn'))}
       </div>
       <div class="grid grid-cols-2 gap-2">
-        {@render metric(t('fs.soFar'), formatLiters(p.hydration.today))}
-        {@render metric(t('fs.onPace'), formatLiters(expectedByNow(p.hydration.goal, clock.now)))}
+        {@render metric(past ? t('fs.total') : t('fs.soFar'), formatLiters(p.hydration.today))}
+        {#if !past}{@render metric(t('fs.onPace'), formatLiters(expectedByNow(p.hydration.goal, at)))}{/if}
         {@render metric(t('fs.goal'), formatLiters(p.hydration.goal))}
-        {@render metric(t('fs.yesterday'), p.hydration.yesterday === null ? '–' : formatLiters(p.hydration.yesterday))}
+        {@render metric((past ? t('fs.dayBefore') : t('fs.yesterday')), p.hydration.yesterday === null ? '–' : formatLiters(p.hydration.yesterday))}
       </div>
     {:else if key === 'caffeine'}
       <div class="rounded-2xl bg-surface p-3">
@@ -188,13 +195,13 @@
         ])}
       </div>
       <div class="flex flex-col gap-1 text-xs text-muted">
-        {@render legend('var(--color-med)', undefined, t('fs.legendCaffeine'))}
+        {@render legend('var(--color-med)', undefined, past ? t('fs.legendCaffeineDay') : t('fs.legendCaffeine'))}
         {@render legend('var(--color-muted)', '4 3', t('fs.legendUsual'))}
       </div>
       <div class="grid grid-cols-2 gap-2">
-        {@render metric(t('fs.soFar'), `${Math.round(p.caffeine.today)} mg`)}
+        {@render metric(past ? t('fs.total') : t('fs.soFar'), `${Math.round(p.caffeine.today)} mg`)}
         {@render metric(t('fs.usualByNow'), p.caffeine.usualByNow === null ? '–' : `${Math.round(p.caffeine.usualByNow)} mg`)}
-        {@render metric(t('fs.yesterday'), `${Math.round(p.caffeine.yesterday)} mg`)}
+        {@render metric((past ? t('fs.dayBefore') : t('fs.yesterday')), `${Math.round(p.caffeine.yesterday)} mg`)}
         {@render metric(t('fs.usualDay'), caffeine.usualDay === null ? '–' : `${Math.round(caffeine.usualDay)} mg`)}
       </div>
       {#if p.caffeine.usual === null}<p class="text-muted">{t('prog.why.caffeineLittle')}</p>{/if}
@@ -213,8 +220,8 @@
         </div>
       </div>
       <div class="grid grid-cols-2 gap-2">
-        {@render metric(t('fs.today'), String(p.alcohol.drinksToday))}
-        {@render metric(t('fs.yesterday'), String(p.alcohol.drinksYesterday))}
+        {@render metric(past ? dayName(0) : t('fs.today'), String(p.alcohol.drinksToday))}
+        {@render metric((past ? t('fs.dayBefore') : t('fs.yesterday')), String(p.alcohol.drinksYesterday))}
       </div>
       {#if !tracksAlcohol}
         <p class="text-muted">{t('prog.why.alcoholUnknown')}</p>
@@ -238,7 +245,7 @@
               {#if i}<line x1={px(i - 1)} x2={px(i)} y1={py(pressure[i - 1].w.pressure)} y2={py(d.w.pressure)} stroke="var(--color-muted)" stroke-width="2" stroke-dasharray={d.n > 0 ? '4 3' : undefined} />{/if}
               <circle cx={px(i)} cy={py(d.w.pressure)} r="4" fill={d.n === 0 ? 'var(--color-fg)' : 'var(--color-muted)'} />
               <text x={px(i)} y={py(d.w.pressure) - 9} text-anchor="middle" class="fill-fg text-axis font-semibold">{Math.round(d.w.pressure)}</text>
-              <text x={px(i)} y={H - 6} text-anchor="middle" class="fill-muted text-axis">{d.n === 0 ? t('prog.today') : d.n === 1 ? t('prog.tomorrow') : fmt(keyToDate(d.key), 'EEE')}</text>
+              <text x={px(i)} y={H - 6} text-anchor="middle" class="fill-muted text-axis">{dayName(d.n) || fmt(keyToDate(d.key), 'EEE')}</text>
             {/each}
           </svg>
         </div>
@@ -248,7 +255,7 @@
         </div>
         <div class="grid grid-cols-2 gap-2">
           {#each pressure.filter((d) => d.n === 0 || d.n === 1) as d (d.key)}
-            {@render metric(d.n === 0 ? t('fs.today') : t('fs.tomorrow'), `${weatherEmoji(d.w.code)} ${Math.round(d.w.pressure)} hPa · ${Math.round(d.w.tempMin)}–${Math.round(d.w.tempMax)} °C`)}
+            {@render metric(past ? dayName(d.n) : d.n === 0 ? t('fs.today') : t('fs.tomorrow'), `${weatherEmoji(d.w.code)} ${Math.round(d.w.pressure)} hPa · ${Math.round(d.w.tempMin)}–${Math.round(d.w.tempMax)} °C`)}
           {/each}
         </div>
       {:else}

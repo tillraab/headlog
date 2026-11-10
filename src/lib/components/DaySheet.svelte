@@ -2,15 +2,17 @@
   import { intakeColor } from '$lib/colors';
   import { fromPreset } from '$lib/drinks';
   import { ACUTE_CATEGORIES, fromMedication } from '$lib/medication';
-  import { Droplets, Pill, Plus, Zap } from '@lucide/svelte';
-  import { addDays, setHours } from 'date-fns';
+  import { ChevronRight, Pill, Plus, Zap } from '@lucide/svelte';
+  import { addDays, endOfDay, setHours } from 'date-fns';
   import { formatDuration, formatLiters, hm, keyToDate } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
-  import { fmt, num, t, tagLabel } from '$lib/i18n.svelte';
+  import { fmt, t, tagLabel } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
-  import { hydrationBefore, waterOn } from '$lib/analysis';
-  import { awakeMs } from '$lib/sleep';
-  import { dropToNextDay, isPressureDrop, weatherEmoji } from '$lib/weather';
+  import { hydrationBefore } from '$lib/analysis';
+  import { prognosis, prognosisInput, type Status } from '$lib/prognosis';
+  import { openFactor } from '$lib/ui.svelte';
+  import { dayKey } from '$lib/days';
+  import { weatherEmoji } from '$lib/weather';
   import Sheet from './Sheet.svelte';
 
   let { day }: { day: string } = $props();
@@ -19,11 +21,34 @@
   const to = $derived(addDays(keyToDate(day), 1).getTime());
   const episodes = $derived(data.episodes.filter((e) => e.start < to && (e.end ?? clock.now) >= from));
   const intakes = $derived(data.intakes.filter((i) => i.time >= from && i.time < to));
-  const drinks = $derived(data.drinks.filter((d) => d.time >= from && d.time < to));
-  const water = $derived(waterOn(data.drinks, from));
+  /** Headaches and medication of the day in time order. */
+  const entries = $derived(
+    [...episodes.map((e) => ({ time: e.start, kind: 'episode' as const, item: e })), ...intakes.map((i) => ({ time: i.time, kind: 'intake' as const, item: i }))].sort((a, b) => a.time - b.time)
+  );
+  /** The forecast factors as they stood at the end of the day, or now for today. */
+  const p = $derived(prognosis(prognosisInput(data), day < dayKey(clock.now) ? endOfDay(keyToDate(day)).getTime() : clock.now));
   const weather = $derived(data.weather.get(day));
-  const dropNext = $derived(dropToNextDay(data.weather, day));
   const night = $derived(data.sleep.get(day));
+  const STATUS: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
+  const factors = $derived([
+    {
+      icon: '🌦️',
+      label: t('prog.weather'),
+      status: p.weather.status,
+      value: weather ? `${weatherEmoji(weather.code)} ${Math.round(weather.tempMin)}–${Math.round(weather.tempMax)} °C · ${Math.round(weather.pressure)} hPa` : '–',
+      open: () => openFactor('weather', day)
+    },
+    {
+      icon: '😴',
+      label: t('prog.sleep'),
+      status: p.sleep.status,
+      value: night ? `${formatDuration(night.asleepMs)} · ${hm(night.start)}–${hm(night.end)}` : '–',
+      open: () => (night ? edit({ kind: 'sleep', item: night }) : undefined)
+    },
+    { icon: '💧', label: t('prog.hydration'), status: p.hydration.status, value: formatLiters(p.hydration.today), open: () => openFactor('hydration', day) },
+    { icon: '☕', label: t('prog.caffeine'), status: p.caffeine.status, value: `${Math.round(p.caffeine.today)} mg`, open: () => openFactor('caffeine', day) },
+    { icon: '🍷', label: t('prog.alcohol'), status: p.alcohol.status, value: String(p.alcohol.drinksToday), open: () => openFactor('alcohol', day) }
+  ]);
   const noon = $derived(Math.min(setHours(keyToDate(day), 12).getTime(), clock.now));
 
   function addMed() {
@@ -41,82 +66,50 @@
 
 <Sheet id="day" title={fmt(keyToDate(day), 'EEEE, d. MMMM yyyy')}>
   <div class="flex flex-col gap-3">
-    {#if weather}
-      <p class="flex flex-wrap items-center gap-x-2 rounded-2xl bg-surface-2 px-3 py-2 tabular">
-        <span class="text-xl">{weatherEmoji(weather.code)}</span>
-        <span>{Math.round(weather.tempMin)}–{Math.round(weather.tempMax)} °C</span>
-        <span class="text-muted">·</span>
-        <span>{Math.round(weather.pressure)} hPa</span>
-        {#if isPressureDrop(dropNext ?? 0)}<span class="font-semibold text-over">{t('day.dropNext', { n: Math.round(dropNext ?? 0) })}</span>{/if}
-        {#if weather.humidity !== null}<span class="text-muted">·</span><span>{weather.humidity} %</span>{/if}
-        {#if weather.precipitation >= 0.5}<span class="text-muted">·</span><span>{num(weather.precipitation, 1)} mm</span>{/if}
-      </p>
-    {/if}
-
-    {#if night}
-      <button class="press flex flex-wrap items-center gap-x-3 rounded-2xl bg-surface-2 px-3 py-2 text-left tabular" onclick={() => edit({ kind: 'sleep', item: night })}>
-        <span class="text-xl">😴</span>
-        <span class="font-semibold">{formatDuration(night.asleepMs)}</span>
-        <span class="text-muted">{hm(night.start)}–{hm(night.end)}</span>
-        {#if night.breaks.length}<span class="text-muted">· {t('sleep.breaks', { n: night.breaks.length, d: formatDuration(awakeMs(night)) })}</span>{/if}
-      </button>
-    {/if}
-
-    {#if !episodes.length && !intakes.length && !drinks.length}
+    {#if !entries.length}
       <p class="text-muted">{t('day.empty')}</p>
     {/if}
 
-    {#each episodes as ep (ep.id)}
-      {@const before = hydrationBefore(data.drinks, ep.start)}
-      <button class="press flex items-start gap-3 rounded-2xl bg-pain-soft p-3 text-left" onclick={() => edit({ kind: 'episode', item: ep })}>
-        <span class="grid size-10 shrink-0 place-items-center rounded-full bg-pain text-white"><Zap size={20} /></span>
-        <span class="flex min-w-0 flex-col">
-          <span class="font-semibold">{t('today.headache')} · {ep.intensity}/10</span>
-          <span class="text-muted tabular">
-            {hm(ep.start)}–{ep.end ? hm(ep.end) : '…'}
-            · {formatDuration((ep.end ?? clock.now) - ep.start)}
-          </span>
-          {#if ep.tags.length}
-            <span class="text-xs text-muted">{ep.tags.map((tag) => tagLabel(tag)).join(' · ')}</span>
-          {/if}
-          {#if ep.note}<span class="mt-1 text-xs italic">{ep.note}</span>{/if}
-          {#if before.ml || before.usual}
-            <span class="mt-1 text-xs text-muted">
-              💧 {t('day.hydrationBefore', { ml: formatLiters(before.ml) })}{before.usual ? ` ${t('day.hydrationUsual', { ml: formatLiters(before.usual) })}` : ''}
+    {#each entries as entry (entry.kind + entry.item.id)}
+      {#if entry.kind === 'episode'}
+        {@const ep = entry.item}
+        {@const before = hydrationBefore(data.drinks, ep.start)}
+        <button class="press flex items-start gap-3 rounded-2xl bg-pain-soft p-3 text-left" onclick={() => edit({ kind: 'episode', item: ep })}>
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-pain text-white"><Zap size={20} /></span>
+          <span class="flex min-w-0 flex-col">
+            <span class="font-semibold">{t('today.headache')} · {ep.intensity}/10</span>
+            <span class="text-muted tabular">
+              {hm(ep.start)}–{ep.end ? hm(ep.end) : '…'}
+              · {formatDuration((ep.end ?? clock.now) - ep.start)}
             </span>
-          {/if}
-        </span>
-      </button>
-    {/each}
-
-    {#each intakes as intake (intake.id)}
-      <button class="press flex items-center gap-3 rounded-2xl bg-med-soft p-3 text-left" onclick={() => edit({ kind: 'intake', item: intake })}>
-        <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med text-white"><Pill size={20} /></span>
-        <span class="flex min-w-0 flex-1 flex-col">
-          <span><span class="font-semibold">{intake.name}</span> {intake.dose}</span>
-          <span class="flex items-center gap-1.5 text-xs text-muted">
-            <span class="size-2.5 rounded-full" style:background-color={intakeColor(intake, data.medications)}></span>
-            {ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')}
+            {#if ep.tags.length}
+              <span class="text-xs text-muted">{ep.tags.map((tag) => tagLabel(tag)).join(' · ')}</span>
+            {/if}
+            {#if ep.note}<span class="mt-1 text-xs italic">{ep.note}</span>{/if}
+            {#if before.ml || before.usual}
+              <span class="mt-1 text-xs text-muted">
+                💧 {t('day.hydrationBefore', { ml: formatLiters(before.ml) })}{before.usual ? ` ${t('day.hydrationUsual', { ml: formatLiters(before.usual) })}` : ''}
+              </span>
+            {/if}
           </span>
-        </span>
-        <span class="text-muted tabular">{hm(intake.time)}</span>
-      </button>
+        </button>
+      {:else}
+        {@const intake = entry.item}
+        <button class="press flex items-center gap-3 rounded-2xl bg-med-soft p-3 text-left" onclick={() => edit({ kind: 'intake', item: intake })}>
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med text-white"><Pill size={20} /></span>
+          <span class="flex min-w-0 flex-1 flex-col">
+            <span><span class="font-semibold">{intake.name}</span> {intake.dose}</span>
+            <span class="flex items-center gap-1.5 text-xs text-muted">
+              <span class="size-2.5 rounded-full" style:background-color={intakeColor(intake, data.medications)}></span>
+              {ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')}
+            </span>
+          </span>
+          <span class="text-muted tabular">{hm(intake.time)}</span>
+        </button>
+      {/if}
     {/each}
 
-    {#if drinks.length}
-      <div class="flex flex-col gap-2 rounded-2xl bg-water-soft p-3">
-        <div class="flex items-center gap-2 font-semibold"><Droplets size={20} class="text-water" /> {formatLiters(water)}</div>
-        <div class="flex flex-wrap gap-1.5">
-          {#each drinks as drink (drink.id)}
-            <button class="press min-h-11 rounded-full bg-surface px-3 py-1.5 text-sm tabular" onclick={() => edit({ kind: 'drink', item: drink })}>
-              {drink.emoji} {hm(drink.time)}
-            </button>
-          {/each}
-        </div>
-      </div>
-    {/if}
-
-    <div class="flex flex-wrap gap-2 pt-1">
+    <div class="flex flex-wrap gap-2">
       <button
         class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium"
         onclick={() => edit({ kind: 'episode', item: { start: setHours(keyToDate(day), 9).getTime(), end: setHours(keyToDate(day), 12).getTime(), intensity: 5, tags: [], note: '' } })}
@@ -125,6 +118,19 @@
       </button>
       <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addMed}><Plus size={20} />{t('day.addMed')}</button>
       <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addDrink}><Plus size={20} />{t('day.addDrink')}</button>
+    </div>
+
+    <h3 class="mt-2 text-sm font-semibold tracking-wide text-muted uppercase">{t('day.factors')}</h3>
+    <div class="flex flex-col overflow-hidden rounded-2xl bg-surface">
+      {#each factors as f (f.label)}
+        <button class="press flex min-h-12 items-center gap-3 border-b border-line px-3 py-2 text-left last:border-b-0" onclick={f.open}>
+          <span class="text-xl leading-none">{f.icon}</span>
+          <span class="flex-1 font-medium">{f.label}</span>
+          <span class="min-w-0 truncate text-muted tabular">{f.value}</span>
+          <span class="size-2.5 shrink-0 rounded-full" style:background-color={STATUS[f.status]}></span>
+          <ChevronRight size={18} class="shrink-0 text-muted" />
+        </button>
+      {/each}
     </div>
   </div>
 </Sheet>

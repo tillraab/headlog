@@ -355,23 +355,6 @@ export function medicationEffect(intakes: Intake[], from: number, to: number, ke
   return [...groups.values()].map(({ dayKeys, ...g }) => ({ ...g, days: dayKeys.size })).sort((a, b) => b.intakes - a.intakes);
 }
 
-/**
- * The calendar's month summary up to `now`: headache days, days with acute medication and the
- * average water per day. Days after `now` are left out.
- */
-export function monthSummary(data: { episodes: Episode[]; intakes: Intake[]; drinks: Drink[] }, month: Date, now: number) {
-  const today = dayKey(now);
-  const past = dayRange(startOfMonth(month), endOfMonth(month)).filter((k) => k <= today);
-  const hDays = headacheDays(data.episodes, now);
-  const mDays = intakeDays(data.intakes);
-  const water = waterByDay(data.drinks);
-  return {
-    headache: past.filter((k) => hDays.has(k)).length,
-    med: past.filter((k) => mDays.has(k)).length,
-    water: average(past.map((k) => water.get(k) ?? 0)) ?? 0
-  };
-}
-
 export interface PeriodStats {
   days: number;
   headacheDays: number;
