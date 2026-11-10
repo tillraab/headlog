@@ -9,7 +9,7 @@
   import type { Night } from '$lib/db';
   import { formatDuration, hm, HOUR, MINUTE } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
-  import { nightSpan, onPeriods, screenEvents, sleepSegments, typedSleepTime } from '$lib/sleep';
+  import { nightSpan, nightStartChoices, onPeriods, screenEvents, sleepSegments, splitBreaksAt, typedSleepTime } from '$lib/sleep';
   import { tap } from '$lib/ui.svelte';
 
   let { night = $bindable() }: { night: Night } = $props();
@@ -125,18 +125,13 @@
   /** A wake break at least this long may be where the night really began, e.g. after watching TV. */
   const START_BREAK = 15 * MINUTE;
   /** Where the night may have begun: the estimate, or the end of a longer wake break, as the editor opened. */
-  const startChoices = [
-    { time: night.start, awake: 0 },
-    ...night.breaks.filter((b) => b.end - b.start >= START_BREAK).map((b) => ({ time: b.end, awake: b.end - b.start }))
-  ];
+  const startChoices = nightStartChoices(night, START_BREAK);
   /** Wake breaks before the chosen start; they are kept until saving, so another choice brings them back. */
   let parked: { start: number; end: number }[] = [];
 
   function startAt(time: number) {
     tap();
-    const all = [...night.breaks, ...parked].sort((a, b) => a.start - b.start);
-    night.breaks = all.filter((b) => b.start >= time);
-    parked = all.filter((b) => b.start < time);
+    ({ breaks: night.breaks, parked } = splitBreaksAt(night.breaks, parked, time));
     night.start = time;
     select(null);
   }

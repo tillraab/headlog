@@ -184,3 +184,17 @@ export function onPeriods(events: ScreenEvent[], from: number, to: number): { st
   if (onSince !== null) periods.push({ start: onSince, end: to });
   return periods.map((p) => ({ start: Math.max(p.start, from), end: Math.min(p.end, to) })).filter((p) => p.end > p.start);
 }
+
+/** Where a night may really have begun: the estimate, or the end of each wake break of at least `minBreak`. */
+export function nightStartChoices(night: Pick<Night, 'start' | 'breaks'>, minBreak: number): { time: number; awake: number }[] {
+  return [{ time: night.start, awake: 0 }, ...night.breaks.filter((b) => b.end - b.start >= minBreak).map((b) => ({ time: b.end, awake: b.end - b.start }))];
+}
+
+/**
+ * The wake breaks of a night that starts at `time`, and those before it, which are set aside rather than
+ * dropped so that another start can bring them back.
+ */
+export function splitBreaksAt(breaks: { start: number; end: number }[], parked: { start: number; end: number }[], time: number) {
+  const all = [...breaks, ...parked].sort((a, b) => a.start - b.start);
+  return { breaks: all.filter((b) => b.start >= time), parked: all.filter((b) => b.start < time) };
+}
