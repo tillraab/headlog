@@ -42,7 +42,7 @@
     details?: (index: number) => string[];
     /** Trailing days that are a forecast: shaded, with dashed lines. */
     forecast?: number;
-    /** Shows the values of the last day until another day is tapped. */
+    /** Shows the values of the last day before the forecast until another day is tapped. */
     showLast?: boolean;
   } = $props();
 
@@ -52,7 +52,7 @@
   let selectedKey = $state<string | null>(null);
   const selected = $derived.by(() => {
     const index = selectedKey === null ? -1 : keys.indexOf(selectedKey);
-    return index >= 0 ? index : showLast && n ? n - 1 : null;
+    return index >= 0 ? index : showLast && n > forecast ? n - 1 - forecast : null;
   });
 
   /** Fixed height for the detail box, so the charts below never move: date, value rows, two extra lines. */

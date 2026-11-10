@@ -1,4 +1,5 @@
 import type { DrinkReminderSettings, ReminderSettings } from './reminders';
+import type { FactorKey } from './prognosis';
 import type { Place } from './weather';
 
 export type Theme = 'system' | 'light' | 'dark';
@@ -25,6 +26,8 @@ export interface Settings {
   sleepCheck: { enabled: boolean; hour: number };
   /** Evening notification when a headache is more likely tomorrow. */
   riskAlert: { enabled: boolean; hour: number };
+  /** What the calendar marks: headaches, medication, and days on which each factor was unfavourable. */
+  calendar: Record<'headache' | 'medication' | FactorKey, boolean>;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -39,7 +42,8 @@ export const DEFAULT_SETTINGS: Settings = {
   weather: { enabled: false, place: null },
   sleep: { enabled: false, fallAsleepMinutes: 15 },
   sleepCheck: { enabled: true, hour: 9 },
-  riskAlert: { enabled: true, hour: 20 }
+  riskAlert: { enabled: true, hour: 20 },
+  calendar: { headache: true, medication: true, weather: false, sleep: false, hydration: false, caffeine: false, alcohol: false }
 };
 
 /** Settings as stored by older versions, with fields that were renamed since. */

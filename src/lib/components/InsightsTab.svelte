@@ -1,6 +1,6 @@
 <script lang="ts">
   import { FileText } from '@lucide/svelte';
-  import { average, caffeineByDay, firstDrinkDay, compareDays, monthlyCounts, periodStats, timeline } from '$lib/analysis';
+  import { average, caffeineByDay, compareDays, firstDrinkDay, headacheDays, intakeDays, monthlyCounts, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, type RuleStatus } from '$lib/analysis';
   import { entryDetailLines, formatComparison } from '$lib/format';
   import { addDays, endOfDay } from 'date-fns';
   import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays } from '$lib/days';
@@ -8,6 +8,7 @@
   import { fmt, num, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { dropToNextDay, isPressureDrop, PRESSURE_DROP_HPA } from '$lib/weather';
+  import { SOURCES } from '$lib/sources';
   import BarChart from './BarChart.svelte';
   import CardHeading from './CardHeading.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
@@ -20,6 +21,9 @@
   /** Up to this many days the timeline shows hours instead of days. */
   const HOUR_VIEW_DAYS = 7;
   const SLEEP_REFERENCE_HOURS = 7;
+  /** From 15 headache days a month, ICHD-3 speaks of chronic headache (chronic migraine: for more than 3 months). */
+  const CHRONIC_DAYS = 15;
+  const RULE_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-med)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   /** The chosen number of days, or a From–To range when `custom` is set. */
   let period = $state(30);
   let custom = $state<{ from: string; to: string } | null>(null);
@@ -67,6 +71,41 @@
   const caffeine = $derived.by(() => {
     const byDay = caffeineByDay(data.drinks);
     return average(keys.filter((k) => byDay.has(k)).map((k) => byDay.get(k)!));
+  });
+
+  /** Headache and acute medication days in the 30 days up to each day, over the same days as the other charts. */
+  const rollingRows = $derived.by((): Row[] => {
+    const last = keyToDate(keys[keys.length - 1]);
+    /** Preventive medication does not count for the 10/20 rule. */
+    const acuteDays = new Set(intakeDays(data.intakes).keys());
+    const rule = tenTwenty(acuteDays, clock.now, data.settings.limit);
+    const headache = rollingDays(new Set(headacheDays(data.episodes, clock.now).keys()), last, span).map((r) => r.count);
+    const med = rollingDays(acuteDays, last, span).map((r) => r.count);
+    const ahead = forecastKeys.map(() => null);
+    const lastCount = (counts: number[]) =>
+      keys[keys.length - 1] === today ? t('cal.rollingNow', { n: counts[counts.length - 1] }) : t('cal.rollingOn', { n: counts[counts.length - 1], date: fmt(last, 'd. MMM') });
+    return [
+      {
+        label: t('cal.headacheDaysRow'),
+        summary: lastCount(headache),
+        values: [...headache, ...ahead],
+        colors: [...headache.map((n) => (n >= CHRONIC_DAYS ? 'var(--color-over)' : 'var(--color-pain)')), ...ahead.map(() => 'var(--color-pain)')],
+        color: 'var(--color-pain)',
+        kind: 'bars',
+        format: (v) => String(Math.round(v)),
+        reference: CHRONIC_DAYS
+      },
+      {
+        label: t('cal.medDays'),
+        summary: lastCount(med),
+        values: [...med, ...ahead],
+        colors: [...med.map((n) => RULE_COLOR[ruleStatus(n, rule.allowed)]), ...ahead.map(() => 'var(--color-med)')],
+        color: 'var(--color-med)',
+        kind: 'bars',
+        format: (v) => String(Math.round(v)),
+        reference: rule.limit
+      }
+    ];
   });
 
   const rows = $derived.by(() => {
@@ -183,6 +222,15 @@
           {#if span < 30 && tile.cls}<p class="mt-0.5 text-caption leading-tight text-caution">⚠ {t('ins.extrapolated')}</p>{/if}
         </div>
       {/each}
+    </section>
+    <section class="card p-4">
+      <CardHeading
+        class="mb-3"
+        title={t('cal.rolling')}
+        info={[t('cal.rollingHint', { n: CHRONIC_DAYS }), t('cal.rollingMedHint', { n: data.settings.limit })]}
+        sources={[...SOURCES.chronic, ...SOURCES.medication]}
+      />
+      <TimelineChart showLast rows={rollingRows} keys={chartKeys} forecast={forecastKeys.length} bands={series.headache.map((v) => v > 0)} />
     </section>
 
     {@render heading(t('ins.dailyAverages'))}
