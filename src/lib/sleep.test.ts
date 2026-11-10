@@ -19,6 +19,12 @@ describe('estimateNight', () => {
     expect([night.breaks, night.asleepMs]).toEqual([[{ start: at('2026-03-10T03:10'), end: at('2026-03-10T03:35') }], 7.5 * HOUR - 25 * 60000]);
   });
 
+  it('starts sleep the given time after the screen goes off, also after a wake break', () => {
+    const events = [off('2026-03-09T23:00'), on('2026-03-10T03:10'), off('2026-03-10T03:35'), on('2026-03-10T06:30')];
+    const night = estimateNight(events, '2026-03-10', now, 15 * 60000)!;
+    expect([night.start, night.breaks, night.asleepMs]).toEqual([at('2026-03-09T23:15'), [{ start: at('2026-03-10T03:10'), end: at('2026-03-10T03:50') }], 7.5 * HOUR - 55 * 60000]);
+  });
+
   it('does not join an evening break that lasted longer than 90 minutes', () => {
     const events = [off('2026-03-09T18:30'), on('2026-03-09T20:30'), off('2026-03-09T23:00'), on('2026-03-10T07:00')];
     expect(estimateNight(events, '2026-03-10', now)?.start).toBe(at('2026-03-09T23:00'));

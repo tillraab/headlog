@@ -57,7 +57,7 @@ function offPeriods(events: ScreenEvent[], until: number): { start: number; end:
  * window, joined with neighbouring stretches when the screen was on in between for at most
  * 90 minutes. Those screen-on gaps are the wake breaks. Returns null without a night of 3 hours.
  */
-export function estimateNight(events: ScreenEvent[], day: string, now = Date.now()): Night | null {
+export function estimateNight(events: ScreenEvent[], day: string, now = Date.now(), fallAsleepMs = 0): Night | null {
   const morning = startOfDay(new Date(`${day}T12:00`));
   const windowStart = setHours(addDays(morning, -1), WINDOW_START_HOUR).getTime();
   const windowEnd = Math.min(setHours(morning, WINDOW_END_HOUR).getTime(), now);
@@ -71,7 +71,8 @@ export function estimateNight(events: ScreenEvent[], day: string, now = Date.now
   let last = first;
   while (first > 0 && periods[first].start - periods[first - 1].end <= MAX_BREAK_MINUTES * MINUTE) first--;
   while (last < periods.length - 1 && periods[last + 1].start - periods[last].end <= MAX_BREAK_MINUTES * MINUTE) last++;
-  const block = periods.slice(first, last + 1);
+  // Sleep begins `fallAsleepMs` after the screen goes off, at the start of the night and after each wake break.
+  const block = periods.slice(first, last + 1).map((p) => ({ start: Math.min(p.start + fallAsleepMs, p.end), end: p.end }));
   const asleepMs = block.reduce((sum, p) => sum + p.end - p.start, 0);
   if (asleepMs < MIN_NIGHT_HOURS * 60 * MINUTE) return null;
 
@@ -86,7 +87,7 @@ export function estimateNight(events: ScreenEvent[], day: string, now = Date.now
 }
 
 /** Recomputes the last nights from screen events. Nights the user edited stay as they are. */
-export async function syncNights(database: HeadLogDb, days = 8, now = Date.now()) {
+export async function syncNights(database: HeadLogDb, days = 8, now = Date.now(), fallAsleepMs = 0) {
   const access = await screenAccess();
   if (!access.granted) return;
   const keys = lastDays(now, days);
@@ -95,7 +96,7 @@ export async function syncNights(database: HeadLogDb, days = 8, now = Date.now()
   const edited = new Set((await database.sleep.filter((n) => n.source === 'manual').toArray()).map((n) => n.day));
   for (const key of keys) {
     if (edited.has(key)) continue;
-    const night = estimateNight(events, key, now);
+    const night = estimateNight(events, key, now, fallAsleepMs);
     if (night) await database.sleep.put(night);
   }
 }
@@ -184,6 +185,9 @@ export function onPeriods(events: ScreenEvent[], from: number, to: number): { st
   if (onSince !== null) periods.push({ start: onSince, end: to });
   return periods.map((p) => ({ start: Math.max(p.start, from), end: Math.min(p.end, to) })).filter((p) => p.end > p.start);
 }
+
+/** Choices for how long falling asleep takes after the screen goes off, in minutes. */
+export const FALL_ASLEEP_OPTIONS = [0, 5, 10, 15, 20, 30, 45];
 
 /** Where a night may really have begun: the estimate, or the end of each wake break of at least `minBreak`. */
 export function nightStartChoices(night: Pick<Night, 'start' | 'breaks'>, minBreak: number): { time: number; awake: number }[] {

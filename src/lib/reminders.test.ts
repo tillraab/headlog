@@ -178,14 +178,14 @@ describe('planAll', () => {
       headacheCheckHours: 3,
       drinkReminder: { enabled: true, from: 8, to: 20, everyHours: 2 },
       riskAlert: { enabled: true, hour: 20 },
-      sleep: { enabled: true },
+      sleep: { enabled: true, fallAsleepMinutes: 15 },
       sleepCheck: { enabled: true, hour: 9 },
       ...settings
     }
   });
 
   it('asks about sleep only while sleep estimates are on', () => {
-    expect([planAll(data(), now).sleep.length, planAll(data({ sleep: { enabled: false } }), now).sleep.length]).toEqual([2, 0]);
+    expect([planAll(data(), now).sleep.length, planAll(data({ sleep: { enabled: false, fallAsleepMinutes: 15 } }), now).sleep.length]).toEqual([2, 0]);
   });
 
   it("counts today's water for the water reminders", () => {

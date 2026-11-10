@@ -9,7 +9,8 @@
   import type { Night } from '$lib/db';
   import { formatDuration, hm, HOUR, MINUTE } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
-  import { nightSpan, nightStartChoices, onPeriods, screenEvents, sleepSegments, splitBreaksAt, typedSleepTime } from '$lib/sleep';
+  import { FALL_ASLEEP_OPTIONS, nightSpan, nightStartChoices, onPeriods, screenEvents, sleepSegments, splitBreaksAt, typedSleepTime } from '$lib/sleep';
+  import { data } from '$lib/store.svelte';
   import { tap } from '$lib/ui.svelte';
 
   let { night = $bindable() }: { night: Night } = $props();
@@ -125,7 +126,17 @@
   /** A wake break at least this long may be where the night really began, e.g. after watching TV. */
   const START_BREAK = 15 * MINUTE;
   /** Where the night may have begun: the estimate, or the end of a longer wake break, as the editor opened. */
-  const startChoices = nightStartChoices(night, START_BREAK);
+  const baseChoices = nightStartChoices(night, START_BREAK);
+  /** Minutes from the screen going off to falling asleep, for this night; the choices move with it. */
+  const usualFallAsleep = data.settings.sleep.fallAsleepMinutes;
+  let fallAsleep = $state(usualFallAsleep);
+  const startChoices = $derived(baseChoices.map((c) => ({ ...c, time: c.time + (fallAsleep - usualFallAsleep) * MINUTE })));
+
+  function setFallAsleep(minutes: number) {
+    const shift = (minutes - fallAsleep) * MINUTE;
+    fallAsleep = minutes;
+    night.start = clamp(night.start + shift, span.from, (night.breaks[0]?.start ?? night.end) - MIN_GAP);
+  }
   /** Wake breaks before the chosen start; they are kept until saving, so another choice brings them back. */
   let parked: { start: number; end: number }[] = [];
 
@@ -164,6 +175,13 @@
       />
     </label>
   </div>
+
+  <label class="-mt-1 flex items-center justify-between gap-3 text-xs text-muted">
+    {t('sleep.fallAsleep')}
+    <select class="w-28 shrink-0 py-1.5 text-sm text-fg" value={fallAsleep} onchange={(e) => setFallAsleep(Number(e.currentTarget.value))}>
+      {#each FALL_ASLEEP_OPTIONS as n (n)}<option value={n}>{t('sleep.minutes', { n })}</option>{/each}
+    </select>
+  </label>
 
   {#if startChoices.length > 1}
     <div class="-mt-1 flex flex-wrap items-center gap-2">
