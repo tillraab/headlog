@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-11-11
+
 ### Changed
 
 - Meds: all limits as wheels, two per row: the 10/20 rule, the overuse limit of each class used in the last 30 days and each personal limit. Each wheel has its own (i) with its rule, what studies show and sources. Overuse now counts the last 30 days instead of the calendar month; ICHD-3 says days per month without fixing which month.
