@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-11-10
+
 ### Changed
 
 - The Calendar tab shows headache days and medication days in 30 days together, as two charts on one time axis, with today's counts as coloured numbers. It shows the last 30 days; a From–To range shows any other period and goes back to the last 30 days after 5 minutes away. The Meds tab no longer has its own rolling chart.
