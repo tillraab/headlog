@@ -93,7 +93,7 @@ Releases are published by the maintainer. The steps are in [CLAUDE.md](CLAUDE.md
 
 ## Tech stack
 
-SvelteKit 2 and Svelte 5 (static adapter), Tailwind CSS 4, Dexie (IndexedDB), date-fns, Lucide icons, and Capacitor 8 for the Android app. The project layout and release workflow follow [PunchClock](https://github.com/Spenhouet/punch-clock).
+SvelteKit 2 and Svelte 5 (static adapter), Tailwind CSS 4, Dexie (IndexedDB), date-fns, Lucide icons, and Capacitor 8 for the Android app.
 
 ## Disclaimer
 
