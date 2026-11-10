@@ -6,7 +6,7 @@
 
 ### Added
 
-- The sleep editor offers when the night began: the estimate or the end of each wake break of 15 minutes or more, e.g. after watching TV. Wake breaks before the chosen start are only removed when you save.
+- The sleep editor offers when the night began: the estimate or the end of each wake break of 15 minutes or more. Wake breaks before the chosen start are only removed when you save.
 
 ### Fixed
 

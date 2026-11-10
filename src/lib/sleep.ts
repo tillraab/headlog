@@ -61,8 +61,9 @@ export function estimateNight(events: ScreenEvent[], day: string, now = Date.now
   const morning = startOfDay(new Date(`${day}T12:00`));
   const windowStart = setHours(addDays(morning, -1), WINDOW_START_HOUR).getTime();
   const windowEnd = Math.min(setHours(morning, WINDOW_END_HOUR).getTime(), now);
+  // Sleep begins `fallAsleepMs` after the screen goes off; what is left of an off stretch must still be 20 minutes.
   const periods = offPeriods(events, now)
-    .map((p) => ({ start: Math.max(p.start, windowStart), end: Math.min(p.end, windowEnd) }))
+    .map((p) => ({ start: Math.max(p.start, windowStart) + fallAsleepMs, end: Math.min(p.end, windowEnd) }))
     .filter((p) => p.end - p.start >= MIN_OFF_MINUTES * MINUTE);
   if (!periods.length) return null;
 
@@ -71,8 +72,7 @@ export function estimateNight(events: ScreenEvent[], day: string, now = Date.now
   let last = first;
   while (first > 0 && periods[first].start - periods[first - 1].end <= MAX_BREAK_MINUTES * MINUTE) first--;
   while (last < periods.length - 1 && periods[last + 1].start - periods[last].end <= MAX_BREAK_MINUTES * MINUTE) last++;
-  // Sleep begins `fallAsleepMs` after the screen goes off, at the start of the night and after each wake break.
-  const block = periods.slice(first, last + 1).map((p) => ({ start: Math.min(p.start + fallAsleepMs, p.end), end: p.end }));
+  const block = periods.slice(first, last + 1);
   const asleepMs = block.reduce((sum, p) => sum + p.end - p.start, 0);
   if (asleepMs < MIN_NIGHT_HOURS * 60 * MINUTE) return null;
 

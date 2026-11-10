@@ -123,22 +123,33 @@
 
   const sel = $derived(selected !== null ? night.breaks[selected] : undefined);
 
-  /** A wake break at least this long may be where the night really began, e.g. after watching TV. */
+  /** The end of a wake break at least this long is offered as the start of the night. */
   const START_BREAK = 15 * MINUTE;
   /** Where the night may have begun: the estimate, or the end of a longer wake break, as the editor opened. */
+  /** A first sleep stretch shorter than this is not counted; the night then starts after the first wake break. */
+  const MIN_FIRST_SLEEP = 20 * MINUTE;
   const baseChoices = nightStartChoices(night, START_BREAK);
   /** Minutes from the screen going off to falling asleep, for this night; the choices move with it. */
   const usualFallAsleep = data.settings.sleep.fallAsleepMinutes;
   let fallAsleep = $state(usualFallAsleep);
-  const startChoices = $derived(baseChoices.map((c) => ({ ...c, time: c.time + (fallAsleep - usualFallAsleep) * MINUTE })));
+  /** Wake breaks before the chosen start; they are kept until saving, so another choice brings them back. */
+  let parked = $state<{ start: number; end: number }[]>([]);
+  /** Each choice moved by this night's time to fall asleep, without those that would leave under 20 minutes of sleep before the next wake break. */
+  const startChoices = $derived.by(() => {
+    const all = [...night.breaks, ...parked];
+    return baseChoices
+      .map((c) => ({ ...c, time: c.time + (fallAsleep - usualFallAsleep) * MINUTE }))
+      .filter((c) => !all.some((b) => b.end > c.time && b.start < c.time + MIN_FIRST_SLEEP));
+  });
+
 
   function setFallAsleep(minutes: number) {
-    const shift = (minutes - fallAsleep) * MINUTE;
+    const target = night.start + (minutes - fallAsleep) * MINUTE;
     fallAsleep = minutes;
-    night.start = clamp(night.start + shift, span.from, (night.breaks[0]?.start ?? night.end) - MIN_GAP);
+    const first = night.breaks[0];
+    if (first && target > first.start - MIN_FIRST_SLEEP) startAt(first.end + Math.max(0, (minutes - usualFallAsleep) * MINUTE));
+    else night.start = clamp(target, span.from, night.end - MIN_FIRST_SLEEP);
   }
-  /** Wake breaks before the chosen start; they are kept until saving, so another choice brings them back. */
-  let parked: { start: number; end: number }[] = [];
 
   function startAt(time: number) {
     tap();
@@ -183,7 +194,7 @@
     </select>
   </label>
 
-  {#if startChoices.length > 1}
+  {#if baseChoices.length > 1 && startChoices.length}
     <div class="-mt-1 flex flex-wrap items-center gap-2">
       <span class="text-xs text-muted">{t('sleep.startedAt')}</span>
       {#each startChoices as choice (choice.time)}
