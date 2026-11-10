@@ -25,6 +25,12 @@ describe('estimateNight', () => {
     expect([night.start, night.breaks, night.asleepMs]).toEqual([at('2026-03-09T23:15'), [{ start: at('2026-03-10T03:10'), end: at('2026-03-10T03:50') }], 7.5 * HOUR - 55 * 60000]);
   });
 
+  it('adds no time to fall asleep after a wake break under 10 minutes', () => {
+    const events = [off('2026-03-09T23:00'), on('2026-03-10T03:00'), off('2026-03-10T03:02'), on('2026-03-10T06:30')];
+    const night = estimateNight(events, '2026-03-10', now, 15 * 60000)!;
+    expect([night.start, night.breaks]).toEqual([at('2026-03-09T23:15'), [{ start: at('2026-03-10T03:00'), end: at('2026-03-10T03:02') }]]);
+  });
+
   it('leaves out an off stretch that is too short once the time to fall asleep is taken off', () => {
     const events = [off('2026-03-09T22:00'), on('2026-03-09T22:30'), off('2026-03-09T23:00'), on('2026-03-10T06:30')];
     const night = estimateNight(events, '2026-03-10', now, 15 * 60000)!;

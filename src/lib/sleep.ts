@@ -28,6 +28,8 @@ export function openUsageAccessSettings() {
 
 /** Off periods shorter than this are ignored, e.g. a few minutes between two phone sessions. */
 const MIN_OFF_MINUTES = 20;
+/** After the screen was on for less than this, sleep resumes without the time to fall asleep. */
+export const SHORT_WAKE_MINUTES = 10;
 /** Screen time between two off periods up to this long counts as a wake break inside one night. */
 const MAX_BREAK_MINUTES = 90;
 /** A night needs at least this much screen-off time. */
@@ -61,9 +63,11 @@ export function estimateNight(events: ScreenEvent[], day: string, now = Date.now
   const morning = startOfDay(new Date(`${day}T12:00`));
   const windowStart = setHours(addDays(morning, -1), WINDOW_START_HOUR).getTime();
   const windowEnd = Math.min(setHours(morning, WINDOW_END_HOUR).getTime(), now);
-  // Sleep begins `fallAsleepMs` after the screen goes off; what is left of an off stretch must still be 20 minutes.
+  // Sleep begins `fallAsleepMs` after the screen goes off, unless it was on for less than 10 minutes before,
+  // like a quick look at the time; what is left of an off stretch must still be 20 minutes.
   const periods = offPeriods(events, now)
-    .map((p) => ({ start: Math.max(p.start, windowStart) + fallAsleepMs, end: Math.min(p.end, windowEnd) }))
+    .map((p) => ({ start: Math.max(p.start, windowStart), end: Math.min(p.end, windowEnd) }))
+    .map((p, i, all) => ({ start: i && p.start - all[i - 1].end < SHORT_WAKE_MINUTES * MINUTE ? p.start : p.start + fallAsleepMs, end: p.end }))
     .filter((p) => p.end - p.start >= MIN_OFF_MINUTES * MINUTE);
   if (!periods.length) return null;
 
