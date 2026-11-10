@@ -8,6 +8,17 @@ import { isPressureDrop } from './weather';
 export type Light = 'green' | 'yellow' | 'red';
 export type FactorKey = 'weather' | 'hydration' | 'sleep' | 'alcohol' | 'caffeine';
 
+/** The factors in the order they are listed, with their symbols. */
+export const FACTOR_ICONS: [FactorKey, string][] = [
+  ['weather', '🌦️'],
+  ['sleep', '😴'],
+  ['hydration', '💧'],
+  ['caffeine', '☕'],
+  ['alcohol', '🍷']
+];
+const ICON = Object.fromEntries(FACTOR_ICONS) as Record<FactorKey, string>;
+export const factorIcon = (key: FactorKey) => ICON[key];
+
 export type Status = 'ok' | 'bad' | 'unknown';
 
 /** The hydration goal is spread evenly over the waking day, 7:00 to 22:00. */

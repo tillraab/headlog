@@ -1,54 +1,51 @@
 <script lang="ts">
   import { ChevronLeft, ChevronRight } from '@lucide/svelte';
-  import { addDays, addMonths, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
-  import { headacheDays, intakeDays, rollingDays, ruleStatus, tenTwenty, waterByDay, type RuleStatus } from '$lib/analysis';
-  import { dayKey, dayRange, keyToDate, rangeDayCount } from '$lib/days';
+  import { addMonths, endOfDay, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
+  import { headacheDays, intakeDays } from '$lib/analysis';
+  import { FACTOR_ICONS, prognosis, prognosisInput, type FactorKey } from '$lib/prognosis';
+  import { dayKey, dayRange, keyToDate } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
-  import { clock, data } from '$lib/store.svelte';
-  import { home, openSheet } from '$lib/ui.svelte';
+  import { clock, data, saveSettings } from '$lib/store.svelte';
+  import { openSheet, tap } from '$lib/ui.svelte';
   import { intakeColor } from '$lib/colors';
-  import CardHeading from './CardHeading.svelte';
   import DaySheet from './DaySheet.svelte';
   import InfoButton from './InfoButton.svelte';
-  import RangeButton from './RangeButton.svelte';
-  import TimelineChart from './TimelineChart.svelte';
-  import { SOURCES } from '$lib/sources';
-
-  /** Days the rolling chart shows unless another range is chosen; it returns to this after a while away. */
-  const ROLLING_DAYS = 30;
-  /** From 15 headache days a month, ICHD-3 speaks of chronic headache (chronic migraine: for more than 3 months). */
-  const CHRONIC_DAYS = 15;
 
   let month = $state(startOfMonth(Date.now()));
   let selected = $state<string | null>(null);
 
   const hDays = $derived(headacheDays(data.episodes, clock.now));
   const mDays = $derived(intakeDays(data.intakes, false));
-  const water = $derived(waterByDay(data.drinks));
   const keys = $derived(dayRange(month, endOfMonth(month)));
   const offset = $derived((getDay(month) + 6) % 7);
   const today = $derived(dayKey(clock.now));
 
-  /** The range the rolling chart shows, as day keys; null is the last 30 days. */
-  let range = $state<{ from: string; to: string } | null>(null);
-  $effect(() => {
-    if (home.resets) range = null;
+  const show = $derived(data.settings.calendar);
+  const shownFactors = $derived(FACTOR_ICONS.filter(([key]) => show[key]));
+  /** For each past day of the month and today, the shown factors that were unfavourable: at the end of the day, for today now. */
+  const badFactors = $derived.by(() => {
+    const result = new Map<string, string[]>();
+    if (!shownFactors.length) return result;
+    const input = prognosisInput(data);
+    for (const key of keys) {
+      if (key > today) break;
+      const p = prognosis(input, key < today ? endOfDay(keyToDate(key)).getTime() : clock.now);
+      const icons = shownFactors.filter(([factor]) => p[factor].status === 'bad').map(([, icon]) => icon);
+      if (icons.length) result.set(key, icons);
+    }
+    return result;
   });
-  const rangeTo = $derived(range?.to ?? today);
-  const rangeFrom = $derived(range?.from ?? dayKey(addDays(clock.now, -(ROLLING_DAYS - 1))));
-  const rangeDays = $derived(rangeDayCount(rangeFrom, rangeTo));
 
-  /** A pick of exactly the last 30 days is the default again, so it returns to following today. */
-  function setRange(next: { from: string; to: string }) {
-    range = next.to === today && next.from === dayKey(addDays(clock.now, -(ROLLING_DAYS - 1))) ? null : next;
+  const chips = $derived<{ key: 'headache' | 'medication' | FactorKey; label: string }[]>([
+    { key: 'headache', label: t('cal.headache') },
+    { key: 'medication', label: t('cal.medication') },
+    ...FACTOR_ICONS.map(([key, icon]) => ({ key, label: `${icon} ${t(`prog.${key}`)}` }))
+  ]);
+
+  function toggle(key: 'headache' | 'medication' | FactorKey) {
+    tap();
+    saveSettings({ calendar: { ...show, [key]: !show[key] } });
   }
-
-  const rolling = $derived(rollingDays(new Set(hDays.keys()), keyToDate(rangeTo), rangeDays));
-  /** Days with acute medication; preventive medication does not count for the 10/20 rule. */
-  const acuteDays = $derived(new Set(intakeDays(data.intakes).keys()));
-  const medRolling = $derived(rollingDays(acuteDays, keyToDate(rangeTo), rangeDays));
-  const rule = $derived(tenTwenty(acuteDays, clock.now, data.settings.limit));
-  const RULE_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-med)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
 
   function open(key: string) {
     selected = key;
@@ -79,6 +76,18 @@
     </div>
   </header>
 
+  <div class="flex flex-wrap gap-1.5 text-sm" role="group" aria-label={t('cal.show')}>
+    {#each chips as chip (chip.key)}
+      <button
+        class="press min-h-9 rounded-full px-2.5 font-medium {show[chip.key] ? 'bg-primary text-primary-fg' : 'bg-surface-2 text-muted'}"
+        aria-pressed={show[chip.key]}
+        onclick={() => toggle(chip.key)}
+      >
+        {chip.label}
+      </button>
+    {/each}
+  </div>
+
   <section class="card p-3">
     <div class="mb-1 grid grid-cols-7 text-center text-sm font-medium text-muted">
       {#each weekdayShort() as wd (wd)}<span>{wd}</span>{/each}
@@ -86,9 +95,9 @@
     <div class="grid grid-cols-7 gap-1">
       {#each { length: offset } as _, i (i)}<span></span>{/each}
       {#each keys as key (key)}
-        {@const intensity = hDays.get(key)}
-        {@const meds = mDays.get(key)}
-        {@const ml = water.get(key) ?? 0}
+        {@const intensity = show.headache ? hDays.get(key) : undefined}
+        {@const meds = show.medication ? mDays.get(key) : undefined}
+        {@const icons = badFactors.get(key)}
         {@const future = key > today}
         <button
           class="press relative flex aspect-square flex-col items-center justify-center rounded-xl pb-1.5 text-base tabular disabled:opacity-30
@@ -97,6 +106,9 @@
           disabled={future}
           onclick={() => open(key)}
         >
+          {#if icons}
+            <span class="absolute inset-x-0 top-0.5 flex justify-center text-[0.65rem] leading-none tracking-[-0.1em]" aria-hidden="true">{icons.join('')}</span>
+          {/if}
           {keyToDate(key).getDate()}
           {#if meds?.length}
             <span class="absolute bottom-2 flex gap-0.5">
@@ -105,64 +117,19 @@
               {/each}
             </span>
           {/if}
-          {#if ml >= data.settings.waterGoalMl}
-            <span class="absolute inset-x-2 bottom-0.5 h-1 rounded-full bg-water"></span>
-          {/if}
         </button>
       {/each}
     </div>
     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-sm text-muted">
-      <span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-pain"></span>{t('cal.headache')}</span>
-      <span class="flex items-center gap-1.5"><span class="h-1 w-3.5 rounded-full bg-water"></span>{t('cal.water')}</span>
-      {#each data.medications as med (med.id)}
+      {#if show.headache}<span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-pain"></span>{t('cal.headache')}</span>{/if}
+      {#each show.medication ? data.medications : [] as med (med.id)}
         <span class="flex items-center gap-1.5">
           <span class="size-2.5 rounded-full" style:background-color={intakeColor({ medId: med.id, name: med.name, category: med.category }, data.medications)}></span>{med.name}
         </span>
       {/each}
-      <InfoButton class="-ml-2" title={t('tab.calendar')} text={t('cal.medsHint')} />
+      {#if shownFactors.length}<span>{shownFactors.map(([, icon]) => icon).join(' ')} {t('cal.unfavourable')}</span>{/if}
+      <InfoButton class="-ml-2" title={t('tab.calendar')} text={[t('cal.medsHint'), t('cal.factorHint')]} />
     </div>
-  </section>
-
-  <section class="card p-4">
-    <CardHeading
-      class="mb-3"
-      title={t('cal.rolling')}
-      info={[t('cal.rollingHint', { n: CHRONIC_DAYS }), t('cal.rollingMedHint', { n: rule.limit })]}
-      sources={[...SOURCES.chronic, ...SOURCES.medication]}
-    />
-    <div class="mb-3 flex flex-col gap-1 text-sm">
-      <RangeButton from={rangeFrom} to={rangeTo} onpick={setRange} />
-      {#if range}
-        <button class="press -mb-1 min-h-9 self-end px-1 font-medium text-primary" onclick={() => (range = null)}>{t('cal.rangeReset', { n: ROLLING_DAYS })}</button>
-      {/if}
-    </div>
-    <TimelineChart
-      showLast
-      keys={rolling.map((r) => r.key)}
-      bands={rolling.map((r) => hDays.has(r.key))}
-      rows={[
-        {
-          label: t('cal.headacheDaysRow'),
-          summary: t('cal.rollingNow', { n: rolling[rolling.length - 1].count }),
-          values: rolling.map((r) => r.count),
-          colors: rolling.map((r) => (r.count >= CHRONIC_DAYS ? 'var(--color-over)' : 'var(--color-pain)')),
-          color: 'var(--color-pain)',
-          kind: 'bars',
-          format: (v) => String(Math.round(v)),
-          reference: CHRONIC_DAYS
-        },
-        {
-          label: t('cal.medDays'),
-          summary: t('cal.rollingNow', { n: medRolling[medRolling.length - 1].count }),
-          values: medRolling.map((r) => r.count),
-          colors: medRolling.map((r) => RULE_COLOR[ruleStatus(r.count, rule.allowed)]),
-          color: 'var(--color-med)',
-          kind: 'bars',
-          format: (v) => String(Math.round(v)),
-          reference: rule.limit
-        }
-      ]}
-    />
   </section>
 </div>
 

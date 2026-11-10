@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-11-11
+
+### Changed
+
+- Calendar: chips above the month choose what is marked. Headache and Medication are on by default; Weather, Sleep, Hydration, Caffeine and Alcohol mark each day on which that factor was unfavourable with its symbol, by the forecast rule at the end of the day. The choice is remembered. The hydration goal bar is gone; 💧 marks days the goal was missed.
+- The chart of headache and medication days in the 30 days up to each day moved from Calendar to Insights, over the chosen period like the other charts.
+
 ## [0.33.1] - 2026-11-11
 
 ### Changed

@@ -9,7 +9,7 @@
   import { fmt, t, tagLabel } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { hydrationBefore } from '$lib/analysis';
-  import { prognosis, prognosisInput, type Status } from '$lib/prognosis';
+  import { factorIcon, prognosis, prognosisInput, type Status } from '$lib/prognosis';
   import { openFactor } from '$lib/ui.svelte';
   import { dayKey } from '$lib/days';
   import { weatherEmoji } from '$lib/weather';
@@ -32,22 +32,22 @@
   const STATUS: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
   const factors = $derived([
     {
-      icon: '🌦️',
+      icon: factorIcon('weather'),
       label: t('prog.weather'),
       status: p.weather.status,
       value: weather ? `${weatherEmoji(weather.code)} ${Math.round(weather.tempMin)}–${Math.round(weather.tempMax)} °C · ${Math.round(weather.pressure)} hPa` : '–',
       open: () => openFactor('weather', day)
     },
     {
-      icon: '😴',
+      icon: factorIcon('sleep'),
       label: t('prog.sleep'),
       status: p.sleep.status,
       value: night ? `${formatDuration(night.asleepMs)} · ${hm(night.start)}–${hm(night.end)}` : '–',
       open: () => (night ? edit({ kind: 'sleep', item: night }) : undefined)
     },
-    { icon: '💧', label: t('prog.hydration'), status: p.hydration.status, value: formatLiters(p.hydration.today), open: () => openFactor('hydration', day) },
-    { icon: '☕', label: t('prog.caffeine'), status: p.caffeine.status, value: `${Math.round(p.caffeine.today)} mg`, open: () => openFactor('caffeine', day) },
-    { icon: '🍷', label: t('prog.alcohol'), status: p.alcohol.status, value: String(p.alcohol.drinksToday), open: () => openFactor('alcohol', day) }
+    { icon: factorIcon('hydration'), label: t('prog.hydration'), status: p.hydration.status, value: formatLiters(p.hydration.today), open: () => openFactor('hydration', day) },
+    { icon: factorIcon('caffeine'), label: t('prog.caffeine'), status: p.caffeine.status, value: `${Math.round(p.caffeine.today)} mg`, open: () => openFactor('caffeine', day) },
+    { icon: factorIcon('alcohol'), label: t('prog.alcohol'), status: p.alcohol.status, value: String(p.alcohol.drinksToday), open: () => openFactor('alcohol', day) }
   ]);
   const noon = $derived(Math.min(setHours(keyToDate(day), 12).getTime(), clock.now));
 
