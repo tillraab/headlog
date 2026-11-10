@@ -1,8 +1,8 @@
 <script lang="ts">
   import { ChevronLeft, ChevronRight } from '@lucide/svelte';
-  import { addDays, addMonths, differenceInCalendarDays, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
+  import { addDays, addMonths, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
   import { headacheDays, intakeDays, rollingDays, ruleStatus, tenTwenty, waterByDay, type RuleStatus } from '$lib/analysis';
-  import { dayKey, dayRange, keyToDate, setRangeEnd } from '$lib/days';
+  import { dayKey, dayRange, keyToDate, rangeDayCount } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { home, openSheet } from '$lib/ui.svelte';
@@ -10,6 +10,7 @@
   import CardHeading from './CardHeading.svelte';
   import DaySheet from './DaySheet.svelte';
   import InfoButton from './InfoButton.svelte';
+  import RangeButton from './RangeButton.svelte';
   import TimelineChart from './TimelineChart.svelte';
   import { SOURCES } from '$lib/sources';
 
@@ -35,10 +36,11 @@
   });
   const rangeTo = $derived(range?.to ?? today);
   const rangeFrom = $derived(range?.from ?? dayKey(addDays(clock.now, -(ROLLING_DAYS - 1))));
-  const rangeDays = $derived(Math.max(1, differenceInCalendarDays(keyToDate(rangeTo), keyToDate(rangeFrom)) + 1));
+  const rangeDays = $derived(rangeDayCount(rangeFrom, rangeTo));
 
-  function setRange(end: 'from' | 'to', value: string) {
-    if (value) range = setRangeEnd({ from: rangeFrom, to: rangeTo }, end, value, today, ROLLING_DAYS);
+  /** A pick of exactly the last 30 days is the default again, so it returns to following today. */
+  function setRange(next: { from: string; to: string }) {
+    range = next.to === today && next.from === dayKey(addDays(clock.now, -(ROLLING_DAYS - 1))) ? null : next;
   }
 
   const rolling = $derived(rollingDays(new Set(hDays.keys()), keyToDate(rangeTo), rangeDays));
@@ -129,11 +131,7 @@
       sources={[...SOURCES.chronic, ...SOURCES.medication]}
     />
     <div class="mb-3 flex flex-col gap-1 text-sm">
-      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <input type="date" class="min-w-0 py-1.5 tabular" value={rangeFrom} max={today} onchange={(e) => setRange('from', e.currentTarget.value)} aria-label={t('cal.rangeFrom')} />
-        <span class="text-muted">–</span>
-        <input type="date" class="min-w-0 py-1.5 tabular" value={rangeTo} max={today} onchange={(e) => setRange('to', e.currentTarget.value)} aria-label={t('cal.rangeTo')} />
-      </div>
+      <RangeButton from={rangeFrom} to={rangeTo} onpick={setRange} />
       {#if range}
         <button class="press -mb-1 min-h-9 self-end px-1 font-medium text-primary" onclick={() => (range = null)}>{t('cal.rangeReset', { n: ROLLING_DAYS })}</button>
       {/if}

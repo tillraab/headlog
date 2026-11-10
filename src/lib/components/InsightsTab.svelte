@@ -1,9 +1,9 @@
 <script lang="ts">
   import { FileText } from '@lucide/svelte';
-  import { average, caffeineByDay, compareDays, monthlyCounts, periodStats, timeline } from '$lib/analysis';
+  import { average, caffeineByDay, firstDrinkDay, compareDays, monthlyCounts, periodStats, timeline } from '$lib/analysis';
   import { entryDetailLines, formatComparison } from '$lib/format';
   import { addDays, endOfDay } from 'date-fns';
-  import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays, setRangeEnd } from '$lib/days';
+  import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays } from '$lib/days';
   import { openSheet } from '$lib/ui.svelte';
   import { fmt, num, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -11,6 +11,7 @@
   import BarChart from './BarChart.svelte';
   import CardHeading from './CardHeading.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
+  import RangeButton from './RangeButton.svelte';
   import ReportSheet from './ReportSheet.svelte';
   import HourTimeline from './HourTimeline.svelte';
   import TimelineChart, { type Row } from './TimelineChart.svelte';
@@ -37,11 +38,9 @@
   const reportFor = $derived(Math.min(12, Math.max(1, Math.round(span / 30))));
 
   function openCustom() {
-    custom ??= { from: dayKey(addDays(clock.now, -89)), to: today };
-  }
-
-  function setCustom(endName: 'from' | 'to', value: string) {
-    if (value && custom) custom = setRangeEnd(custom, endName, value, today, 0) ?? custom;
+    const from = dayKey(addDays(clock.now, -89));
+    const first = firstDrinkDay(data.drinks);
+    custom ??= { from: first && first > from ? first : from, to: today };
   }
   /**
    * The charts run on into the forecast days the weather covers, up to the day after tomorrow, so the
@@ -162,11 +161,7 @@
       <button class="press min-h-10 flex-auto rounded-full px-1 py-1.5 whitespace-nowrap {custom ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={openCustom}>{t('ins.custom')}</button>
     </div>
     {#if custom}
-      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm">
-        <input type="date" class="min-w-0 py-1.5 tabular" value={custom.from} max={today} onchange={(e) => setCustom('from', e.currentTarget.value)} aria-label={t('cal.rangeFrom')} />
-        <span class="text-muted">–</span>
-        <input type="date" class="min-w-0 py-1.5 tabular" value={custom.to} max={today} onchange={(e) => setCustom('to', e.currentTarget.value)} aria-label={t('cal.rangeTo')} />
-      </div>
+      <RangeButton from={custom.from} to={custom.to} onpick={(r) => (custom = r)} />
     {/if}
   </header>
 

@@ -39,7 +39,17 @@ export function tap(style: 'light' | 'medium' | 'heavy' = 'light') {
 }
 
 /** Every sheet of the app, by the id it opens with. */
-export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor';
+export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor' | 'range';
+
+/** The date range the range picker edits, and what receives the chosen range. */
+export const rangePicker = $state<{ from: string; to: string; onpick: (range: { from: string; to: string }) => void }>({ from: '', to: '', onpick: () => {} });
+
+export function pickRange(from: string, to: string, onpick: (range: { from: string; to: string }) => void) {
+  rangePicker.from = from;
+  rangePicker.to = to;
+  rangePicker.onpick = onpick;
+  openSheet('range');
+}
 
 /** What the factor sheet shows: a forecast factor or tomorrow's risk. Sleep has its own night editor. */
 export const factorSheet = $state<{ key: 'weather' | 'hydration' | 'alcohol' | 'caffeine' | 'tomorrow'; day: string | null }>({ key: 'hydration', day: null });

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.33.1] - 2026-11-11
+
+### Changed
+
+- Date ranges in Insights (Custom) and Calendar are picked in one calendar window: tap the first day, then the last. The range button and the picker show how many days are selected. Days before the first logged drink cannot be picked.
+
 ## [0.33.0] - 2026-11-11
 
 ### Changed
