@@ -30,6 +30,9 @@
   /** The end of the period: now, or the end of the range's last day. */
   const end = $derived(custom && custom.to < today ? endOfDay(keyToDate(custom.to)).getTime() : clock.now);
   const stats = $derived(periodStats(data, end, span));
+  /** Days in the period scaled to 30 days, e.g. "(1 / 30 days)"; for periods under 30 days an extrapolation. */
+  const per30 = (count: number) => (span === 30 ? '' : t('ins.per30', { n: num((count * 30) / span, (count * 30) % span === 0 ? 0 : 1) }));
+
   /** Months the doctor report covers for this period, from 1 to 12. */
   const reportFor = $derived(Math.min(12, Math.max(1, Math.round(span / 30))));
 
@@ -174,14 +177,15 @@
     {@render heading(t('ins.headaches'))}
     <section class="grid grid-cols-2 gap-2">
       {#each [
-        { label: t('ins.headacheDays'), value: String(stats.headacheDays), sub: t('ins.ofDays', { n: span }), cls: 'text-pain' },
-        { label: t('ins.medDays'), value: String(stats.medDays), sub: t('ins.ofDays', { n: span }), cls: 'text-med' },
+        { label: t('ins.headacheDays'), value: String(stats.headacheDays), sub: per30(stats.headacheDays), cls: 'text-pain' },
+        { label: t('ins.medDays'), value: String(stats.medDays), sub: per30(stats.medDays), cls: 'text-med' },
         { label: t('ins.avgIntensity'), value: stats.avgIntensity === null ? '–' : num(stats.avgIntensity, 1), sub: stats.avgIntensity === null ? '' : t('ins.ofTen'), cls: '' },
         { label: t('ins.avgDuration'), value: stats.avgDurationMs === null ? '–' : formatDuration(stats.avgDurationMs), sub: '', cls: '' }
       ] as tile (tile.label)}
         <div class="card p-3">
           <p class="text-xl font-semibold tabular {tile.cls}">{tile.value}<span class="ml-1 text-sm font-normal text-muted">{tile.sub}</span></p>
           <p class="text-xs leading-tight hyphens-auto text-muted">{tile.label}</p>
+          {#if span < 30 && tile.cls}<p class="mt-0.5 text-caption leading-tight text-caution">⚠ {t('ins.extrapolated')}</p>{/if}
         </div>
       {/each}
     </section>
