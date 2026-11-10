@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.31.2] - 2026-11-10
+
 ### Added
 
 - Time to fall asleep: the sleep estimate starts 15 minutes after the screen goes off, at the start of the night and after each wake break. Settings → Sleep sets it (0 to 45 minutes); the sleep editor changes it for one night, and the start and its choices move with it.
