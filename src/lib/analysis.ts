@@ -1,4 +1,4 @@
-import { addDays, endOfMonth, getDay, getHours, startOfDay, startOfMonth } from 'date-fns';
+import { addDays, getDay, getHours, startOfDay, startOfMonth } from 'date-fns';
 import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
 import { hydrationMl } from './drinks';
 import { ACUTE_CATEGORIES, MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type MedCategory } from './medication';
@@ -279,20 +279,24 @@ export function rollingDays(days: Set<string>, today: number | Date, span: numbe
   return result;
 }
 
-/** Days in the month of `month` with medication from any class that has an overuse limit. */
-export function monthlyLimitedDays(intakes: Intake[], month: Date): number {
-  const from = startOfMonth(month).getTime();
-  const to = endOfMonth(month).getTime();
-  return new Set(intakes.filter((i) => i.time >= from && i.time <= to && MONTHLY_LIMITS[i.category] !== undefined).map((i) => dayKey(i.time))).size;
+/** The window an overuse limit counts in: the 30 days up to and including today. */
+const OVERUSE_WINDOW_DAYS = 30;
+
+function inOveruseWindow(intakes: Intake[], today: number | Date): Intake[] {
+  const from = startOfDay(addDays(today, -(OVERUSE_WINDOW_DAYS - 1))).getTime();
+  const to = new Date(today).getTime();
+  return intakes.filter((i) => i.time >= from && i.time <= to);
 }
 
-/** Days per category in the calendar month containing `month`. */
-export function monthlyCategoryDays(intakes: Intake[], month: Date): Map<MedCategory, number> {
-  const from = startOfMonth(month).getTime();
-  const to = endOfMonth(month).getTime();
+/** Days in the last 30 with medication from any class that has an overuse limit. */
+export function limitedDays(intakes: Intake[], today: number | Date): number {
+  return new Set(inOveruseWindow(intakes, today).filter((i) => MONTHLY_LIMITS[i.category] !== undefined).map((i) => dayKey(i.time))).size;
+}
+
+/** Days in the last 30 with medication of each class. */
+export function categoryDays(intakes: Intake[], today: number | Date): Map<MedCategory, number> {
   const sets = new Map<MedCategory, Set<string>>();
-  for (const i of intakes) {
-    if (i.time < from || i.time > to) continue;
+  for (const i of inOveruseWindow(intakes, today)) {
     const set = sets.get(i.category) ?? new Set<string>();
     set.add(dayKey(i.time));
     sets.set(i.category, set);
@@ -308,15 +312,15 @@ export interface OveruseRow {
 }
 
 /**
- * The ICHD-3 overuse rows for the calendar month of `month`: one per class with a limit that was
+ * The ICHD-3 overuse rows for the last 30 days: one per class with a limit that was
  * used, plus the rule for several classes together once two or more were used.
  */
-export function overuseRows(intakes: Intake[], month: Date): OveruseRow[] {
-  const days = monthlyCategoryDays(intakes, month);
+export function overuseRows(intakes: Intake[], today: number | Date): OveruseRow[] {
+  const days = categoryDays(intakes, today);
   const rows: OveruseRow[] = (Object.keys(MONTHLY_LIMITS) as MedCategory[])
     .filter((c) => days.has(c))
     .map((c) => ({ key: c, days: days.get(c)!, limit: MONTHLY_LIMITS[c]! }));
-  if (rows.length > 1) rows.push({ key: 'multiple', days: monthlyLimitedDays(intakes, month), limit: MULTIPLE_CLASSES_LIMIT });
+  if (rows.length > 1) rows.push({ key: 'multiple', days: limitedDays(intakes, today), limit: MULTIPLE_CLASSES_LIMIT });
   return rows;
 }
 
@@ -353,23 +357,6 @@ export function medicationEffect(intakes: Intake[], from: number, to: number, ke
     groups.set(key, g);
   }
   return [...groups.values()].map(({ dayKeys, ...g }) => ({ ...g, days: dayKeys.size })).sort((a, b) => b.intakes - a.intakes);
-}
-
-/**
- * The calendar's month summary up to `now`: headache days, days with acute medication and the
- * average water per day. Days after `now` are left out.
- */
-export function monthSummary(data: { episodes: Episode[]; intakes: Intake[]; drinks: Drink[] }, month: Date, now: number) {
-  const today = dayKey(now);
-  const past = dayRange(startOfMonth(month), endOfMonth(month)).filter((k) => k <= today);
-  const hDays = headacheDays(data.episodes, now);
-  const mDays = intakeDays(data.intakes);
-  const water = waterByDay(data.drinks);
-  return {
-    headache: past.filter((k) => hDays.has(k)).length,
-    med: past.filter((k) => mDays.has(k)).length,
-    water: average(past.map((k) => water.get(k) ?? 0)) ?? 0
-  };
 }
 
 export interface PeriodStats {

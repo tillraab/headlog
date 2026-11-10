@@ -1,8 +1,8 @@
 <script lang="ts">
   import { ChevronLeft, ChevronRight } from '@lucide/svelte';
   import { addDays, addMonths, differenceInCalendarDays, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
-  import { headacheDays, intakeDays, monthSummary, rollingDays, ruleStatus, tenTwenty, waterByDay, type RuleStatus } from '$lib/analysis';
-  import { dayKey, dayRange, formatLiters, keyToDate, setRangeEnd } from '$lib/days';
+  import { headacheDays, intakeDays, rollingDays, ruleStatus, tenTwenty, waterByDay, type RuleStatus } from '$lib/analysis';
+  import { dayKey, dayRange, keyToDate, setRangeEnd } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { home, openSheet } from '$lib/ui.svelte';
@@ -27,7 +27,6 @@
   const keys = $derived(dayRange(month, endOfMonth(month)));
   const offset = $derived((getDay(month) + 6) % 7);
   const today = $derived(dayKey(clock.now));
-  const summary = $derived(monthSummary(data, month, clock.now));
 
   /** The range the rolling chart shows, as day keys; null is the last 30 days. */
   let range = $state<{ from: string; to: string } | null>(null);
@@ -119,21 +118,6 @@
         </span>
       {/each}
       <InfoButton class="-ml-2" title={t('tab.calendar')} text={t('cal.medsHint')} />
-    </div>
-  </section>
-
-  <section class="grid grid-cols-3 gap-2">
-    <div class="card p-3">
-      <p class="text-2xl font-semibold text-pain tabular">{summary.headache}</p>
-      <p class="text-xs leading-tight hyphens-auto text-muted">{t('cal.headacheDays')}</p>
-    </div>
-    <div class="card p-3">
-      <p class="text-2xl font-semibold text-med tabular">{summary.med}</p>
-      <p class="text-xs leading-tight hyphens-auto text-muted">{t('cal.medDays')}</p>
-    </div>
-    <div class="card p-3">
-      <p class="text-2xl font-semibold text-water tabular">{formatLiters(summary.water)}</p>
-      <p class="text-xs leading-tight hyphens-auto text-muted">{t('cal.avgWater')}</p>
     </div>
   </section>
 

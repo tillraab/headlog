@@ -42,10 +42,12 @@ export function tap(style: 'light' | 'medium' | 'heavy' = 'light') {
 export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor';
 
 /** What the factor sheet shows: a forecast factor or tomorrow's risk. Sleep has its own night editor. */
-export const factorSheet = $state<{ key: 'weather' | 'hydration' | 'alcohol' | 'caffeine' | 'tomorrow' }>({ key: 'hydration' });
+export const factorSheet = $state<{ key: 'weather' | 'hydration' | 'alcohol' | 'caffeine' | 'tomorrow'; day: string | null }>({ key: 'hydration', day: null });
 
-export function openFactor(key: typeof factorSheet.key) {
+/** Opens the factor sheet for today, or for an earlier `day` as it stood at the end of that day. */
+export function openFactor(key: typeof factorSheet.key, day: string | null = null) {
   factorSheet.key = key;
+  factorSheet.day = day;
   openSheet('factor');
 }
 
