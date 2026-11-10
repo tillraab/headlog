@@ -1,5 +1,5 @@
 import { db, DRINK_NAMES, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type Relief, type WeatherDay } from './db';
-import { DAY, dayKey, HOUR } from './days';
+import { DAY, dayKey, HOUR, MINUTE } from './days';
 import { fromPreset } from './drinks';
 import { i18n } from './i18n.svelte';
 import { fromMedication } from './medication';
@@ -196,7 +196,7 @@ export async function updateWeather(force = false) {
 /** Estimates the last nights from screen activity, when switched on and allowed. */
 export async function updateSleep() {
   if (!data.settings.sleep.enabled) return;
-  await syncNights(db);
+  await syncNights(db, undefined, undefined, data.settings.sleep.fallAsleepMinutes * MINUTE);
   data.sleep = new Map((await db.sleep.toArray()).map((n) => [n.day, n]));
 }
 

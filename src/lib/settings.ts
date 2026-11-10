@@ -19,8 +19,8 @@ export interface Settings {
   drinkReminder: DrinkReminderSettings;
   /** Daily weather for the home town. */
   weather: { enabled: boolean; place: Place | null };
-  /** Estimate sleep from screen activity. */
-  sleep: { enabled: boolean };
+  /** Estimate sleep from screen activity; falling asleep is assumed to take `fallAsleepMinutes` after the screen goes off. */
+  sleep: { enabled: boolean; fallAsleepMinutes: number };
   /** Morning notification asking whether last night's times are right. */
   sleepCheck: { enabled: boolean; hour: number };
   /** Evening notification when a headache is more likely tomorrow. */
@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   headacheCheckHours: 3,
   drinkReminder: { enabled: false, from: 8, to: 20, everyHours: 2 },
   weather: { enabled: false, place: null },
-  sleep: { enabled: false },
+  sleep: { enabled: false, fallAsleepMinutes: 15 },
   sleepCheck: { enabled: true, hour: 9 },
   riskAlert: { enabled: true, hour: 20 }
 };

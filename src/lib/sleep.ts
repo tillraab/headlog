@@ -57,12 +57,13 @@ function offPeriods(events: ScreenEvent[], until: number): { start: number; end:
  * window, joined with neighbouring stretches when the screen was on in between for at most
  * 90 minutes. Those screen-on gaps are the wake breaks. Returns null without a night of 3 hours.
  */
-export function estimateNight(events: ScreenEvent[], day: string, now = Date.now()): Night | null {
+export function estimateNight(events: ScreenEvent[], day: string, now = Date.now(), fallAsleepMs = 0): Night | null {
   const morning = startOfDay(new Date(`${day}T12:00`));
   const windowStart = setHours(addDays(morning, -1), WINDOW_START_HOUR).getTime();
   const windowEnd = Math.min(setHours(morning, WINDOW_END_HOUR).getTime(), now);
+  // Sleep begins `fallAsleepMs` after the screen goes off; what is left of an off stretch must still be 20 minutes.
   const periods = offPeriods(events, now)
-    .map((p) => ({ start: Math.max(p.start, windowStart), end: Math.min(p.end, windowEnd) }))
+    .map((p) => ({ start: Math.max(p.start, windowStart) + fallAsleepMs, end: Math.min(p.end, windowEnd) }))
     .filter((p) => p.end - p.start >= MIN_OFF_MINUTES * MINUTE);
   if (!periods.length) return null;
 
@@ -86,7 +87,7 @@ export function estimateNight(events: ScreenEvent[], day: string, now = Date.now
 }
 
 /** Recomputes the last nights from screen events. Nights the user edited stay as they are. */
-export async function syncNights(database: HeadLogDb, days = 8, now = Date.now()) {
+export async function syncNights(database: HeadLogDb, days = 8, now = Date.now(), fallAsleepMs = 0) {
   const access = await screenAccess();
   if (!access.granted) return;
   const keys = lastDays(now, days);
@@ -95,7 +96,7 @@ export async function syncNights(database: HeadLogDb, days = 8, now = Date.now()
   const edited = new Set((await database.sleep.filter((n) => n.source === 'manual').toArray()).map((n) => n.day));
   for (const key of keys) {
     if (edited.has(key)) continue;
-    const night = estimateNight(events, key, now);
+    const night = estimateNight(events, key, now, fallAsleepMs);
     if (night) await database.sleep.put(night);
   }
 }
@@ -185,6 +186,9 @@ export function onPeriods(events: ScreenEvent[], from: number, to: number): { st
   return periods.map((p) => ({ start: Math.max(p.start, from), end: Math.min(p.end, to) })).filter((p) => p.end > p.start);
 }
 
+/** Choices for how long falling asleep takes after the screen goes off, in minutes. */
+export const FALL_ASLEEP_OPTIONS = [0, 5, 10, 15, 20, 30, 45];
+
 /** Where a night may really have begun: the estimate, or the end of each wake break of at least `minBreak`. */
 export function nightStartChoices(night: Pick<Night, 'start' | 'breaks'>, minBreak: number): { time: number; awake: number }[] {
   return [{ time: night.start, awake: 0 }, ...night.breaks.filter((b) => b.end - b.start >= minBreak).map((b) => ({ time: b.end, awake: b.end - b.start }))];
@@ -197,4 +201,15 @@ export function nightStartChoices(night: Pick<Night, 'start' | 'breaks'>, minBre
 export function splitBreaksAt(breaks: { start: number; end: number }[], parked: { start: number; end: number }[], time: number) {
   const all = [...breaks, ...parked].sort((a, b) => a.start - b.start);
   return { breaks: all.filter((b) => b.start >= time), parked: all.filter((b) => b.start < time) };
+}
+
+/**
+ * The start for the chosen start choice once each choice is moved by `shift`: the choice itself, or, when that
+ * leaves under `minSleep` before a wake break, the next choice that does not. Lowering `shift` again returns
+ * to the chosen one.
+ */
+export function startForChoice(choices: number[], chosen: number, shift: number, breaks: { start: number; end: number }[], minSleep: number): number {
+  const fits = (time: number) => !breaks.some((b) => b.end > time && b.start < time + minSleep);
+  const index = choices.findIndex((time, i) => i >= chosen && fits(time + shift));
+  return choices[index >= 0 ? index : chosen] + shift;
 }

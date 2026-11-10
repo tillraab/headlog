@@ -9,7 +9,8 @@
   import type { Night } from '$lib/db';
   import { formatDuration, hm, HOUR, MINUTE } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
-  import { nightSpan, nightStartChoices, onPeriods, screenEvents, sleepSegments, splitBreaksAt, typedSleepTime } from '$lib/sleep';
+  import { FALL_ASLEEP_OPTIONS, nightSpan, nightStartChoices, onPeriods, screenEvents, sleepSegments, splitBreaksAt, startForChoice, typedSleepTime } from '$lib/sleep';
+  import { data } from '$lib/store.svelte';
   import { tap } from '$lib/ui.svelte';
 
   let { night = $bindable() }: { night: Night } = $props();
@@ -70,6 +71,7 @@
     const b = night.breaks;
     const i = selected ?? 0;
     const before = Math.floor(time / (15 * MINUTE));
+    if (handle === 'start') chosen = null;
     if (handle === 'start') night.start = clamp(time, span.from, (b[0]?.start ?? night.end) - MIN_GAP);
     if (handle === 'end') night.end = clamp(time, (b.at(-1)?.end ?? night.start) + MIN_GAP, span.to);
     if (handle === 'breakStart') b[i].start = clamp(time, (i ? b[i - 1].end : night.start) + MIN_GAP, b[i].end - MIN_GAP);
@@ -122,12 +124,42 @@
 
   const sel = $derived(selected !== null ? night.breaks[selected] : undefined);
 
-  /** A wake break at least this long may be where the night really began, e.g. after watching TV. */
+  /** The end of a wake break at least this long is offered as the start of the night. */
   const START_BREAK = 15 * MINUTE;
   /** Where the night may have begun: the estimate, or the end of a longer wake break, as the editor opened. */
-  const startChoices = nightStartChoices(night, START_BREAK);
+  /** A first sleep stretch shorter than this is not counted; the night then starts after the first wake break. */
+  const MIN_FIRST_SLEEP = 20 * MINUTE;
+  const baseChoices = nightStartChoices(night, START_BREAK);
+  /** Minutes from the screen going off to falling asleep, for this night; the choices move with it. */
+  const usualFallAsleep = data.settings.sleep.fallAsleepMinutes;
+  let fallAsleep = $state(usualFallAsleep);
   /** Wake breaks before the chosen start; they are kept until saving, so another choice brings them back. */
-  let parked: { start: number; end: number }[] = [];
+  let parked = $state<{ start: number; end: number }[]>([]);
+  const shift = $derived((fallAsleep - usualFallAsleep) * MINUTE);
+  const allBreaks = () => [...night.breaks, ...parked];
+  /** The start choice the night follows, by its place in `baseChoices`; null once the start is set by hand. */
+  let chosen = $state<number | null>(0);
+  /** Each choice moved by this night's time to fall asleep, without those that would leave under 20 minutes of sleep before a wake break. */
+  const startChoices = $derived(
+    baseChoices
+      .map((c, index) => ({ ...c, index, time: c.time + shift }))
+      .filter((c) => !allBreaks().some((b) => b.end > c.time && b.start < c.time + MIN_FIRST_SLEEP))
+  );
+
+  function choose(index: number) {
+    chosen = index;
+    startAt(baseChoices[index].time + shift);
+  }
+
+  function setFallAsleep(minutes: number) {
+    const before = shift;
+    fallAsleep = minutes;
+    if (chosen === null) {
+      night.start = clamp(night.start + shift - before, span.from, (night.breaks[0]?.start ?? night.end) - MIN_FIRST_SLEEP);
+      return;
+    }
+    startAt(startForChoice(baseChoices.map((c) => c.time), chosen, shift, allBreaks(), MIN_FIRST_SLEEP));
+  }
 
   function startAt(time: number) {
     tap();
@@ -165,13 +197,20 @@
     </label>
   </div>
 
-  {#if startChoices.length > 1}
+  <label class="-mt-1 flex items-center justify-between gap-3 text-xs text-muted">
+    {t('sleep.fallAsleep')}
+    <select class="w-28 shrink-0 py-1.5 text-sm text-fg" value={fallAsleep} onchange={(e) => setFallAsleep(Number(e.currentTarget.value))}>
+      {#each FALL_ASLEEP_OPTIONS as n (n)}<option value={n}>{t('sleep.minutes', { n })}</option>{/each}
+    </select>
+  </label>
+
+  {#if baseChoices.length > 1 && startChoices.length}
     <div class="-mt-1 flex flex-wrap items-center gap-2">
       <span class="text-xs text-muted">{t('sleep.startedAt')}</span>
       {#each startChoices as choice (choice.time)}
         <button
           class="press min-h-9 rounded-full px-3 text-sm font-medium tabular {night.start === choice.time ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
-          onclick={() => startAt(choice.time)}
+          onclick={() => choose(choice.index)}
           aria-pressed={night.start === choice.time}
         >
           {hm(choice.time)}

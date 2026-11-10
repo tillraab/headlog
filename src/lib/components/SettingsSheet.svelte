@@ -9,7 +9,7 @@
   import { setHours, startOfDay } from 'date-fns';
   import { requestReminderPermission } from '$lib/reminders';
   import { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } from '$lib/sync.svelte';
-  import { openUsageAccessSettings, screenAccess } from '$lib/sleep';
+  import { FALL_ASLEEP_OPTIONS, openUsageAccessSettings, screenAccess } from '$lib/sleep';
   import { searchPlaces, type Place } from '$lib/weather';
   import type { Theme } from '$lib/settings';
   import { applyTheme, openSheet, toast } from '$lib/ui.svelte';
@@ -63,7 +63,7 @@
     const place = $state.snapshot(data.settings.weather.place);
     await loadDemo(Date.now(), undefined, i18n.lang);
     await load();
-    await saveSettings({ weather: { enabled: true, place }, sleep: { enabled: true } });
+    await saveSettings({ weather: { enabled: true, place }, sleep: { ...data.settings.sleep, enabled: true } });
   }
 
   async function reset() {
@@ -331,11 +331,26 @@
           class="size-6 shrink-0 accent-primary"
           checked={data.settings.sleep.enabled}
           onchange={async (e) => {
-            await saveSettings({ sleep: { enabled: e.currentTarget.checked } });
+            await saveSettings({ sleep: { ...data.settings.sleep, enabled: e.currentTarget.checked } });
             await checkAccess();
           }}
         />
       </label>
+      {#if data.settings.sleep.enabled}
+        <label class="flex items-center justify-between gap-4">
+          {t('sleep.fallAsleepSetting')}
+          <select
+            class="w-32 shrink-0"
+            value={data.settings.sleep.fallAsleepMinutes}
+            onchange={async (e) => {
+              await saveSettings({ sleep: { ...data.settings.sleep, fallAsleepMinutes: Number(e.currentTarget.value) } });
+              await updateSleep();
+            }}
+          >
+            {#each FALL_ASLEEP_OPTIONS as n (n)}<option value={n}>{t('sleep.minutes', { n })}</option>{/each}
+          </select>
+        </label>
+      {/if}
       {#if data.settings.sleep.enabled && access?.granted}
         <p class="text-sm text-muted">{data.sleep.size ? t('sleep.nights', { n: data.sleep.size }) : t('sleep.none')}</p>
       {/if}

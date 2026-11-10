@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { awakeMs, defaultNight, estimateNight, manualNight, nightSpan, nightStartChoices, onPeriods, sleepSegments, splitBreaksAt, typedSleepTime, type ScreenEvent } from './sleep';
+import { awakeMs, defaultNight, estimateNight, manualNight, nightSpan, nightStartChoices, onPeriods, sleepSegments, splitBreaksAt, startForChoice, typedSleepTime, type ScreenEvent } from './sleep';
 
 const at = (s: string) => new Date(s).getTime();
 const off = (s: string): ScreenEvent => ({ time: at(s), on: false });
@@ -17,6 +17,18 @@ describe('estimateNight', () => {
     const events = [off('2026-03-09T23:00'), on('2026-03-10T03:10'), off('2026-03-10T03:35'), on('2026-03-10T06:30')];
     const night = estimateNight(events, '2026-03-10', now)!;
     expect([night.breaks, night.asleepMs]).toEqual([[{ start: at('2026-03-10T03:10'), end: at('2026-03-10T03:35') }], 7.5 * HOUR - 25 * 60000]);
+  });
+
+  it('starts sleep the given time after the screen goes off, also after a wake break', () => {
+    const events = [off('2026-03-09T23:00'), on('2026-03-10T03:10'), off('2026-03-10T03:35'), on('2026-03-10T06:30')];
+    const night = estimateNight(events, '2026-03-10', now, 15 * 60000)!;
+    expect([night.start, night.breaks, night.asleepMs]).toEqual([at('2026-03-09T23:15'), [{ start: at('2026-03-10T03:10'), end: at('2026-03-10T03:50') }], 7.5 * HOUR - 55 * 60000]);
+  });
+
+  it('leaves out an off stretch that is too short once the time to fall asleep is taken off', () => {
+    const events = [off('2026-03-09T22:00'), on('2026-03-09T22:30'), off('2026-03-09T23:00'), on('2026-03-10T06:30')];
+    const night = estimateNight(events, '2026-03-10', now, 15 * 60000)!;
+    expect([night.start, night.breaks]).toEqual([at('2026-03-09T23:15'), []]);
   });
 
   it('does not join an evening break that lasted longer than 90 minutes', () => {
@@ -169,5 +181,23 @@ describe('nightStartChoices and splitBreaksAt', () => {
     const later = splitBreaksAt(night.breaks, [], 1.7 * H);
     const back = splitBreaksAt(later.breaks, later.parked, 0);
     expect([later.breaks.length, later.parked.length, back.breaks]).toEqual([1, 1, night.breaks]);
+  });
+});
+
+describe('startForChoice', () => {
+  const M = 60000;
+  const choices = [0, 106 * M];
+  const breaks = [{ start: 36 * M, end: 106 * M }];
+
+  it('keeps the chosen start when enough sleep is left before the wake break', () => {
+    expect(startForChoice(choices, 0, 15 * M, breaks, 20 * M)).toBe(15 * M);
+  });
+
+  it('moves past the wake break when too little sleep is left', () => {
+    expect(startForChoice(choices, 0, 30 * M, breaks, 20 * M)).toBe(136 * M);
+  });
+
+  it('returns to the chosen start when the time to fall asleep goes down again', () => {
+    expect([30, 15].map((n) => startForChoice(choices, 0, n * M, breaks, 20 * M))).toEqual([136 * M, 15 * M]);
   });
 });
