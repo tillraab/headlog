@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { awakeMs, defaultNight, estimateNight, manualNight, nightSpan, onPeriods, sleepSegments, typedSleepTime, type ScreenEvent } from './sleep';
+import { awakeMs, defaultNight, estimateNight, manualNight, nightSpan, nightStartChoices, onPeriods, sleepSegments, splitBreaksAt, typedSleepTime, type ScreenEvent } from './sleep';
 
 const at = (s: string) => new Date(s).getTime();
 const off = (s: string): ScreenEvent => ({ time: at(s), on: false });
@@ -154,5 +154,20 @@ describe('estimateNight at the limits', () => {
   it('counts the real time asleep across the change to summer time', () => {
     const night = estimateNight([off('2026-03-28T23:00'), on('2026-03-29T07:00')], '2026-03-29', at('2026-03-29T12:00'));
     expect(night?.asleepMs).toBe(7 * HOUR);
+  });
+});
+
+describe('nightStartChoices and splitBreaksAt', () => {
+  const H = 3600000;
+  const night = { start: 0, breaks: [{ start: 0.5 * H, end: 1.7 * H }, { start: 4 * H, end: 4.1 * H }] };
+
+  it('offers the estimate and the end of each longer wake break', () => {
+    expect(nightStartChoices(night, 0.25 * H)).toEqual([{ time: 0, awake: 0 }, { time: 1.7 * H, awake: 1.2 * H }]);
+  });
+
+  it('sets wake breaks before a later start aside and brings them back for the earlier one', () => {
+    const later = splitBreaksAt(night.breaks, [], 1.7 * H);
+    const back = splitBreaksAt(later.breaks, later.parked, 0);
+    expect([later.breaks.length, later.parked.length, back.breaks]).toEqual([1, 1, night.breaks]);
   });
 });

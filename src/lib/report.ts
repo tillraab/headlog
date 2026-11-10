@@ -77,7 +77,7 @@ function factorText(f: DayFactors): string[] {
   if (f.sleep !== undefined)
     parts.push(
       f.sleepEfficiency !== undefined
-        ? t('pdf.f.sleepFragmented', { d: formatDuration(f.sleep * HOUR), pct: Math.round(f.sleepEfficiency * 100) })
+        ? t('pdf.f.sleepFragmented', { d: formatDuration(f.sleep * HOUR), pct: Math.floor(f.sleepEfficiency * 100) })
         : t('pdf.f.sleep', { d: formatDuration(f.sleep * HOUR) })
     );
   if (f.alcohol) parts.push(t('pdf.f.alcohol'));

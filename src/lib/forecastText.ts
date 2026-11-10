@@ -20,7 +20,7 @@ export function whyText(p: Prognosis, key: FactorKey): string {
     case 'sleep': {
       const night = p.sleep.night;
       if (!night) return t('prog.why.sleepNone');
-      const values = { d: formatDuration(night.asleepMs), pct: Math.round((p.sleep.efficiency ?? 1) * 100), limit: SHORT_SLEEP_HOURS, min: Math.round(MIN_SLEEP_EFFICIENCY * 100) };
+      const values = { d: formatDuration(night.asleepMs), pct: Math.floor((p.sleep.efficiency ?? 1) * 100), limit: SHORT_SLEEP_HOURS, min: Math.round(MIN_SLEEP_EFFICIENCY * 100) };
       if (p.sleep.short) return t('prog.why.sleepShort', values);
       return t(p.sleep.fragmented ? 'prog.why.sleepFragmented' : 'prog.why.sleepOk', values);
     }

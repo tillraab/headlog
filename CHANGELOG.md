@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- The sleep editor offers when the night began: the estimate or the end of each wake break of 15 minutes or more, e.g. after watching TV. Wake breaks before the chosen start are only removed when you save.
+
+### Fixed
+
+- The asleep share is rounded down, so 84.6 % shows as 84 % and not as the 85 % limit it is under.
+
 ## [0.31.0] - 2026-11-10
 
 ### Changed

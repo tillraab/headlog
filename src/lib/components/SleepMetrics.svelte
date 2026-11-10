@@ -14,7 +14,8 @@
   const poor = $derived(poorNight(n));
   const bad = $derived(poor.short || poor.fragmented);
   const min = Math.round(MIN_SLEEP_EFFICIENCY * 100);
-  const pct = $derived(Math.round(share * 100));
+  /** Rounded down, so a night just under the limit never shows the limit itself. */
+  const pct = $derived(Math.floor(share * 100));
   const color = $derived(bad ? 'var(--color-over)' : 'var(--color-ok)');
   const reason = $derived(
     poor.short
