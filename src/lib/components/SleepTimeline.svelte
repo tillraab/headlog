@@ -127,29 +127,31 @@
 
   /** The end of a wake break at least this long is offered as the start of the night. */
   const START_BREAK = 15 * MINUTE;
-  /** Where the night may have begun: the estimate, or the end of a longer wake break, as the editor opened. */
   /** A first sleep stretch shorter than this is not counted; the night then starts after the first wake break. */
   const MIN_FIRST_SLEEP = 20 * MINUTE;
-  const baseChoices = nightStartChoices(night, START_BREAK);
+  /** The estimated night as the editor opened; the start and end choices are offered relative to it. */
+  const estimate = { start: night.start, end: night.end };
   /** Minutes from the screen going off to falling asleep, for this night; the choices move with it. */
   const usualFallAsleep = data.settings.sleep.fallAsleepMinutes;
   let fallAsleep = $state(usualFallAsleep);
-  /** Wake breaks before the chosen start; they are kept until saving, so another choice brings them back. */
+  /** Wake breaks outside the chosen start and end; they are kept until saving, so another choice brings them back. */
   let parked = $state<{ start: number; end: number }[]>([]);
   const shift = $derived((fallAsleep - usualFallAsleep) * MINUTE);
-  const allBreaks = () => [...night.breaks, ...parked];
-  /** The start choice the night follows, by its place in `baseChoices`; null once the start is set by hand. */
-  let chosen = $state<number | null>(0);
+  const allBreaks = $derived([...night.breaks, ...parked].sort((a, b) => a.start - b.start));
+  /** Where the night may have begun: the estimate, or the end of a longer wake break, following edits to the breaks. */
+  const baseChoices = $derived(nightStartChoices({ start: estimate.start, breaks: allBreaks }, START_BREAK));
+  /** The start choice the night follows, by its time before the shift; null once the start is set by hand. */
+  let chosen = $state<number | null>(estimate.start);
   /** Each choice moved by this night's time to fall asleep, without those that would leave under 20 minutes of sleep before a wake break. */
   const startChoices = $derived(
     baseChoices
-      .map((c, index) => ({ ...c, index, time: c.time + shift }))
-      .filter((c) => !allBreaks().some((b) => b.end > c.time && b.start < c.time + MIN_FIRST_SLEEP))
+      .map((c) => ({ ...c, base: c.time, time: c.time + shift }))
+      .filter((c) => !allBreaks.some((b) => b.end > c.time && b.start < c.time + MIN_FIRST_SLEEP))
   );
 
-  function choose(index: number) {
-    chosen = index;
-    startAt(baseChoices[index].time + shift);
+  function choose(base: number) {
+    chosen = base;
+    startAt(base + shift);
   }
 
   function setFallAsleep(minutes: number) {
@@ -159,7 +161,8 @@
       night.start = clamp(night.start + shift - before, span.from, (night.breaks[0]?.start ?? night.end) - MIN_FIRST_SLEEP);
       return;
     }
-    startAt(startForChoice(baseChoices.map((c) => c.time), chosen, shift, allBreaks(), MIN_FIRST_SLEEP));
+    const times = baseChoices.map((c) => c.time);
+    startAt(startForChoice(times, Math.max(0, times.indexOf(chosen)), shift, allBreaks, MIN_FIRST_SLEEP));
   }
 
   function startAt(time: number) {
@@ -169,10 +172,10 @@
     select(null);
   }
 
-  /** Where the night may have ended: the estimate, or the start of a wake break, as the editor opened. */
-  const baseEndChoices = nightEndChoices(night);
+  /** Where the night may have ended: the estimate, or the start of a wake break, following edits to the breaks. */
+  const baseEndChoices = $derived(nightEndChoices({ ...estimate, breaks: allBreaks }));
   /** The end choice the night follows, by its time; null once the end is set by hand. */
-  let chosenEnd = $state<number | null>(night.end);
+  let chosenEnd = $state<number | null>(estimate.end);
   /** The end choices that leave at least 20 minutes of sleep after the start. */
   const endChoices = $derived(baseEndChoices.filter((c) => c.time - night.start >= MIN_FIRST_SLEEP));
 
@@ -236,7 +239,7 @@
       <div class="flex min-w-0 flex-col gap-1.5">
         <span class="text-xs text-muted">{t('sleep.startedAt')}</span>
         {#each startChoices as c (c.time)}
-          {@render choice(c.time, c.awake ? t('sleep.afterAwake', { d: formatDuration(c.awake) }) : t('sleep.estimated'), night.start === c.time, () => choose(c.index))}
+          {@render choice(c.time, c.awake ? t('sleep.afterAwake', { d: formatDuration(c.awake) }) : t('sleep.estimated'), night.start === c.time, () => choose(c.base))}
         {/each}
       </div>
       <div class="flex min-w-0 flex-col gap-1.5">
