@@ -1,6 +1,6 @@
 <script lang="ts">
   import { FileText } from '@lucide/svelte';
-  import { average, caffeineByDay, compareDays, firstDrinkDay, headacheDays, intakeDays, monthlyCounts, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, type RuleStatus } from '$lib/analysis';
+  import { average, caffeineByDay, compareDays, firstDrinkDay, headacheDays, intakeDays, monthlyCounts, periodStats, rollingDays, ruleStatus, TEN_TWENTY_LIMIT, tenTwenty, timeline, type RuleStatus } from '$lib/analysis';
   import { entryDetailLines, formatComparison } from '$lib/format';
   import { addDays, endOfDay } from 'date-fns';
   import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays } from '$lib/days';
@@ -78,7 +78,7 @@
     const last = keyToDate(keys[keys.length - 1]);
     /** Preventive medication does not count for the 10/20 rule. */
     const acuteDays = new Set(intakeDays(data.intakes).keys());
-    const rule = tenTwenty(acuteDays, clock.now, data.settings.limit);
+    const rule = tenTwenty(acuteDays, clock.now);
     const headache = rollingDays(new Set(headacheDays(data.episodes, clock.now).keys()), last, span).map((r) => r.count);
     const med = rollingDays(acuteDays, last, span).map((r) => r.count);
     const ahead = forecastKeys.map(() => null);
@@ -109,7 +109,7 @@
   });
 
   /** What the two rows of days in 30 mean, for the timeline's (i). */
-  const rollingInfo = $derived([t('cal.rollingHint', { n: CHRONIC_DAYS }), t('cal.rollingMedHint', { n: data.settings.limit })]);
+  const rollingInfo = $derived([t('cal.rollingHint', { n: CHRONIC_DAYS }), t('cal.rollingMedHint', { n: TEN_TWENTY_LIMIT })]);
   const rollingSources = [...SOURCES.chronic, ...SOURCES.medication];
 
   const rows = $derived.by(() => {
@@ -275,7 +275,7 @@
         <BarChart
           color="var(--color-med)"
           height={64}
-          limit={{ value: data.settings.limit, color: 'var(--color-over)' }}
+          limit={{ value: TEN_TWENTY_LIMIT, color: 'var(--color-over)' }}
           bars={months.map((m) => ({ label: fmt(m.month, 'MMM'), value: m.med }))}
         />
       </div>

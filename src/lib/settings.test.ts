@@ -7,7 +7,7 @@ describe('mergeSettings', () => {
   });
 
   it('keeps stored values over the defaults', () => {
-    expect(mergeSettings({ waterGoalMl: 2500, theme: 'dark' })).toMatchObject({ waterGoalMl: 2500, theme: 'dark', limit: 10 });
+    expect(mergeSettings({ waterGoalMl: 2500, theme: 'dark' })).toMatchObject({ waterGoalMl: 2500, theme: 'dark' });
   });
 
   it('turns the old switched-off relief question into 0 minutes', () => {
@@ -29,6 +29,10 @@ describe('mergeSettings', () => {
 
   it('fills a sub-field missing from a stored setting with its default', () => {
     expect(mergeSettings({ drinkReminder: { enabled: true, from: 9, to: 18 } }).drinkReminder).toEqual({ enabled: true, from: 9, to: 18, everyHours: 2 });
+  });
+
+  it('drops the stored 10/20 limit, which is fixed', () => {
+    expect(mergeSettings({ limit: 12 })).not.toHaveProperty('limit');
   });
 
   it('does not drop the stored renamed fields into the settings', () => {

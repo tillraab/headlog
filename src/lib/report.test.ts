@@ -19,7 +19,6 @@ async function demoReport(): Promise<string> {
       medications: tables.medications as Medication[],
       sleep: new Map((tables.sleep as Night[]).map((n) => [n.day, n])),
       weather: new Map((await db.weather.toArray()).map((w) => [w.day, w])),
-      limit: 10,
       waterGoalMl: 2000,
       name: 'Test Person',
       version: '1.0.0'
@@ -65,7 +64,6 @@ describe('reportData', () => {
     medications: [],
     sleep: new Map(),
     weather: new Map(),
-    limit: 10,
     waterGoalMl: 2000,
     name: '',
     version: '1'

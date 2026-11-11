@@ -473,7 +473,6 @@ export const en = {
   'set.themeSystem': 'System',
   'set.themeLight': 'Light',
   'set.themeDark': 'Dark',
-  'set.limit': '10/20 rule limit (days per 30)',
   'set.backup': 'Backup file (JSON)',
   'set.backupHint': 'Everything in one file, to keep somewhere safe or move to a new phone.',
   'set.export': 'Export',
