@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.35.1] - 2026-11-11
+
+### Fixed
+
+- Sleep editor: the Night began and Night ended choices follow the wake breaks as they are edited, added or removed, instead of staying as the editor opened.
+
 ## [0.35.0] - 2026-11-11
 
 ### Changed
