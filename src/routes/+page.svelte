@@ -96,7 +96,7 @@
       relief: (id, relief, time) => void setRelief(id, relief, time),
       headacheGone: (id) => void endEpisode(id),
       sleepOk: (day) => void confirmNight(day),
-      sleepFix: (day) => void openNight(day)
+      sleepFix: (day) => void openNight(day, true)
     });
     const media = matchMedia('(prefers-color-scheme: dark)');
     const onScheme = () => applyTheme(data.settings.theme);
