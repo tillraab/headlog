@@ -6,7 +6,6 @@ export type Theme = 'system' | 'light' | 'dark';
 
 export interface Settings {
   waterGoalMl: number;
-  limit: number;
   theme: Theme;
   /** Name printed on the doctor report. */
   reportName: string;
@@ -32,7 +31,6 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   waterGoalMl: 2000,
-  limit: 10,
   theme: 'system',
   reportName: '',
   reminders: { enabled: false, noon: 12, evening: 18 },
@@ -68,6 +66,8 @@ export function mergeSettings(stored: unknown): Settings {
   // Whoever had drink check-ins on keeps a drink reminder.
   if (!saved.drinkReminder && drinkCheckins?.enabled) renamed.drinkReminder = { ...DEFAULT_SETTINGS.drinkReminder, enabled: true };
   const merged: Record<string, unknown> = { ...DEFAULT_SETTINGS, ...renamed, ...saved };
+  // The 10/20 rule's limit was a setting; it is fixed now.
+  delete merged.limit;
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
     if (isObject(value)) merged[key] = { ...value, ...(isObject(merged[key]) ? merged[key] : {}) };
   }

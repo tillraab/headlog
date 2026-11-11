@@ -11,6 +11,7 @@ import {
   periodStats,
   rollingDays,
   ruleStatus,
+  TEN_TWENTY_LIMIT,
   tenTwenty,
   type Comparison,
   type ComparisonKey,
@@ -61,7 +62,6 @@ export interface ReportInput {
   medications: Medication[];
   sleep: Map<string, Night>;
   weather: Map<string, WeatherDay>;
-  limit: number;
   waterGoalMl: number;
   name: string;
   version: string;
@@ -159,7 +159,7 @@ export function reportData(input: ReportInput, now: number, months: number): Rep
     from,
     span,
     stats: periodStats(input, now, span),
-    rule: tenTwenty(medDays, now, input.limit),
+    rule: tenTwenty(medDays, now),
     headacheDays: headacheDays(input.episodes, now),
     medDays,
     monthly: monthlyCounts(input, now, months),
@@ -432,26 +432,26 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   /** Medication days in the 30 days up to each day, against the 10/20 limit. */
   function ruleChart(x: number, top: number, w: number, h: number) {
     panel(x, top, w, h);
-    heading(t('pdf.ruleChart', { limit: input.limit }), x + 4, top + 6);
+    heading(t('pdf.ruleChart', { limit: TEN_TWENTY_LIMIT }), x + 4, top + 6);
     const rolling = rollingDays(medDaySet, now, span);
     const box = { top: top + 12, bottom: top + h - 8, left: x + 9, right: x + w - 4 };
-    const max = Math.max(input.limit + 4, ...rolling.map((r) => r.count));
+    const max = Math.max(TEN_TWENTY_LIMIT + 4, ...rolling.map((r) => r.count));
     axis(box, max);
     const step = (box.right - box.left) / rolling.length;
     rolling.forEach((r, i) => {
       if (!r.count) return;
       const bh = ((box.bottom - box.top) * r.count) / max;
-      doc.setFillColor(...STATUS_COLOR[ruleStatus(r.count, input.limit - 1)]);
+      doc.setFillColor(...STATUS_COLOR[ruleStatus(r.count, TEN_TWENTY_LIMIT - 1)]);
       doc.rect(box.left + i * step, box.bottom - bh, Math.max(0.15, step * 0.85), bh, 'F');
     });
-    const ly = box.bottom - ((box.bottom - box.top) * input.limit) / max;
+    const ly = box.bottom - ((box.bottom - box.top) * TEN_TWENTY_LIMIT) / max;
     doc.setDrawColor(...OVER);
     doc.setLineWidth(0.3);
     doc.setLineDashPattern([1.2, 0.8], 0);
     doc.line(box.left, ly, box.right, ly);
     doc.setLineDashPattern([], 0);
     doc.setLineWidth(0.2);
-    text(String(input.limit), box.right, ly - 1, 6, OVER, true, 'right');
+    text(String(TEN_TWENTY_LIMIT), box.right, ly - 1, 6, OVER, true, 'right');
     text(fmt(from, 'd. MMM'), box.left, box.bottom + 4, 6.3, MUTED);
     text(fmt(now, 'd. MMM'), box.right, box.bottom + 4, 6.3, MUTED, false, 'right');
   }

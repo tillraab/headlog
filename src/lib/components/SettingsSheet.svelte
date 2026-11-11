@@ -218,12 +218,6 @@
   </div>
   {@render group(t('set.general'))}
   <div class="card flex flex-col gap-4 p-4">
-    <label class="flex items-center justify-between gap-4 text-body">
-      {t('set.limit')}
-      <select class="w-20" value={data.settings.limit} onchange={(e) => saveSettings({ limit: Number(e.currentTarget.value) })}>
-        {#each [6, 8, 10, 12, 15] as n (n)}<option value={n}>{n}</option>{/each}
-      </select>
-    </label>
     <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-body">
       {t('set.language')}
       <div class="flex rounded-full bg-surface-2 p-1">

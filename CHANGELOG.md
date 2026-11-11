@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.35.3] - 2026-11-11
+
+### Removed
+
+- Settings: the 10/20 rule limit. The rule is fixed at fewer than 10 days in 30, as its name says. Personal limits per medication stay.
+
 ## [0.35.2] - 2026-11-11
 
 ### Removed

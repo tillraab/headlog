@@ -17,7 +17,7 @@
   const EFFECT_WINDOW_DAYS = 90;
   const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   const medDays = $derived(new Set(intakeDays(data.intakes).keys()));
-  const rule = $derived(tenTwenty(medDays, clock.now, data.settings.limit));
+  const rule = $derived(tenTwenty(medDays, clock.now));
   const overuse = $derived(overuseRows(data.intakes, clock.now));
   const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
   /** Intakes and relief ratings per medication name over the last 90 days. */

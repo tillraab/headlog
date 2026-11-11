@@ -31,7 +31,6 @@ export async function exportForDoctor(months: number, kind: 'pdf' | 'csv' = 'pdf
   const pdf = doctorReport(
     {
       ...snapshot,
-      limit: snapshot.settings.limit,
       waterGoalMl: snapshot.settings.waterGoalMl,
       name: snapshot.settings.reportName,
       version: __APP_VERSION__,

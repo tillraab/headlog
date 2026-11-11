@@ -41,7 +41,7 @@
     forecastCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   const dayStart = $derived(startOfDay(clock.now).getTime());
-  const rule = $derived(tenTwenty(new Set(intakeDays(data.intakes).keys()), clock.now, data.settings.limit));
+  const rule = $derived(tenTwenty(new Set(intakeDays(data.intakes).keys()), clock.now));
   const streak = $derived(periodStats(data, clock.now, 1).clearStreak);
   const meds = $derived(data.medications);
   const limits = $derived(new Map(medicationLimits(data.intakes, data.medications, clock.now).map((l) => [l.med.id, l.rule])));

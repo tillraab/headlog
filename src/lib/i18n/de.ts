@@ -475,7 +475,6 @@ export const de: Record<keyof typeof en, string> = {
   'set.themeSystem': 'System',
   'set.themeLight': 'Hell',
   'set.themeDark': 'Dunkel',
-  'set.limit': 'Grenze der 10/20-Regel (Tage pro 30)',
   'set.backup': 'Backup-Datei (JSON)',
   'set.backupHint': 'Alles in einer Datei, zum sicheren Aufbewahren oder für ein neues Telefon.',
   'set.export': 'Exportieren',

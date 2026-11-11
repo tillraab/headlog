@@ -226,11 +226,14 @@ export interface TenTwenty {
   freeDays: number;
 }
 
+/** The 10/20 rule's limit: acute headache medication on fewer than 10 days in 30. */
+export const TEN_TWENTY_LIMIT = 10;
+
 /**
  * The 10/20 rule: within any 30 consecutive days, take acute headache medication on fewer than
  * `limit` days. `allowed` is the most days still within it; a personal limit allows `limit` days.
  */
-export function tenTwenty(medDays: Set<string>, today: number | Date, limit = 10, window = 30, allowed = limit - 1): TenTwenty {
+export function tenTwenty(medDays: Set<string>, today: number | Date, limit = TEN_TWENTY_LIMIT, window = 30, allowed = limit - 1): TenTwenty {
   const days = lastDays(today, window).map((key) => ({ key, med: medDays.has(key) }));
   const count = days.filter((d) => d.med).length;
   const todayTaken = days[days.length - 1].med;
