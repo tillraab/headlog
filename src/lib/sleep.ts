@@ -198,13 +198,21 @@ export function nightStartChoices(night: Pick<Night, 'start' | 'breaks'>, minBre
   return [{ time: night.start, awake: 0 }, ...night.breaks.filter((b) => b.end - b.start >= minBreak).map((b) => ({ time: b.end, awake: b.end - b.start }))];
 }
 
+/** Where a night may really have ended: the estimate, or the start of each wake break in the second half of the night. */
+export function nightEndChoices(night: Pick<Night, 'start' | 'end' | 'breaks'>): { time: number; earlier: number }[] {
+  const middle = (night.start + night.end) / 2;
+  const late = night.breaks.filter((b) => b.start >= middle);
+  return [{ time: night.end, earlier: 0 }, ...late.map((b) => ({ time: b.start, earlier: night.end - b.start }))].sort((a, b) => b.time - a.time);
+}
+
 /**
- * The wake breaks of a night that starts at `time`, and those before it, which are set aside rather than
- * dropped so that another start can bring them back.
+ * The wake breaks of a night from `from` to `to`, and those outside it, which are set aside rather than
+ * dropped so that another start or end can bring them back.
  */
-export function splitBreaksAt(breaks: { start: number; end: number }[], parked: { start: number; end: number }[], time: number) {
+export function splitBreaks(breaks: { start: number; end: number }[], parked: { start: number; end: number }[], from: number, to: number) {
   const all = [...breaks, ...parked].sort((a, b) => a.start - b.start);
-  return { breaks: all.filter((b) => b.start >= time), parked: all.filter((b) => b.start < time) };
+  const inside = (b: { start: number; end: number }) => b.start >= from && b.end <= to;
+  return { breaks: all.filter(inside), parked: all.filter((b) => !inside(b)) };
 }
 
 /**

@@ -1,6 +1,6 @@
 <script lang="ts" module>
   export interface Row {
-    /** Which series this is, so the hour view can draw it. */
+    /** Which series this is, so the hour view can draw it; without a key the hour view draws one bar per day. */
     key?: 'headache' | 'hydration' | 'sleep' | 'pressure';
     label: string;
     summary: string;

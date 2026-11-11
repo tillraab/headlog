@@ -86,7 +86,7 @@
       keys[keys.length - 1] === today ? t('cal.rollingNow', { n: counts[counts.length - 1] }) : t('cal.rollingOn', { n: counts[counts.length - 1], date: fmt(last, 'd. MMM') });
     return [
       {
-        label: t('cal.headacheDaysRow'),
+        label: t('tl.headacheDays30'),
         summary: lastCount(headache),
         values: [...headache, ...ahead],
         colors: [...headache.map((n) => (n >= CHRONIC_DAYS ? 'var(--color-over)' : 'var(--color-pain)')), ...ahead.map(() => 'var(--color-pain)')],
@@ -96,7 +96,7 @@
         reference: CHRONIC_DAYS
       },
       {
-        label: t('cal.medDays'),
+        label: t('tl.medDays30'),
         summary: lastCount(med),
         values: [...med, ...ahead],
         colors: [...med.map((n) => RULE_COLOR[ruleStatus(n, rule.allowed)]), ...ahead.map(() => 'var(--color-med)')],
@@ -108,9 +108,14 @@
     ];
   });
 
+  /** What the two rows of days in 30 mean, for the timeline's (i). */
+  const rollingInfo = $derived([t('cal.rollingHint', { n: CHRONIC_DAYS }), t('cal.rollingMedHint', { n: data.settings.limit })]);
+  const rollingSources = [...SOURCES.chronic, ...SOURCES.medication];
+
   const rows = $derived.by(() => {
     const result: Row[] = [
-      { key: 'headache', label: t('tl.headache'), summary: t('tl.days', { n: stats.headacheDays }), values: series.headache, color: 'var(--color-pain)', kind: 'bars', format: (v) => (v ? `${Math.round(v)}/10` : '–') }
+      { key: 'headache', label: t('tl.headache'), summary: t('tl.days', { n: stats.headacheDays }), values: series.headache, color: 'var(--color-pain)', kind: 'bars', format: (v) => (v ? `${Math.round(v)}/10` : '–') },
+      ...rollingRows
     ];
     const water = known(series.hydration);
     if (water.length) {
@@ -223,15 +228,6 @@
         </div>
       {/each}
     </section>
-    <section class="card p-4">
-      <CardHeading
-        class="mb-3"
-        title={t('cal.rolling')}
-        info={[t('cal.rollingHint', { n: CHRONIC_DAYS }), t('cal.rollingMedHint', { n: data.settings.limit })]}
-        sources={[...SOURCES.chronic, ...SOURCES.medication]}
-      />
-      <TimelineChart showLast rows={rollingRows} keys={chartKeys} forecast={forecastKeys.length} bands={series.headache.map((v) => v > 0)} />
-    </section>
 
     {@render heading(t('ins.dailyAverages'))}
     <section class="grid grid-cols-3 gap-2">
@@ -250,10 +246,10 @@
     {@render heading(t('ins.connections'))}
     <section class="card p-4">
       {#if span <= HOUR_VIEW_DAYS}
-        <CardHeading class="mb-3" title={t('hv.title')} info={t('hv.hint')} />
+        <CardHeading class="mb-3" title={t('hv.title')} info={[t('hv.hint'), ...rollingInfo]} sources={rollingSources} />
         <HourTimeline {rows} keys={chartKeys} now={clock.now} />
       {:else}
-        <CardHeading class="mb-3" title={t('tl.title')} info={t('tl.hint')} />
+        <CardHeading class="mb-3" title={t('tl.title')} info={[t('tl.hint'), ...rollingInfo]} sources={rollingSources} />
         <TimelineChart {rows} keys={chartKeys} forecast={chartKeys.length - keys.length} bands={series.headache.map((v) => v > 0)} details={dayDetails} />
       {/if}
     </section>

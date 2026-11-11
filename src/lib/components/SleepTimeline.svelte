@@ -9,7 +9,7 @@
   import type { Night } from '$lib/db';
   import { formatDuration, hm, HOUR, MINUTE } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
-  import { FALL_ASLEEP_OPTIONS, nightSpan, nightStartChoices, onPeriods, screenEvents, sleepSegments, splitBreaksAt, startForChoice, typedSleepTime } from '$lib/sleep';
+  import { FALL_ASLEEP_OPTIONS, nightEndChoices, nightSpan, nightStartChoices, onPeriods, screenEvents, sleepSegments, splitBreaks, startForChoice, typedSleepTime } from '$lib/sleep';
   import { data } from '$lib/store.svelte';
   import { tap } from '$lib/ui.svelte';
 
@@ -72,6 +72,7 @@
     const i = selected ?? 0;
     const before = Math.floor(time / (15 * MINUTE));
     if (handle === 'start') chosen = null;
+    if (handle === 'end') chosenEnd = null;
     if (handle === 'start') night.start = clamp(time, span.from, (b[0]?.start ?? night.end) - MIN_GAP);
     if (handle === 'end') night.end = clamp(time, (b.at(-1)?.end ?? night.start) + MIN_GAP, span.to);
     if (handle === 'breakStart') b[i].start = clamp(time, (i ? b[i - 1].end : night.start) + MIN_GAP, b[i].end - MIN_GAP);
@@ -163,8 +164,23 @@
 
   function startAt(time: number) {
     tap();
-    ({ breaks: night.breaks, parked } = splitBreaksAt(night.breaks, parked, time));
+    ({ breaks: night.breaks, parked } = splitBreaks(night.breaks, parked, time, night.end));
     night.start = time;
+    select(null);
+  }
+
+  /** Where the night may have ended: the estimate, or the start of a wake break, as the editor opened. */
+  const baseEndChoices = nightEndChoices(night);
+  /** The end choice the night follows, by its time; null once the end is set by hand. */
+  let chosenEnd = $state<number | null>(night.end);
+  /** The end choices that leave at least 20 minutes of sleep after the start. */
+  const endChoices = $derived(baseEndChoices.filter((c) => c.time - night.start >= MIN_FIRST_SLEEP));
+
+  function endAt(time: number) {
+    tap();
+    chosenEnd = time;
+    ({ breaks: night.breaks, parked } = splitBreaks(night.breaks, parked, night.start, time));
+    night.end = time;
     select(null);
   }
 </script>
@@ -204,19 +220,31 @@
     </select>
   </label>
 
-  {#if baseChoices.length > 1 && startChoices.length}
-    <div class="-mt-1 flex flex-wrap items-center gap-2">
-      <span class="text-xs text-muted">{t('sleep.startedAt')}</span>
-      {#each startChoices as choice (choice.time)}
-        <button
-          class="press min-h-9 rounded-full px-3 text-sm font-medium tabular {night.start === choice.time ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
-          onclick={() => choose(choice.index)}
-          aria-pressed={night.start === choice.time}
-        >
-          {hm(choice.time)}
-          <span class="font-normal opacity-80">· {choice.awake ? t('sleep.afterAwake', { d: formatDuration(choice.awake) }) : t('sleep.estimated')}</span>
-        </button>
-      {/each}
+  {#snippet choice(time: number, note: string, active: boolean, onpick: () => void)}
+    <button
+      class="press flex min-h-11 flex-col items-start rounded-xl px-3 py-1.5 text-left tabular {active ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
+      onclick={onpick}
+      aria-pressed={active}
+    >
+      <span class="font-semibold">{hm(time)}</span>
+      <span class="text-xs leading-tight opacity-80">{note}</span>
+    </button>
+  {/snippet}
+
+  {#if (baseChoices.length > 1 && startChoices.length) || endChoices.length > 1}
+    <div class="-mt-1 grid grid-cols-2 gap-3">
+      <div class="flex min-w-0 flex-col gap-1.5">
+        <span class="text-xs text-muted">{t('sleep.startedAt')}</span>
+        {#each startChoices as c (c.time)}
+          {@render choice(c.time, c.awake ? t('sleep.afterAwake', { d: formatDuration(c.awake) }) : t('sleep.estimated'), night.start === c.time, () => choose(c.index))}
+        {/each}
+      </div>
+      <div class="flex min-w-0 flex-col gap-1.5">
+        <span class="text-xs text-muted">{t('sleep.endedAt')}</span>
+        {#each endChoices as c (c.time)}
+          {@render choice(c.time, c.earlier ? t('sleep.earlier', { d: formatDuration(c.earlier) }) : t('sleep.estimated'), chosenEnd === c.time, () => endAt(c.time))}
+        {/each}
+      </div>
     </div>
   {/if}
 
@@ -280,7 +308,8 @@
     {@render axis(span, 2 * HOUR, 'H')}
 
     {#if night.breaks.length}
-      <div class="mt-2 flex flex-wrap gap-2">
+      <p class="mt-3 mb-1.5 text-xs text-muted">{t('sleep.editBreaks')}</p>
+      <div class="flex flex-wrap items-center gap-2">
         {#each night.breaks as b, i (i)}
           <button
             class="press min-h-11 rounded-full px-3 py-1.5 text-sm font-medium tabular {selected === i ? 'bg-caution text-white' : 'bg-caution/15 text-caution'}"

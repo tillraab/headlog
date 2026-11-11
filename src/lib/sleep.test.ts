@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { awakeMs, defaultNight, estimateNight, manualNight, nightSpan, nightStartChoices, onPeriods, sleepSegments, splitBreaksAt, startForChoice, typedSleepTime, type ScreenEvent } from './sleep';
+import { awakeMs, defaultNight, estimateNight, manualNight, nightEndChoices, nightSpan, nightStartChoices, onPeriods, sleepSegments, splitBreaks, startForChoice, typedSleepTime, type ScreenEvent } from './sleep';
 
 const at = (s: string) => new Date(s).getTime();
 const off = (s: string): ScreenEvent => ({ time: at(s), on: false });
@@ -175,7 +175,7 @@ describe('estimateNight at the limits', () => {
   });
 });
 
-describe('nightStartChoices and splitBreaksAt', () => {
+describe('nightStartChoices, nightEndChoices and splitBreaks', () => {
   const H = 3600000;
   const night = { start: 0, breaks: [{ start: 0.5 * H, end: 1.7 * H }, { start: 4 * H, end: 4.1 * H }] };
 
@@ -184,9 +184,24 @@ describe('nightStartChoices and splitBreaksAt', () => {
   });
 
   it('sets wake breaks before a later start aside and brings them back for the earlier one', () => {
-    const later = splitBreaksAt(night.breaks, [], 1.7 * H);
-    const back = splitBreaksAt(later.breaks, later.parked, 0);
+    const later = splitBreaks(night.breaks, [], 1.7 * H, 8 * H);
+    const back = splitBreaks(later.breaks, later.parked, 0, 8 * H);
     expect([later.breaks.length, later.parked.length, back.breaks]).toEqual([1, 1, night.breaks]);
+  });
+
+  it('offers the start of each wake break in the second half of the night as the end, latest first', () => {
+    const late = { start: 6 * H, end: 6.5 * H };
+    expect(nightEndChoices({ start: 0, end: 8 * H, breaks: [...night.breaks, late] })).toEqual([
+      { time: 8 * H, earlier: 0 },
+      { time: 6 * H, earlier: 2 * H },
+      { time: 4 * H, earlier: 4 * H }
+    ]);
+  });
+
+  it('sets wake breaks after an earlier end aside and brings them back for the later one', () => {
+    const earlier = splitBreaks(night.breaks, [], 0, 4 * H);
+    const back = splitBreaks(earlier.breaks, earlier.parked, 0, 8 * H);
+    expect([earlier.breaks, earlier.parked, back.breaks]).toEqual([[night.breaks[0]], [night.breaks[1]], night.breaks]);
   });
 });
 
