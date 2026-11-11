@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-11-11
+
+### Changed
+
+- Sleep editor: Night began and Night ended side by side. The end of the night can be set to the start of a wake break in the second half of the night; wake breaks after it are set aside until saving, so choosing the estimate brings them back. The wake breaks below the bar sit under "Edit wake periods".
+- Insights: headache days and medication days in 30 are rows of the timeline, under Headaches, instead of a separate card. The hour view shows them as one bar per day.
+
 ## [0.34.0] - 2026-11-11
 
 ### Changed

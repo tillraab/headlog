@@ -96,6 +96,16 @@
     return { values: values.filter((v) => row(v.key)), details };
   });
 
+  /** Rows the hour view has no hourly data for, drawn as one bar per day. */
+  const dailyRows = $derived(rows.filter((r) => r.key === undefined));
+  const dailyScale = (r: Row) => Math.max(r.reference ?? 0, ...r.values.map((v) => v ?? 0), 1) * 1.1;
+  const shownDay = $derived(shown === null ? -1 : keys.indexOf(dayKey(shown)));
+  const dailyValue = (r: Row) => {
+    if (shownDay < 0) return undefined;
+    const v = r.values[shownDay];
+    return v === null ? '–' : r.format(v);
+  };
+
   /** Every readout line is one line of 1.25rem: the date and three detail lines, so the box never changes height. */
   const DETAIL_LINES = 3;
   const boxHeight = (1 + DETAIL_LINES) * 1.25 + 1;
@@ -103,11 +113,12 @@
 </script>
 
 {#snippet frame(r: Row, content: Snippet, axis: [string, string])}
+  {@const value = r.key ? valueOf(r.key) : dailyValue(r)}
   <div class="flex flex-col gap-1">
     <div class="flex items-baseline gap-x-2 pl-10 text-xs whitespace-nowrap">
       <span class="shrink-0 font-semibold">{r.label}</span>
-      {#if valueOf(r.key) !== undefined}
-        <span class="ml-auto shrink-0 rounded-full px-2 font-semibold tabular" style:color={r.color} style:background-color="color-mix(in oklab, {r.color} 16%, transparent)">{valueOf(r.key)}</span>
+      {#if value !== undefined}
+        <span class="ml-auto shrink-0 rounded-full px-2 font-semibold tabular" style:color={r.color} style:background-color="color-mix(in oklab, {r.color} 16%, transparent)">{value}</span>
       {:else}
         <span class="ml-auto min-w-0 truncate text-muted tabular">{r.summary}</span>
       {/if}
@@ -196,6 +207,20 @@
   {/each}
 {/snippet}
 
+{#snippet daily(r: Row)}
+  {@const max = dailyScale(r)}
+  {@const y = (v: number) => H - 2 - (v / max) * (H - 6)}
+  {#if r.reference !== undefined}
+    <line x1="0" x2={width} y1={y(r.reference)} y2={y(r.reference)} stroke={r.color} stroke-width="1" stroke-dasharray="3 2" opacity="0.7" vector-effect="non-scaling-stroke" />
+  {/if}
+  {#each days as d, i (d.key)}
+    {@const v = r.values[i]}
+    {#if v !== null && v !== undefined}
+      <rect x={x(d.start) + 4} width="16" y={y(v)} height={H - 2 - y(v)} fill={r.colors?.[i] ?? r.color} />
+    {/if}
+  {/each}
+{/snippet}
+
 {#snippet air()}
   {#each pressure as p, i (p.start)}
     {@const prev = pressure[i - 1]}
@@ -234,6 +259,10 @@
   </div>
 
   {#if row('headache')}{@render frame(row('headache')!, headache, ['10', '0'])}{/if}
+  {#each dailyRows as r (r.label)}
+    {#snippet bars()}{@render daily(r)}{/snippet}
+    {@render frame(r, bars, [String(r.reference ?? Math.round(dailyScale(r))), '0'])}
+  {/each}
   {#if row('hydration')}{@render frame(row('hydration')!, hydration, [formatLiters(waterMax), '0'])}{/if}
   {#if row('sleep')}{@render frame(row('sleep')!, sleep, ['', ''])}{/if}
   {#if row('pressure') && pressure.length}
