@@ -1,7 +1,7 @@
 import { addDays, getDay, getHours, startOfDay, startOfMonth } from 'date-fns';
 import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
 import { hydrationMl } from './drinks';
-import { ACUTE_CATEGORIES, MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type MedCategory } from './medication';
+import { ACUTE_CATEGORIES, MONTHLY_LIMITS, type MedCategory } from './medication';
 import { DAY, dayKey, dayRange, HOUR, keyToDate, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_CAFFEINE_DAYS, MIN_SLEEP_EFFICIENCY, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { dropToNextDay, isPressureDrop } from './weather';
@@ -288,11 +288,6 @@ function inOveruseWindow(intakes: Intake[], today: number | Date): Intake[] {
   return intakes.filter((i) => i.time >= from && i.time <= to);
 }
 
-/** Days in the last 30 with medication from any class that has an overuse limit. */
-export function limitedDays(intakes: Intake[], today: number | Date): number {
-  return new Set(inOveruseWindow(intakes, today).filter((i) => MONTHLY_LIMITS[i.category] !== undefined).map((i) => dayKey(i.time))).size;
-}
-
 /** Days in the last 30 with medication of each class. */
 export function categoryDays(intakes: Intake[], today: number | Date): Map<MedCategory, number> {
   const sets = new Map<MedCategory, Set<string>>();
@@ -304,9 +299,9 @@ export function categoryDays(intakes: Intake[], today: number | Date): Map<MedCa
   return new Map([...sets].map(([c, s]) => [c, s.size]));
 }
 
-/** A class with an overuse limit and its days this month, or `multiple` for several classes together. */
+/** A class with an overuse limit and its days in the last 30. */
 export interface OveruseRow {
-  key: MedCategory | 'multiple';
+  key: MedCategory;
   days: number;
   limit: number;
 }
@@ -320,7 +315,6 @@ export function overuseRows(intakes: Intake[], today: number | Date): OveruseRow
   const rows: OveruseRow[] = (Object.keys(MONTHLY_LIMITS) as MedCategory[])
     .filter((c) => days.has(c))
     .map((c) => ({ key: c, days: days.get(c)!, limit: MONTHLY_LIMITS[c]! }));
-  if (rows.length > 1) rows.push({ key: 'multiple', days: limitedDays(intakes, today), limit: MULTIPLE_CLASSES_LIMIT });
   return rows;
 }
 

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.35.2] - 2026-11-11
+
+### Removed
+
+- Meds: the "Several classes" wheel. It counted the same days against the same limit of 10 as the 10/20 rule; the 10/20 explanation now names ICHD-3 8.2.6.
+
 ## [0.35.1] - 2026-11-11
 
 ### Fixed

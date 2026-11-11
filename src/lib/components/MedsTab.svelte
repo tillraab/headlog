@@ -56,19 +56,14 @@
         <LimitWheel
           count={row.days}
           limit={row.limit}
-          title={row.key === 'multiple' ? t('overuse.multiple') : t(`cat.${row.key}`)}
+          title={t(`cat.${row.key}`)}
           period={t('meds.inDays', { n: 30 })}
           color={STATUS_COLOR[row.days >= row.limit ? 'over' : row.days >= row.limit * 0.7 ? 'caution' : 'ok']}
-          info={row.key === 'multiple'
-            ? [
-                { title: t('info.rule'), body: t('overuse.multipleRule', { limit: row.limit }) },
-                { title: t('info.evidence'), body: `${t('overuse.hint')} ${t('overuse.notCounted')}` }
-              ]
-            : [
-                { title: t('info.rule'), body: t('overuse.classRule', { cls: t(`cat.${row.key}`), limit: row.limit }) },
-                { title: t('info.which'), body: t(`catDesc.${row.key}`) },
-                { title: t('info.evidence'), body: t('overuse.hint') }
-              ]}
+          info={[
+            { title: t('info.rule'), body: t('overuse.classRule', { cls: t(`cat.${row.key}`), limit: row.limit }) },
+            { title: t('info.which'), body: t(`catDesc.${row.key}`) },
+            { title: t('info.evidence'), body: t('overuse.hint') }
+          ]}
           sources={SOURCES.medication}
         />
       {/each}
