@@ -21,6 +21,8 @@
     current?.kind === 'episode' ? t('edit.headache') : current?.kind === 'intake' ? t('edit.intake') : current?.kind === 'sleep' ? t('sleep.title') : t('edit.drink')
   );
   let error = $state('');
+  /** A night shown as an overview, without changes to save, only needs closing. */
+  const viewOnly = $derived(current?.kind === 'sleep' && !editor.sleepEditing && JSON.stringify(current.item) === editor.opened);
 
   /** The time in a datetime field. A cleared or invalid field shows `current` again and keeps it. */
   function readTime(input: HTMLInputElement, current: number): number {
@@ -86,6 +88,13 @@
   }
 </script>
 
+{#snippet sleepEdit()}
+  <label class="flex min-h-11 items-center gap-2 font-medium">
+    <input type="checkbox" class="size-6 accent-primary" bind:checked={editor.sleepEditing} />
+    {t('sleep.edit')}
+  </label>
+{/snippet}
+
 <Sheet
   id="editor"
   {title}
@@ -97,6 +106,7 @@
       ]
     : undefined}
   sources={current?.kind === 'sleep' ? SOURCES.sleep : undefined}
+  actions={current?.kind === 'sleep' ? sleepEdit : undefined}
 >
   {#if current}
     <div class="flex flex-col gap-4">
@@ -173,6 +183,7 @@
         <SleepMetrics night={current.item as Night} />
         {#key current.item.day}
           <SleepTimeline
+            editing={editor.sleepEditing}
             bind:night={
               () => current.item as Night,
               (night) => {
@@ -213,8 +224,12 @@
         {#if current.kind !== 'sleep' && current.item.id !== undefined}
           <button class="press rounded-2xl px-4 py-3 font-medium text-over" onclick={del}>{t('edit.delete')}</button>
         {/if}
-        <button class="press ml-auto rounded-2xl px-4 py-3 font-medium" onclick={close}>{t('edit.cancel')}</button>
-        <button class="press rounded-2xl bg-primary px-6 py-3 font-semibold text-primary-fg" onclick={save}>{t('edit.save')}</button>
+        {#if viewOnly}
+          <button class="press ml-auto rounded-2xl bg-surface-2 px-6 py-3 font-medium" onclick={close}>{t('edit.close')}</button>
+        {:else}
+          <button class="press ml-auto rounded-2xl px-4 py-3 font-medium" onclick={close}>{t('edit.cancel')}</button>
+          <button class="press rounded-2xl bg-primary px-6 py-3 font-semibold text-primary-fg" onclick={save}>{t('edit.save')}</button>
+        {/if}
       </div>
     </div>
   {/if}

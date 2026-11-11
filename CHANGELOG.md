@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-11-12
+
+### Changed
+
+- Sleep sheet: an Edit checkbox in the header. Unchecked, the sheet shows the numbers, the start and end and the bar, with Close. Checked, all edit controls appear. It opens unchecked from the sleep tile on Today and from the Calendar, and checked from Correct in the morning card and notification, and when adding a missing night.
+
 ## [0.35.3] - 2026-11-11
 
 ### Removed

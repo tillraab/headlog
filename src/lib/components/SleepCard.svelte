@@ -38,7 +38,7 @@
     </div>
     <p class="text-muted">{t('sleep.card.question')}</p>
     <div class="grid grid-cols-2 gap-2">
-      <button class="press min-h-11 rounded-xl bg-surface-2 py-2.5 font-medium" onclick={() => openNight(day)}>{t('sleep.card.fix')}</button>
+      <button class="press min-h-11 rounded-xl bg-surface-2 py-2.5 font-medium" onclick={() => openNight(day, true)}>{t('sleep.card.fix')}</button>
       <button class="press min-h-11 rounded-xl bg-primary py-2.5 font-semibold text-primary-fg" onclick={confirm}>{t('sleep.card.ok')}</button>
     </div>
   </section>
@@ -46,6 +46,6 @@
   <section class="card flex items-center gap-3 p-4">
     <span class="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-muted"><Moon size={22} /></span>
     <p class="flex-1 text-muted">{t('sleep.card.none')}</p>
-    <button class="press btn-primary" onclick={() => openNight(day)}>{t('sleep.card.add')}</button>
+    <button class="press btn-primary" onclick={() => openNight(day, true)}>{t('sleep.card.add')}</button>
   </section>
 {/if}

@@ -3,7 +3,7 @@
    * A night on a time axis from evening to noon. The dots at both ends of the sleep bar move falling
    * asleep and waking up; tapping a gap, or the wake break in the list below, selects it and opens a
    * magnified bar around it, where its edges can be dragged. Grey ticks below show when the screen was
-   * on, the source of the estimate.
+   * on, the source of the estimate. Without `editing`, it only shows the night: its times and the bar.
    */
   import { format, startOfDay } from 'date-fns';
   import type { Night } from '$lib/db';
@@ -13,7 +13,7 @@
   import { data } from '$lib/store.svelte';
   import { tap } from '$lib/ui.svelte';
 
-  let { night = $bindable() }: { night: Night } = $props();
+  let { night = $bindable(), editing = true }: { night: Night; editing?: boolean } = $props();
 
   const SNAP = 5 * MINUTE;
   /** Shortest sleep before or after a break, and shortest break. */
@@ -189,6 +189,12 @@
 </script>
 
 <div class="flex flex-col gap-3 select-none">
+  {#if !editing}
+    <div class="grid grid-cols-2 gap-3">
+      <p class="flex flex-col text-xs text-muted">{t('sleep.asleep')}<span class="mt-0.5 text-lg font-semibold text-fg tabular">{hm(night.start)}</span></p>
+      <p class="flex flex-col text-right text-xs text-muted">{t('sleep.awake')}<span class="mt-0.5 text-lg font-semibold text-fg tabular">{hm(night.end)}</span></p>
+    </div>
+  {:else}
   <div class="grid grid-cols-2 gap-3">
     <label class="flex min-w-0 flex-col text-xs text-muted">
       {t('sleep.asleep')}
@@ -250,6 +256,7 @@
       </div>
     </div>
   {/if}
+  {/if}
 
   {#snippet bar(within: Span, handles: [Handle, number][], ontap?: (e: MouseEvent) => void)}
     <div
@@ -302,7 +309,7 @@
   {/snippet}
 
   <div class="px-3.5">
-    {@render bar(span, [['start', night.start], ['end', night.end]], pick)}
+    {@render bar(span, editing ? [['start', night.start], ['end', night.end]] : [], editing ? pick : undefined)}
     <div class="relative mt-1.5 h-1.5">
       {#each screen as on, i (i)}
         <div class="absolute inset-y-0 rounded-full bg-muted/60" style:left="{pct(on.start)}%" style:width="max(2px, {pct(on.end) - pct(on.start)}%)"></div>
@@ -310,7 +317,7 @@
     </div>
     {@render axis(span, 2 * HOUR, 'H')}
 
-    {#if night.breaks.length}
+    {#if editing && night.breaks.length}
       <p class="mt-3 mb-1.5 text-xs text-muted">{t('sleep.editBreaks')}</p>
       <div class="flex flex-wrap items-center gap-2">
         {#each night.breaks as b, i (i)}
@@ -324,7 +331,7 @@
       </div>
     {/if}
 
-    {#if sel && zoom}
+    {#if editing && sel && zoom}
       <p class="mt-2 mb-1.5 text-xs text-muted">{t('sleep.zoom')}</p>
       {@render bar(zoom, [['breakStart', sel.start], ['breakEnd', sel.end]])}
       <div class="relative mt-1.5 h-1.5">
@@ -339,6 +346,7 @@
     {/if}
   </div>
 
+  {#if editing}
   <div class="flex min-h-11 flex-wrap items-center gap-2">
     {#if sel}
       <span class="flex-1 font-medium text-caution tabular">{t('sleep.breakLabel', { from: hm(sel.start), to: hm(sel.end) })}</span>
@@ -348,4 +356,5 @@
     {/if}
     <button class="press min-h-11 rounded-xl bg-surface-2 px-3 py-2 font-medium" onclick={addBreak}>{t('sleep.addBreak')}</button>
   </div>
+  {/if}
 </div>
