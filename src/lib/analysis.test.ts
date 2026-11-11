@@ -424,16 +424,11 @@ describe('medicationEffect', () => {
 describe('overuseRows', () => {
   const month = at('2026-03-15T12:00');
 
-  it('has no row for several classes when only one class was used', () => {
-    expect(overuseRows([intake('2026-03-02T08:00', 'analgesic'), intake('2026-03-03T08:00', 'analgesic')], month)).toEqual([{ key: 'analgesic', days: 2, limit: 15 }]);
-  });
-
-  it('adds one row for several classes once two classes were used', () => {
+  it('has one row per class used, with its limit', () => {
     const rows = overuseRows([intake('2026-03-02T08:00', 'analgesic'), intake('2026-03-02T09:00', 'triptan'), intake('2026-03-04T08:00', 'triptan')], month);
     expect(rows).toEqual([
       { key: 'analgesic', days: 1, limit: 15 },
-      { key: 'triptan', days: 2, limit: 10 },
-      { key: 'multiple', days: 2, limit: 10 }
+      { key: 'triptan', days: 2, limit: 10 }
     ]);
   });
 

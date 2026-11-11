@@ -23,9 +23,6 @@ export const MONTHLY_LIMITS: Partial<Record<MedCategory, number>> = {
   opioid: 10
 };
 
-/** ICHD-3 8.2.6: several of these classes together on 10 or more days a month also count as overuse. */
-export const MULTIPLE_CLASSES_LIMIT = 10;
-
 /** Common active ingredients and brands per category, lower case, for recognising a medication by its name. */
 const KNOWN: Partial<Record<MedCategory, string[]>> = {
   triptan: ['triptan', 'imigran', 'maxalt', 'ascotop', 'relpax', 'naramig', 'allegro', 'formigran', 'dolortriptan'],
