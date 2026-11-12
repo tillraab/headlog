@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.37.1] - 2026-11-12
+
+### Fixed
+
+- Insights: the averages of headache and medication days in 30 leave out days before the first logged drink, when the app was not in use yet.
+
 ## [0.37.0] - 2026-11-12
 
 ### Changed
