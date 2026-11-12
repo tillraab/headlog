@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-11-12
+
+### Changed
+
+- Insights: the timeline is daily for every period; the hour-by-hour view for 3 and 7 days is gone. Short periods label every day.
+- Each timeline row except air pressure shows its average over the period as an outlined Ø number next to the tapped day's value. For headaches it is the average intensity on headache days.
+- The dashed line in the sleep row is at 5 hours, the threshold for a very short night, instead of 7.
+
 ## [0.36.0] - 2026-11-12
 
 ### Changed

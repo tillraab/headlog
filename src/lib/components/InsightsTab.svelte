@@ -9,18 +9,15 @@
   import { clock, data } from '$lib/store.svelte';
   import { dropToNextDay, isPressureDrop, PRESSURE_DROP_HPA } from '$lib/weather';
   import { SOURCES } from '$lib/sources';
+  import { SHORT_SLEEP_HOURS } from '$lib/thresholds';
   import BarChart from './BarChart.svelte';
   import CardHeading from './CardHeading.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
   import RangeButton from './RangeButton.svelte';
   import ReportSheet from './ReportSheet.svelte';
-  import HourTimeline from './HourTimeline.svelte';
   import TimelineChart, { type Row } from './TimelineChart.svelte';
 
   const PERIODS = [3, 7, 30];
-  /** Up to this many days the timeline shows hours instead of days. */
-  const HOUR_VIEW_DAYS = 7;
-  const SLEEP_REFERENCE_HOURS = 7;
   /** From 15 headache days a month, ICHD-3 speaks of chronic headache (chronic migraine: for more than 3 months). */
   const CHRONIC_DAYS = 15;
   const RULE_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-med)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
@@ -88,21 +85,23 @@
       {
         label: t('tl.headacheDays30'),
         summary: lastCount(headache),
+        average: average(headache),
         values: [...headache, ...ahead],
         colors: [...headache.map((n) => (n >= CHRONIC_DAYS ? 'var(--color-over)' : 'var(--color-pain)')), ...ahead.map(() => 'var(--color-pain)')],
         color: 'var(--color-pain)',
         kind: 'bars',
-        format: (v) => String(Math.round(v)),
+        format: (v) => num(v, 0, 1),
         reference: CHRONIC_DAYS
       },
       {
         label: t('tl.medDays30'),
         summary: lastCount(med),
+        average: average(med),
         values: [...med, ...ahead],
         colors: [...med.map((n) => RULE_COLOR[ruleStatus(n, rule.allowed)]), ...ahead.map(() => 'var(--color-med)')],
         color: 'var(--color-med)',
         kind: 'bars',
-        format: (v) => String(Math.round(v)),
+        format: (v) => num(v, 0, 1),
         reference: rule.limit
       }
     ];
@@ -114,18 +113,23 @@
 
   const rows = $derived.by(() => {
     const result: Row[] = [
-      { key: 'headache', label: t('tl.headache'), summary: t('tl.days', { n: stats.headacheDays }), values: series.headache, color: 'var(--color-pain)', kind: 'bars', format: (v) => (v ? `${Math.round(v)}/10` : '–') },
+      {
+        label: t('tl.headache'),
+        summary: stats.headacheDays === 1 ? t('tl.day') : t('tl.days', { n: stats.headacheDays }),
+        values: series.headache,
+        color: 'var(--color-pain)',
+        kind: 'bars',
+        format: (v) => (v ? `${num(v, 0, 1)}/10` : '–'),
+        average: average(known(series.headache.slice(0, keys.length)).filter((v) => v > 0))
+      },
       ...rollingRows
     ];
     const water = known(series.hydration);
     if (water.length) {
       result.push({
-        key: 'hydration',
         label: t('tl.hydration'),
-        summary: t('tl.hydrationSummary', {
-          ml: formatLiters(average(water)!),
-          n: water.filter((v) => v >= data.settings.waterGoalMl).length
-        }),
+        summary: t('tl.hydrationSummary', { n: water.filter((v) => v >= data.settings.waterGoalMl).length }),
+        average: average(water),
         values: series.hydration,
         color: 'var(--color-water)',
         kind: 'bars',
@@ -136,20 +140,19 @@
     const sleep = known(series.sleepHours);
     if (sleep.length) {
       result.push({
-        key: 'sleep',
         label: t('tl.sleep'),
-        summary: t('tl.sleepSummary', { d: formatDuration(average(sleep)! * HOUR), n: sleep.length }),
+        summary: t('tl.sleepSummary', { n: sleep.length }),
+        average: average(sleep),
         values: series.sleepHours,
         color: 'var(--color-primary)',
         kind: 'bars',
         format: (v) => `${num(v, 0, 1)} h`,
-        reference: SLEEP_REFERENCE_HOURS
+        reference: SHORT_SLEEP_HOURS
       });
     }
     if (known(series.pressure).length) {
       const marks = chartKeys.map((k) => isPressureDrop(dropToNextDay(data.weather, k) ?? 0));
       result.push({
-        key: 'pressure',
         label: t('tl.pressure'),
         summary: t('tl.pressureSummary', { n: marks.filter(Boolean).length, hpa: PRESSURE_DROP_HPA }),
         values: series.pressure,
@@ -245,13 +248,8 @@
 
     {@render heading(t('ins.connections'))}
     <section class="card p-4">
-      {#if span <= HOUR_VIEW_DAYS}
-        <CardHeading class="mb-3" title={t('hv.title')} info={[t('hv.hint'), ...rollingInfo]} sources={rollingSources} />
-        <HourTimeline {rows} keys={chartKeys} now={clock.now} />
-      {:else}
-        <CardHeading class="mb-3" title={t('tl.title')} info={[t('tl.hint'), ...rollingInfo]} sources={rollingSources} />
-        <TimelineChart {rows} keys={chartKeys} forecast={chartKeys.length - keys.length} bands={series.headache.map((v) => v > 0)} details={dayDetails} />
-      {/if}
+      <CardHeading class="mb-3" title={t('tl.title')} info={[t('tl.hint'), t('tl.linesHint', { sleep: SHORT_SLEEP_HOURS }), ...rollingInfo]} sources={rollingSources} />
+      <TimelineChart {rows} keys={chartKeys} forecast={chartKeys.length - keys.length} bands={series.headache.map((v) => v > 0)} details={dayDetails} />
     </section>
 
     <section class="card p-4">
