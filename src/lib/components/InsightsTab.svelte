@@ -79,13 +79,16 @@
     const headache = rollingDays(new Set(headacheDays(data.episodes, clock.now).keys()), last, span).map((r) => r.count);
     const med = rollingDays(acuteDays, last, span).map((r) => r.count);
     const ahead = forecastKeys.map(() => null);
+    /** Days before the first logged drink are before the app was in use; their counts are left out of the average. */
+    const first = firstDrinkDay(data.drinks);
+    const inUse = (counts: number[]) => counts.filter((_, i) => first === null || keys[i] >= first);
     const lastCount = (counts: number[]) =>
       keys[keys.length - 1] === today ? t('cal.rollingNow', { n: counts[counts.length - 1] }) : t('cal.rollingOn', { n: counts[counts.length - 1], date: fmt(last, 'd. MMM') });
     return [
       {
         label: t('tl.headacheDays30'),
         summary: lastCount(headache),
-        average: average(headache),
+        average: average(inUse(headache)),
         values: [...headache, ...ahead],
         colors: [...headache.map((n) => (n >= CHRONIC_DAYS ? 'var(--color-over)' : 'var(--color-pain)')), ...ahead.map(() => 'var(--color-pain)')],
         color: 'var(--color-pain)',
@@ -96,7 +99,7 @@
       {
         label: t('tl.medDays30'),
         summary: lastCount(med),
-        average: average(med),
+        average: average(inUse(med)),
         values: [...med, ...ahead],
         colors: [...med.map((n) => RULE_COLOR[ruleStatus(n, rule.allowed)]), ...ahead.map(() => 'var(--color-med)')],
         color: 'var(--color-med)',
