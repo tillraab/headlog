@@ -1,7 +1,5 @@
 <script lang="ts" module>
   export interface Row {
-    /** Which series this is, so the hour view can draw it; without a key the hour view draws one bar per day. */
-    key?: 'headache' | 'hydration' | 'sleep' | 'pressure';
     label: string;
     summary: string;
     values: (number | null)[];
@@ -13,6 +11,8 @@
     format: (value: number) => string;
     /** Dashed reference line, e.g. the hydration goal. */
     reference?: number;
+    /** The average over the period, shown next to the selected day's value. */
+    average?: number | null;
     /** Days to mark with a tick at the top, e.g. pressure drops. */
     marks?: boolean[];
     markColor?: string;
@@ -60,12 +60,13 @@
   const DETAIL_LINES = 2;
   const boxHeight = $derived((1 + (details ? DETAIL_LINES : 0)) * 1.25 + 1);
 
-  /** Weekly ticks up to 45 days, the 1st and 15th up to 120 days, otherwise the 1st of each month. */
+  /** Every day up to 10 days, weekly ticks up to 45 days, the 1st and 15th up to 120 days, otherwise the 1st of each month. */
   const ticks = $derived.by(() => {
-    const every = n <= 45 ? 'week' : n <= 120 ? 'half-month' : 'month';
+    const every = n <= 10 ? 'day' : n <= 45 ? 'week' : n <= 120 ? 'half-month' : 'month';
     return keys.flatMap((key, i) => {
       const date = keyToDate(key);
       const d = date.getDate();
+      if (every === 'day') return [{ i, label: fmt(date, 'EEEEEE d.') }];
       const hit = every === 'week' ? getDay(date) === 1 : every === 'half-month' ? d === 1 || d === 15 : d === 1;
       return hit ? [{ i, label: fmt(date, every === 'month' ? 'MMM' : 'd. MMM') }] : [];
     });
@@ -106,13 +107,28 @@
     {@const s = scale(row)}
     <div class="flex flex-col gap-1">
       <div class="flex items-baseline gap-x-2 pl-10 text-xs whitespace-nowrap">
-        <span class="min-w-0 truncate font-semibold">{row.label}</span>
+        <span class="shrink-0 font-semibold">{row.label}</span>
+        {#if selected === null}
+          <span class="ml-auto min-w-0 truncate text-muted tabular">{row.summary}</span>
+        {/if}
+        {#if row.average !== undefined}
+          <span
+            class="shrink-0 rounded-full border px-2 font-semibold tabular {selected === null ? '' : 'ml-auto'}"
+            style:color={row.color}
+            style:border-color="color-mix(in oklab, {row.color} 45%, transparent)"
+            aria-label={t('tl.average')}
+          >
+            Ø {row.average === null ? '–' : row.format(row.average)}
+          </span>
+        {/if}
         {#if selected !== null}
           {@const v = row.values[selected]}
           {@const color = row.colors?.[selected] ?? row.color}
-          <span class="ml-auto shrink-0 rounded-full px-2 font-semibold tabular" style:color style:background-color="color-mix(in oklab, {color} 16%, transparent)">{v === null ? '–' : row.format(v)}</span>
-        {:else}
-          <span class="ml-auto min-w-0 truncate text-muted tabular">{row.summary}</span>
+          <span
+            class="shrink-0 rounded-full border border-transparent px-2 font-semibold tabular {row.average === undefined ? 'ml-auto' : ''}"
+            style:color
+            style:background-color="color-mix(in oklab, {color} 16%, transparent)">{v === null ? '–' : row.format(v)}</span
+          >
         {/if}
       </div>
       <div class="flex gap-1">
@@ -180,7 +196,7 @@
 
   <div class="relative ml-10 h-4 text-axis text-muted">
     {#each ticks as tick (tick.i)}
-      <span class="absolute -translate-x-1/2 whitespace-nowrap" style:left="{(tick.i / n) * 100}%">{tick.label}</span>
+      <span class="absolute -translate-x-1/2 whitespace-nowrap" style:left="{((tick.i + (n <= 10 ? 0.5 : 0)) / n) * 100}%">{tick.label}</span>
     {/each}
   </div>
 </div>
