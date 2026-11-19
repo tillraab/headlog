@@ -1,4 +1,5 @@
 import { createBackup, isBackup, type Backup } from './backup';
+import { decrypt, encrypt, isEnvelope, newSalt, PassphraseError } from './crypto';
 
 const FILE = 'headlog-backup.json';
 const API = 'https://api.github.com';
@@ -13,6 +14,9 @@ export interface GistLink {
   lastHash: string | null;
   /** Automatic uploads stop after deleting all data or loading demo data, until the next manual backup or restore. */
   paused?: boolean;
+  /** With a passphrase, the backup is encrypted before upload; the salt of its key goes with it. */
+  passphrase?: string | null;
+  salt?: string;
 }
 
 export function readLink(): GistLink | null {
@@ -36,7 +40,7 @@ async function api<T>(token: string, path: string, init: RequestInit = {}): Prom
     }
   });
   if (!res.ok) throw new Error(`GitHub ${res.status}`);
-  return (await res.json()) as T;
+  return (res.status === 204 ? null : await res.json()) as T;
 }
 
 interface GistFile {
@@ -69,30 +73,47 @@ function isEmpty(backup: Backup): boolean {
   return !backup.tables.episodes.length && !backup.tables.intakes.length && !backup.tables.drinks.length;
 }
 
-/** Uploads the current data to the gist, creating a secret gist on first use. Returns the updated link. */
-export async function push(link: GistLink, force = false): Promise<GistLink> {
+/**
+ * Uploads the current data to the gist, creating a secret gist on first use, encrypted when the link has a
+ * passphrase. With `fresh`, always creates a new gist. Returns the updated link.
+ */
+export async function push(link: GistLink, force = false, fresh = false): Promise<GistLink> {
   const backup = await createBackup();
   const hash = contentHash(backup);
   if (!force && (link.paused || isEmpty(backup) || (link.gistId && hash === link.lastHash))) return link;
-  const files = { [FILE]: { content: JSON.stringify(backup) } };
-  const gistId = link.gistId ?? (await findGist(link.token));
+  const salt = link.passphrase ? (link.salt ?? newSalt()) : link.salt;
+  const content = link.passphrase ? JSON.stringify(await encrypt(JSON.stringify(backup), link.passphrase, salt!)) : JSON.stringify(backup);
+  const files = { [FILE]: { content } };
+  const gistId = fresh ? null : (link.gistId ?? (await findGist(link.token)));
   const gist = gistId
     ? await api<Gist>(link.token, `/gists/${gistId}`, { method: 'PATCH', body: JSON.stringify({ files }) })
     : await api<Gist>(link.token, '/gists', {
         method: 'POST',
         body: JSON.stringify({ description: 'HeadLog backup', public: false, files })
       });
-  return { ...link, gistId: gist.id, lastSync: Date.now(), lastHash: hash };
+  return { ...link, gistId: gist.id, lastSync: Date.now(), lastHash: hash, salt };
 }
 
-/** Reads the backup stored in the gist, or in one of its earlier versions. */
-export async function pull(link: GistLink, version?: string): Promise<Backup> {
+/** Deletes a gist with all its versions. */
+export async function deleteGist(token: string, gistId: string): Promise<void> {
+  await api<null>(token, `/gists/${gistId}`, { method: 'DELETE' });
+}
+
+/**
+ * Reads the backup stored in the gist, or in one of its earlier versions. An encrypted backup is opened with
+ * `passphrase`; a missing or wrong one throws a PassphraseError.
+ */
+export async function pull(link: GistLink, version?: string, passphrase = link.passphrase): Promise<Backup> {
   const gistId = link.gistId ?? (await findGist(link.token));
   if (!gistId) throw new Error('No HeadLog gist found');
   const gist = await api<Gist>(link.token, version ? `/gists/${gistId}/${version}` : `/gists/${gistId}`);
   const file = gist.files[FILE];
   const text = file?.truncated && file.raw_url ? await (await fetch(file.raw_url)).text() : file?.content;
-  const parsed: unknown = text ? JSON.parse(text) : null;
+  let parsed: unknown = text ? JSON.parse(text) : null;
+  if (isEnvelope(parsed)) {
+    if (!passphrase) throw new PassphraseError('missing');
+    parsed = JSON.parse(await decrypt(parsed, passphrase));
+  }
   if (!isBackup(parsed)) throw new Error('Not a HeadLog backup');
   return parsed;
 }
