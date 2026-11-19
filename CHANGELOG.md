@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-11-19
+
+### Added
+
+- Gist backup encryption: with a passphrase, the backup is encrypted on the phone (AES-256, key from PBKDF2-SHA-256) before it goes to the gist. Setting, changing or removing it moves the backup to a new gist and deletes the old one with its earlier versions. Restoring an encrypted gist asks for the passphrase; until it is entered, uploads pause.
+
+### Changed
+
+- Settings: the gist and the JSON file are one Backup section with a switch between them.
+
 ## [0.37.1] - 2026-11-12
 
 ### Fixed
