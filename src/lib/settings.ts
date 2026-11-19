@@ -27,6 +27,8 @@ export interface Settings {
   riskAlert: { enabled: boolean; hour: number };
   /** What the calendar marks: headaches, medication, and days on which each factor was unfavourable. */
   calendar: Record<'headache' | 'medication' | FactorKey, boolean>;
+  /** The symptoms and triggers offered for a headache; null until the user changes the list. */
+  tags: string[] | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -41,7 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
   sleep: { enabled: false, fallAsleepMinutes: 15 },
   sleepCheck: { enabled: true, hour: 9 },
   riskAlert: { enabled: true, hour: 20 },
-  calendar: { headache: true, medication: true, weather: false, sleep: false, hydration: false, caffeine: false, alcohol: false }
+  calendar: { headache: true, medication: true, weather: false, sleep: false, hydration: false, caffeine: false, alcohol: false },
+  tags: null
 };
 
 /** Settings as stored by older versions, with fields that were renamed since. */
