@@ -36,7 +36,8 @@ export interface Prognosis {
   light: Light;
   /** Number of unfavourable factors. */
   bad: number;
-  weather: { status: Status; today?: WeatherDay; tomorrow?: WeatherDay; drop: number };
+  /** `change`: tomorrow's mean pressure minus today's, rises positive; null without both days. */
+  weather: { status: Status; today?: WeatherDay; tomorrow?: WeatherDay; drop: number; change: number | null };
   hydration: { status: Status; today: number; yesterday: number | null; expected: number; goal: number; behind: boolean; lowYesterday: boolean };
   sleep: { status: Status; night?: Night; average: number | null; efficiency: number | null; short: boolean; fragmented: boolean };
   alcohol: { status: Status; yesterday: boolean; today: boolean; drinksToday: number; drinksYesterday: number };
@@ -120,7 +121,13 @@ export function prognosis(input: PrognosisInput, now: number): Prognosis {
   return {
     light: bad >= 2 ? 'red' : bad === 1 ? 'yellow' : 'green',
     bad,
-    weather: { status: weatherStatus, today: todayWeather, tomorrow: tomorrowWeather, drop },
+    weather: {
+      status: weatherStatus,
+      today: todayWeather,
+      tomorrow: tomorrowWeather,
+      drop,
+      change: todayWeather && tomorrowWeather ? tomorrowWeather.pressure - todayWeather.pressure : null
+    },
     hydration: { status: hydrationStatus, today: todayMl, yesterday: yesterdayMl, expected, goal: input.goalMl, behind: behindToday, lowYesterday },
     sleep: { status: sleepStatus, night, average: sleepAverage, efficiency: night ? sleepEfficiency(night) : null, ...poor },
     alcohol: { status: alcoholStatus, yesterday: alcohol.has(yesterday), today: alcohol.has(today), drinksToday: alcoholCount(today), drinksYesterday: alcoholCount(yesterday) },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Drink } from './db';
-import { whyText } from './forecastText';
+import { pressureChangeText, weatherOkText, whyText } from './forecastText';
 import { prognosis } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
@@ -23,5 +23,25 @@ describe('whyText', () => {
 
   it('says when no night is known yet', () => {
     expect(whyText(forecast([]), 'sleep')).toBe(whyText(forecast([drink('2026-03-10T09:00', 250)]), 'sleep'));
+  });
+});
+
+describe('pressureChangeText', () => {
+  it.each([
+    [10.4, '+10 hPa'],
+    [-3.2, '−3 hPa'],
+    [0.3, 'stable']
+  ])('writes a change of %s hPa as %s', (change, text) => {
+    expect(pressureChangeText(change)).toBe(text);
+  });
+});
+
+describe('weatherOkText', () => {
+  it.each([
+    [10, 'rising to tomorrow (+10 hPa)'],
+    [-2, 'no big drop to tomorrow (−2 hPa)'],
+    [0.2, 'stable to tomorrow']
+  ])('names a change of %s hPa', (change, text) => {
+    expect(weatherOkText(change)).toBe(text);
   });
 });

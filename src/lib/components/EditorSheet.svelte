@@ -4,11 +4,12 @@
   import { fromPreset } from '$lib/drinks';
   import { fromMedication } from '$lib/medication';
   import { editor } from '$lib/editor.svelte';
-  import { reliefLabels, t, tagLabel, TAGS } from '$lib/i18n.svelte';
+  import { reliefLabels, t } from '$lib/i18n.svelte';
   import { manualNight, SHORT_WAKE_MINUTES } from '$lib/sleep';
   import { data, remove, saveDrink, saveEpisode, saveIntake, saveNight, type EntryTable } from '$lib/store.svelte';
   import { closeSheet, fromLocalInput, toast, toLocalInput } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
+  import TagPicker from './TagPicker.svelte';
   import SleepTimeline from './SleepTimeline.svelte';
   import SleepMetrics from './SleepMetrics.svelte';
   import Sheet from './Sheet.svelte';
@@ -81,11 +82,6 @@
     close();
   }
 
-  function toggleTag(tag: string) {
-    if (editor.current?.kind !== 'episode') return;
-    const tags = editor.current.item.tags;
-    editor.current.item.tags = tags.includes(tag) ? tags.filter((x) => x !== tag) : [...tags, tag];
-  }
 </script>
 
 {#snippet sleepEdit()}
@@ -135,17 +131,7 @@
           <span class="text-sm text-muted">{t('today.intensity')}</span>
           <IntensityPicker value={ep.intensity} onchange={(v) => (ep.intensity = v)} />
         </div>
-        <div class="flex flex-col gap-2">
-          <span class="text-sm text-muted">{t('edit.tags')}</span>
-          <div class="flex flex-wrap gap-2">
-            {#each TAGS as tag (tag)}
-              <button
-                class="press min-h-11 rounded-full px-4 py-2 {ep.tags.includes(tag) ? 'bg-primary text-primary-fg' : 'bg-surface-2'}"
-                onclick={() => toggleTag(tag)}>{tagLabel(tag)}</button
-              >
-            {/each}
-          </div>
-        </div>
+        <TagPicker selected={ep.tags} onchange={(tags) => (ep.tags = tags)} />
         <label class="flex flex-col gap-1">
           <span class="text-sm text-muted">{t('edit.note')}</span>
           <textarea rows="2" bind:value={ep.note} placeholder={t('edit.notePlaceholder')}></textarea>

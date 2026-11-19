@@ -2,6 +2,7 @@
   import { dayKey, formatDuration, formatLiters } from '$lib/days';
   import { t } from '$lib/i18n.svelte';
   import { prognosis, prognosisInput, tomorrowRisk, type Status } from '$lib/prognosis';
+  import { pressureChangeText } from '$lib/forecastText';
   import { openNight } from '$lib/editor.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { openFactor } from '$lib/ui.svelte';
@@ -20,7 +21,7 @@
       icon: '🌦️',
       label: t('prog.weather'),
       status: p.weather.status,
-      value: p.weather.status === 'unknown' ? '–' : p.weather.drop >= 1 ? `−${Math.round(p.weather.drop)} hPa` : t('prog.stable'),
+      value: p.weather.status === 'unknown' ? '–' : pressureChangeText(p.weather.change ?? -p.weather.drop),
       onclick: () => openFactor('weather')
     },
     {

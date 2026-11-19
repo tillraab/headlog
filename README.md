@@ -18,7 +18,7 @@
 
 ## Features
 
-- **One tap when it starts.** A big button starts a headache with the current time; the time can be changed in the entry. A live timer runs until you tap "Headache is gone". Intensity (1 to 10), symptoms and triggers (nausea, aura, stress, poor sleep, ...) and a note are optional and can be added any time.
+- **One tap when it starts.** A big button starts a headache with the current time; the time can be changed in the entry. A live timer runs until you tap "Headache is gone". Intensity (1 to 10), symptoms and triggers from your own list (add your own words, or ideas such as nausea, aura, stress or period) and a note are optional and can be added any time.
 - **Your medication as buttons.** Define your own list with name, dose, type (pain reliever, triptan, combination, opioid, preventive, other) and color. One tap logs an intake. Afterwards you can rate whether it helped.
 - **Hydration.** Your own drink buttons (glass 250 ml, bottle 700 ml, coffee, tea, ...) and a daily goal with a progress bar, right at the top of Today.
 - **Calendar.** Headache days shaded by intensity and dots for medication days. Chips choose what is marked: headaches, medication and each of the five forecast factors, whose symbol marks the days it was unfavourable (for hydration, days you missed your goal). Tap a day to see, edit or add entries after the fact, and open its weather, sleep, hydration, caffeine and alcohol.

@@ -5,11 +5,25 @@ import { LOW_HYDRATION, MIN_SLEEP_EFFICIENCY, SHORT_SLEEP_HOURS } from './thresh
 import { PRESSURE_DROP_HPA } from './weather';
 
 /** One sentence on why a forecast factor has its status, with the numbers behind it. */
+/** A pressure change to tomorrow that is not a big drop: a rise, no change, or a small drop. */
+export function weatherOkText(change: number): string {
+  const n = Math.round(Math.abs(change));
+  if (n === 0) return t('prog.why.weatherStable');
+  return t(change > 0 ? 'prog.why.weatherRise' : 'prog.why.weatherOk', { n });
+}
+
+/** The pressure change to tomorrow as a short value, e.g. "+10 hPa", "−3 hPa" or "stable". */
+export function pressureChangeText(change: number): string {
+  const n = Math.round(Math.abs(change));
+  return n === 0 ? t('prog.stable') : `${change > 0 ? '+' : '−'}${n} hPa`;
+}
+
 export function whyText(p: Prognosis, key: FactorKey): string {
   switch (key) {
     case 'weather':
       if (p.weather.status === 'unknown') return t('prog.why.weatherUnknown');
-      return t(p.weather.status === 'bad' ? 'prog.why.weatherBad' : 'prog.why.weatherOk', { n: Math.round(p.weather.drop), limit: PRESSURE_DROP_HPA });
+      if (p.weather.status === 'bad') return t('prog.why.weatherBad', { n: Math.round(p.weather.drop), limit: PRESSURE_DROP_HPA });
+      return weatherOkText(p.weather.change ?? -p.weather.drop);
     case 'hydration': {
       const h = p.hydration;
       if (h.status === 'unknown') return t('prog.why.hydrationUnknown');

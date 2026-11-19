@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-11-20
+
+### Changed
+
+- Symptoms and triggers come from your own list. "Add" takes your own words or one of the ideas and ticks it for the headache; "Edit" removes entries from the list, while earlier headaches keep theirs. The list starts with the tags your headaches already use.
+
+### Fixed
+
+- Weather: a rise in pressure showed as "−0 hPa" and "stable". The tile and the sheet now show the change to tomorrow with its sign, e.g. "+10 hPa" and "rising to tomorrow".
+
 ## [0.38.0] - 2026-11-19
 
 ### Added
