@@ -11,7 +11,7 @@ const fakeStorage = {
 };
 vi.stubGlobal('localStorage', fakeStorage);
 
-const { connect, disconnect, pauseSync, restoreFromGist, sync, syncNow } = await import('./sync.svelte');
+const { connect, disconnect, pauseSync, restoreFromGist, setPassphrase, sync, syncNow } = await import('./sync.svelte');
 
 /** Fake GitHub gist API that keeps one gist in memory. `status` makes every call fail with it. */
 function fakeGitHub(content: string | null, status = 200) {
@@ -106,3 +106,28 @@ describe('restoreFromGist', () => {
     expect([sync.link?.lastHash, sync.link?.paused]).toEqual([null, false]);
   });
 });
+
+describe('setPassphrase', () => {
+  /** A gist API where a new gist gets the id g2 and deletes answer 204. */
+  function movingGitHub() {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init: RequestInit = {}) => {
+        const method = init.method ?? 'GET';
+        calls.push(`${method} ${url.replace('https://api.github.com', '')}`);
+        if (method === 'DELETE') return new Response(null, { status: 204 });
+        return Response.json({ id: 'g2', files: {} });
+      })
+    );
+    return calls;
+  }
+
+  it('moves the backup to a new encrypted gist and deletes the old one', async () => {
+    const calls = movingGitHub();
+    sync.link = linked;
+    await setPassphrase('blue kettle');
+    expect([calls, sync.link?.gistId, !!sync.link?.passphrase]).toEqual([['POST /gists', 'DELETE /gists/g1'], 'g2', true]);
+  });
+});
+

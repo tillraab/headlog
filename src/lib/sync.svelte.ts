@@ -1,10 +1,13 @@
 import { restoreBackup } from './backup';
-import { findGist, pull, push, readLink, writeLink, type GistLink } from './gist';
+import { PassphraseError } from './crypto';
+import { deleteGist, findGist, pull, push, readLink, writeLink, type GistLink } from './gist';
 
-export const sync = $state<{ link: GistLink | null; busy: boolean; error: string }>({
+/** `locked`: the gist holds an encrypted backup this phone has no working passphrase for. */
+export const sync = $state<{ link: GistLink | null; busy: boolean; error: string; locked: boolean }>({
   link: typeof localStorage !== 'undefined' ? readLink() : null,
   busy: false,
-  error: ''
+  error: '',
+  locked: false
 });
 
 async function run(task: () => Promise<void>) {
@@ -42,6 +45,7 @@ export async function connect(token: string): Promise<boolean> {
 }
 
 export function disconnect() {
+  sync.locked = false;
   save(null);
 }
 
@@ -64,12 +68,39 @@ export function syncQuietly() {
   syncNow().catch(() => {});
 }
 
-/** Restores the current backup, or an earlier `version` of it. */
-export async function restoreFromGist(version?: string) {
+/**
+ * Restores the current backup, or an earlier `version` of it. A `passphrase` that opens an encrypted backup is kept
+ * for the next uploads.
+ */
+export async function restoreFromGist(version?: string, passphrase?: string) {
   const link = sync.link;
   if (!link) return;
   await run(async () => {
-    await restoreBackup(await pull(link, version));
-    save({ ...link, lastHash: null, paused: false });
+    try {
+      await restoreBackup(await pull(link, version, passphrase ?? link.passphrase));
+    } catch (e) {
+      if (e instanceof PassphraseError) {
+        sync.locked = true;
+        // No upload may replace the encrypted backup before it is opened.
+        save({ ...link, paused: true });
+      }
+      throw e;
+    }
+    sync.locked = false;
+    save({ ...link, lastHash: null, paused: false, ...(passphrase ? { passphrase, salt: undefined } : {}) });
+  });
+}
+
+/**
+ * Sets, changes or removes (null) the passphrase. The backup moves to a new gist and the old one is deleted, so no
+ * earlier version stays readable without the passphrase or needs an old one.
+ */
+export async function setPassphrase(passphrase: string | null) {
+  const link = sync.link;
+  if (!link) return;
+  await run(async () => {
+    const moved = await push({ ...link, passphrase, salt: undefined, paused: false }, true, true);
+    if (link.gistId && link.gistId !== moved.gistId) await deleteGist(link.token, link.gistId);
+    save(moved);
   });
 }

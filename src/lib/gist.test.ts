@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBackup, wipe } from './backup';
 import { db, seed } from './db';
+import { PassphraseError } from './crypto';
 import { contentHash, listVersions, pull, push, type GistLink } from './gist';
 
 const link: GistLink = { token: 't', gistId: null, lastSync: null, lastHash: null };
@@ -96,6 +97,36 @@ describe('pull', () => {
   it('rejects a gist that holds something else', async () => {
     fakeGitHub('{"hello":1}');
     await expect(pull({ ...link, gistId: 'g1' })).rejects.toThrow('Not a HeadLog backup');
+  });
+});
+
+describe('encrypted backup', () => {
+  it('uploads only the encrypted envelope', async () => {
+    await addEntry();
+    const gh = fakeGitHub();
+    await push({ ...link, passphrase: 'blue kettle' }, true);
+    expect(gh.content()).toContain('headlog-encrypted');
+  });
+
+  it('does not upload the diary in plain text', async () => {
+    await db.episodes.add({ start: 1, end: 2, intensity: 5, tags: [], note: 'Skipped lunch' });
+    const gh = fakeGitHub();
+    await push({ ...link, passphrase: 'blue kettle' }, true);
+    expect(gh.content()).not.toContain('Skipped lunch');
+  });
+
+  it('restores with the passphrase', async () => {
+    await addEntry();
+    fakeGitHub();
+    const pushed = await push({ ...link, passphrase: 'blue kettle' }, true);
+    expect((await pull(pushed)).tables.episodes).toHaveLength(1);
+  });
+
+  it('asks for the passphrase when the phone has none', async () => {
+    await addEntry();
+    fakeGitHub();
+    const pushed = await push({ ...link, passphrase: 'blue kettle' }, true);
+    await expect(pull({ ...pushed, passphrase: null })).rejects.toBeInstanceOf(PassphraseError);
   });
 });
 

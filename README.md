@@ -32,7 +32,7 @@
 - **Reminders:** after taking medication, a question whether it helped (default after one hour; answer right in the notification), during a headache a question every few hours whether it is still there, reminders at noon and in the evening if you are behind your hydration goal, and, if you like, a reminder to drink when you have not logged a drink for a while (default: 2 hours, between 8:00 and 20:00).
 - **Undo instead of "are you sure?"** Every quick action shows an undo button.
 - **Backup** as a JSON file and **CSV export** for your doctor, both through the Android share sheet.
-- **Optional cloud backup** to a secret gist in your GitHub account, updated whenever you leave the app. Every backup is kept as a version, so you can go back to any earlier state by date and time.
+- **Optional cloud backup** to a secret gist in your GitHub account, updated whenever you leave the app. Every backup is kept as a version, so you can go back to any earlier state by date and time. With a passphrase, the backup is encrypted on the phone before it is uploaded (AES-256), so the gist cannot be read without it.
 - Swipeable tabs, light and dark theme, haptic feedback, Android back button support.
 
 ## Install on your phone
@@ -61,10 +61,10 @@ Updates work the same way: install the newer APK over the old one. Your data sta
 
 1. Open **Settings** (gear icon, top right). Edit **My medication** to match what you take, and **My drinks** to match your glasses and bottles. Set your daily water goal.
 2. Try **Load demo data** (Settings → Advanced) to see every screen with 90 days of data, including a risk warning. **Delete all data** clears it again.
-3. The data lives only on your phone, so uninstalling the app deletes it. Either export a JSON backup now and then (Settings → Data), or turn on the Gist backup:
+3. The data lives only on your phone, so uninstalling the app deletes it. Either export a JSON backup now and then (Settings → Backup → File), or turn on the Gist backup:
    1. On GitHub, open <https://github.com/settings/personal-access-tokens/new>, give the token a name and a long expiration, and under **Account permissions** set **Gists** to **Read and write**. Generate it and copy it.
-   2. In HeadLog, Settings → Cloud backup, paste the token and tap **Connect**.
-   3. The backup lives in a secret gist named "HeadLog backup", visible under your GitHub profile → Gists.
+   2. In HeadLog, Settings → Backup → GitHub Gist, paste the token and tap **Connect**.
+   3. The backup lives in a secret gist named "HeadLog backup", visible under your GitHub profile → Gists. Anyone with its link can read it, so set a passphrase under **Not encrypted** to encrypt it. Keep the passphrase somewhere safe: on a new phone you need the token and the passphrase to restore.
 
 ## Development
 
