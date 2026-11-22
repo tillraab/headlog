@@ -10,7 +10,7 @@
     {#each { length: 10 } as _, i (i)}
       {@const n = i + 1}
       <button
-        class="press h-12 rounded-lg text-base font-semibold tabular {n <= value ? 'text-white' : 'bg-surface-2 text-muted'}"
+        class="press h-12 rounded-lg text-base font-semibold tabular {n <= value ? 'text-on-fill' : 'bg-surface-2 text-muted'}"
         style:background-color={n <= value ? `color-mix(in oklab, var(--color-pain) ${40 + n * 6}%, var(--color-med))` : undefined}
         onclick={() => {
           tap();

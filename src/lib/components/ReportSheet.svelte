@@ -2,18 +2,17 @@
   import { exportForDoctor } from '$lib/doctor.svelte';
   import { t } from '$lib/i18n.svelte';
   import { data, saveSettings } from '$lib/store.svelte';
-  import { closeSheet } from '$lib/ui.svelte';
+  import { closeSheet, report } from '$lib/ui.svelte';
   import Sheet from './Sheet.svelte';
 
-  /** Report options, opened from Insights with the period selected there. */
-  let { months = $bindable(3) }: { months?: number } = $props();
+  /** Report options, opened with the period selected where it was opened. */
   let format = $state<'pdf' | 'csv'>('pdf');
   let busy = $state(false);
 
   async function share() {
     busy = true;
     try {
-      await exportForDoctor(months, format);
+      await exportForDoctor(report.months, format);
       closeSheet('report');
     } finally {
       busy = false;
@@ -28,7 +27,7 @@
       <input value={data.settings.reportName} placeholder={t('pdf.namePlaceholder')} onchange={(e) => saveSettings({ reportName: e.currentTarget.value.trim() })} />
     </label>
     <div class="grid grid-cols-2 gap-2">
-      <select bind:value={months}>
+      <select bind:value={report.months}>
         {#each [1, 3, 6, 12] as n (n)}<option value={n}>{t('pdf.months', { n })}</option>{/each}
       </select>
       <div class="flex rounded-xl bg-surface-2 p-1">
@@ -40,7 +39,7 @@
       </div>
     </div>
     <p class="text-sm text-muted">{format === 'pdf' ? t('report.pdf') : t('report.csv')}</p>
-    <button class="press min-h-12 rounded-xl bg-primary px-4 py-3 font-semibold text-primary-fg disabled:opacity-50" disabled={busy} onclick={share}>
+    <button class="press btn-primary" disabled={busy} onclick={share}>
       {t('set.doctorExport')}
     </button>
   </div>

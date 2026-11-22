@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { FACTOR_COLOR } from '$lib/colors';
   import { addDays, endOfDay, startOfDay } from 'date-fns';
   import { alcoholDays, alcoholPerDay, caffeineByDay, caffeineCurve, firstDrinkDay, hydrationCurve, pressureAround, usualCaffeine, usualCaffeineCurve } from '$lib/analysis';
   import { dayKey, formatLiters, hm, HOUR, keyToDate } from '$lib/days';
@@ -17,7 +18,6 @@
   /** A day chart: hours from 0 to 24 across, one or more lines, a marker at the current time. */
   type Line = { points: { hour: number; value: number }[]; color: string; dash?: string; step?: boolean; width?: number };
 
-  const STATUS: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
   const W = 320;
   const H = 150;
   const PAD = { left: 46, right: 14, top: 10, bottom: 20 };
@@ -154,16 +154,16 @@
       <div class="flex flex-col gap-2 rounded-2xl bg-surface p-3">
         {#each tomorrow.statuses as [k, s] (k)}
           <p class="flex items-center gap-2">
-            <span class="size-2.5 shrink-0 rounded-full" style:background-color={STATUS[s]}></span>
+            <span class="size-2.5 shrink-0 rounded-full" style:background-color={FACTOR_COLOR[s]}></span>
             <span class="min-w-0 flex-1">{t(`prog.tomorrowCheck.${k}`)}</span>
-            <span class="shrink-0 text-xs font-semibold" style:color={STATUS[s]}>{t(`prog.status.${s}`)}</span>
+            <span class="shrink-0 text-xs font-semibold" style:color={FACTOR_COLOR[s]}>{t(`prog.status.${s}`)}</span>
           </p>
         {/each}
       </div>
       <p class="text-muted">{t('prog.tomorrowRule')}</p>
     {:else}
       <p class="flex items-start gap-2">
-        <span class="mt-0.5 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold" style:color={STATUS[status]} style:background-color="color-mix(in oklab, {STATUS[status]} 14%, transparent)">
+        <span class="mt-0.5 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold" style:color={FACTOR_COLOR[status]} style:background-color="color-mix(in oklab, {FACTOR_COLOR[status]} 14%, transparent)">
           {t(`prog.status.${status}`)}
         </span>
         <span class="min-w-0">{whyText(p, key, !!data.settings.weather.place)}</span>

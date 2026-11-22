@@ -5,7 +5,6 @@
   import type { Drink, Episode, Intake } from '$lib/db';
   import { listVersions, pull, VERSIONS_PER_PAGE, type GistVersion } from '$lib/gist';
   import { fmt, t } from '$lib/i18n.svelte';
-  import { load } from '$lib/store.svelte';
   import { restoreFromGist, sync } from '$lib/sync.svelte';
   import { closeSheet, sheets, toast } from '$lib/ui.svelte';
   import Sheet from './Sheet.svelte';
@@ -90,7 +89,6 @@
     if (!confirm(t('versions.confirm', { time: fmt(v.at, 'd. MMM yyyy, HH:mm') }))) return;
     try {
       await restoreFromGist(v.version);
-      await load();
       toast(t('set.imported'));
       closeSheet('versions');
       closeSheet('settings');
@@ -132,7 +130,7 @@
                     {preview.latest ? t('versions.latest', { time: fmt(preview.latest, 'd. MMM yyyy, HH:mm') }) : t('versions.empty')}
                   </span>
                 </p>
-                <button class="press rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-fg disabled:opacity-50" disabled={sync.busy} onclick={() => restore(v)}>
+                <button class="press btn-primary" disabled={sync.busy} onclick={() => restore(v)}>
                   {t('versions.restore')}
                 </button>
               {/if}

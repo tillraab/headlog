@@ -322,7 +322,7 @@
       <div class="flex flex-wrap items-center gap-2">
         {#each night.breaks as b, i (i)}
           <button
-            class="press min-h-11 rounded-full px-3 py-1.5 text-sm font-medium tabular {selected === i ? 'bg-caution text-white' : 'bg-caution/15 text-caution'}"
+            class="press min-h-11 rounded-full px-3 py-1.5 text-sm font-medium tabular {selected === i ? 'bg-caution text-on-fill' : 'bg-caution/15 text-caution'}"
             onclick={() => select(selected === i ? null : i)}
           >
             {hm(b.start)}–{hm(b.end)} · {formatDuration(b.end - b.start)}

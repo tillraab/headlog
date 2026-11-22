@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { intakeColor } from '$lib/colors';
+  import { FACTOR_COLOR, intakeColor } from '$lib/colors';
   import { fromPreset } from '$lib/drinks';
   import { ACUTE_CATEGORIES, fromMedication } from '$lib/medication';
   import { ChevronRight, Pill, Plus, Zap } from '@lucide/svelte';
@@ -9,7 +9,7 @@
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { hydrationBefore } from '$lib/analysis';
-  import { factorIcon, prognosis, prognosisInput, type Status } from '$lib/prognosis';
+  import { factorIcon, prognosis, prognosisInput } from '$lib/prognosis';
   import { openFactor, openSheet } from '$lib/ui.svelte';
   import { dayKey } from '$lib/days';
   import { weatherEmoji } from '$lib/weather';
@@ -22,19 +22,18 @@
   const episodes = $derived(data.episodes.filter((e) => e.start < to && (e.end ?? clock.now) >= from));
   const intakes = $derived(data.intakes.filter((i) => i.time >= from && i.time < to));
   const drinks = $derived(data.drinks.filter((d) => d.time >= from && d.time < to));
-  /** Headaches, medication and drinks of the day in time order. */
+  /** Headaches, medication and drinks of the day, latest first, going back to the morning. */
   const entries = $derived(
     [
       ...episodes.map((e) => ({ time: e.start, kind: 'episode' as const, item: e })),
       ...intakes.map((i) => ({ time: i.time, kind: 'intake' as const, item: i })),
       ...drinks.map((d) => ({ time: d.time, kind: 'drink' as const, item: d }))
-    ].sort((a, b) => a.time - b.time)
+    ].sort((a, b) => b.time - a.time)
   );
   /** The forecast factors as they stood at the end of the day, or now for today. */
   const p = $derived(prognosis(prognosisInput(data), day < dayKey(clock.now) ? endOfDay(keyToDate(day)).getTime() : clock.now));
   const weather = $derived(data.weather.get(day));
   const night = $derived(data.sleep.get(day));
-  const STATUS: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
   const factors = $derived([
     {
       icon: factorIcon('weather'),
@@ -77,6 +76,30 @@
 
 <Sheet id="day" title={fmt(keyToDate(day), 'EEEE, d. MMMM yyyy')}>
   <div class="flex flex-col gap-3">
+    <h3 class="text-sm font-semibold tracking-wide text-muted uppercase">{t('day.factors')}</h3>
+    <div class="flex flex-col overflow-hidden rounded-2xl bg-surface">
+      {#each factors as f (f.label)}
+        <button class="press flex min-h-12 items-center gap-3 border-b border-line px-3 py-2 text-left last:border-b-0" onclick={f.open}>
+          <span class="text-xl leading-none">{f.icon}</span>
+          <span class="flex-1 font-medium">{f.label}</span>
+          <span class="min-w-0 truncate text-muted tabular">{f.value}</span>
+          <span class="size-2.5 shrink-0 rounded-full" style:background-color={FACTOR_COLOR[f.status]}></span>
+          <ChevronRight size={18} class="shrink-0 text-muted" />
+        </button>
+      {/each}
+    </div>
+
+    <h3 class="mt-2 text-sm font-semibold tracking-wide text-muted uppercase">{t('day.entries')}</h3>
+    <div class="flex flex-wrap gap-2">
+      <button
+        class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium"
+        onclick={addHeadache}
+      >
+        <Plus size={20} />{t('day.addHeadache')}
+      </button>
+      <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addMed}><Plus size={20} />{t('day.addMed')}</button>
+      <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addDrink}><Plus size={20} />{t('day.addDrink')}</button>
+    </div>
     {#if !entries.length}
       <p class="text-muted">{t('day.empty')}</p>
     {/if}
@@ -86,7 +109,7 @@
         {@const ep = entry.item}
         {@const before = hydrationBefore(data.drinks, ep.start)}
         <button class="press flex items-start gap-3 rounded-2xl bg-pain-soft p-3 text-left" onclick={() => edit({ kind: 'episode', item: ep })}>
-          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-pain text-white"><Zap size={20} /></span>
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-pain-soft text-pain"><Zap size={20} /></span>
           <span class="flex min-w-0 flex-col">
             <span class="font-semibold">{t('today.headache')} · {ep.intensity}/10</span>
             <span class="text-muted tabular">
@@ -107,7 +130,7 @@
       {:else if entry.kind === 'intake'}
         {@const intake = entry.item}
         <button class="press flex items-center gap-3 rounded-2xl bg-med-soft p-3 text-left" onclick={() => edit({ kind: 'intake', item: intake })}>
-          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med text-white"><Pill size={20} /></span>
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med-soft text-med"><Pill size={20} /></span>
           <span class="flex min-w-0 flex-1 flex-col">
             <span><span class="font-semibold">{intake.name}</span> {intake.dose}</span>
             <span class="flex items-center gap-1.5 text-xs text-muted">
@@ -126,29 +149,5 @@
         </button>
       {/if}
     {/each}
-
-    <div class="flex flex-wrap gap-2">
-      <button
-        class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium"
-        onclick={addHeadache}
-      >
-        <Plus size={20} />{t('day.addHeadache')}
-      </button>
-      <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addMed}><Plus size={20} />{t('day.addMed')}</button>
-      <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addDrink}><Plus size={20} />{t('day.addDrink')}</button>
-    </div>
-
-    <h3 class="mt-2 text-sm font-semibold tracking-wide text-muted uppercase">{t('day.factors')}</h3>
-    <div class="flex flex-col overflow-hidden rounded-2xl bg-surface">
-      {#each factors as f (f.label)}
-        <button class="press flex min-h-12 items-center gap-3 border-b border-line px-3 py-2 text-left last:border-b-0" onclick={f.open}>
-          <span class="text-xl leading-none">{f.icon}</span>
-          <span class="flex-1 font-medium">{f.label}</span>
-          <span class="min-w-0 truncate text-muted tabular">{f.value}</span>
-          <span class="size-2.5 shrink-0 rounded-full" style:background-color={STATUS[f.status]}></span>
-          <ChevronRight size={18} class="shrink-0 text-muted" />
-        </button>
-      {/each}
-    </div>
   </div>
 </Sheet>

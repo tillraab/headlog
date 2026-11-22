@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { RULE_COLOR } from '$lib/colors';
   import { FileText } from '@lucide/svelte';
-  import { average, caffeineByDay, compareDays, firstDrinkDay, headacheDays, intakeDays, monthlyCounts, periodStats, rollingDays, ruleStatus, TEN_TWENTY_LIMIT, tenTwenty, timeline, type RuleStatus } from '$lib/analysis';
+  import { average, caffeineByDay, compareDays, firstEntryDay, headacheDays, intakeDays, monthlyCounts, periodStats, rollingDays, ruleStatus, TEN_TWENTY_LIMIT, tenTwenty, timeline } from '$lib/analysis';
   import { entryDetailLines, formatComparison } from '$lib/format';
   import { addDays, endOfDay } from 'date-fns';
   import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays } from '$lib/days';
-  import { openDay, openSheet } from '$lib/ui.svelte';
+  import { openDay, openReport } from '$lib/ui.svelte';
   import { fmt, num, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { dropToNextDay, isPressureDrop, PRESSURE_DROP_HPA } from '$lib/weather';
@@ -14,17 +15,15 @@
   import CardHeading from './CardHeading.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
   import RangeButton from './RangeButton.svelte';
-  import ReportSheet from './ReportSheet.svelte';
+  import Segmented from './Segmented.svelte';
   import TimelineChart, { type Row } from './TimelineChart.svelte';
 
   const PERIODS = [3, 7, 30];
   /** From 15 headache days a month, ICHD-3 speaks of chronic headache (chronic migraine: for more than 3 months). */
   const CHRONIC_DAYS = 15;
-  const RULE_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-med)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   /** The chosen number of days, or a From–To range when `custom` is set. */
   let period = $state(30);
   let custom = $state<{ from: string; to: string } | null>(null);
-  let reportMonths = $state(1);
 
   const today = $derived(dayKey(clock.now));
   const keys = $derived(custom ? dayRange(keyToDate(custom.from), keyToDate(custom.to)) : lastDays(clock.now, period));
@@ -40,7 +39,7 @@
 
   function openCustom() {
     const from = dayKey(addDays(clock.now, -89));
-    const first = firstDrinkDay(data.drinks);
+    const first = firstEntryDay(data);
     custom ??= { from: first && first > from ? first : from, to: today };
   }
   /**
@@ -79,8 +78,8 @@
     const headache = rollingDays(new Set(headacheDays(data.episodes, clock.now).keys()), last, span).map((r) => r.count);
     const med = rollingDays(acuteDays, last, span).map((r) => r.count);
     const ahead = forecastKeys.map(() => null);
-    /** Days before the first logged drink are before the app was in use; their counts are left out of the average. */
-    const first = firstDrinkDay(data.drinks);
+    /** Days before the first entry are before the app was in use; their counts are left out of the average. */
+    const first = firstEntryDay(data);
     const inUse = (counts: number[]) => counts.filter((_, i) => first === null || keys[i] >= first);
     const lastCount = (counts: number[]) =>
       keys[keys.length - 1] === today ? t('cal.rollingNow', { n: counts[counts.length - 1] }) : t('cal.rollingOn', { n: counts[counts.length - 1], date: fmt(last, 'd. MMM') });
@@ -202,14 +201,12 @@
 <div class="flex flex-col gap-3 pb-6">
   <header class="flex flex-col gap-2 pt-2">
 <h1 class="text-3xl font-semibold">{t('tab.insights')}</h1>
-    <div class="flex rounded-full bg-surface-2 p-1 text-xs font-medium">
-      {#each PERIODS as p (p)}
-        <button class="press min-h-10 flex-auto rounded-full px-1 py-1.5 whitespace-nowrap {!custom && period === p ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => ((period = p), (custom = null))}>
-          {t('ins.days', { n: p })}
-        </button>
-      {/each}
-      <button class="press min-h-10 flex-auto rounded-full px-1 py-1.5 whitespace-nowrap {custom ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={openCustom}>{t('ins.custom')}</button>
-    </div>
+    <Segmented
+      fill
+      options={[...PERIODS.map((p): [string, string] => [String(p), t('ins.days', { n: p })]), ['custom', t('ins.custom')]]}
+      value={custom ? 'custom' : String(period)}
+      onchange={(v) => (v === 'custom' ? openCustom() : ((period = Number(v)), (custom = null)))}
+    />
     {#if custom}
       <RangeButton from={custom.from} to={custom.to} onpick={(r) => (custom = r)} />
     {/if}
@@ -313,14 +310,10 @@
   {/if}
   <button
     class="press mt-3 flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 px-4 py-3 font-semibold"
-    onclick={() => {
-      reportMonths = reportFor;
-      openSheet('report');
-    }}
+    onclick={() => openReport(reportFor)}
   >
     <FileText size={22} />
     {t('pdf.insightsButton', { n: reportFor })}
   </button>
 </div>
 
-<ReportSheet bind:months={reportMonths} />

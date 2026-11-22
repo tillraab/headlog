@@ -4,7 +4,7 @@
   import InfoButton from './InfoButton.svelte';
   import { fade, fly } from 'svelte/transition';
   import { t } from '$lib/i18n.svelte';
-  import { closeSheet, sheets, type InfoPart, type SheetId } from '$lib/ui.svelte';
+  import { requestClose, sheets, type InfoPart, type SheetId } from '$lib/ui.svelte';
 
   let {
     id,
@@ -34,7 +34,7 @@
     class="fixed inset-0 bg-black/40"
     style:z-index={z}
     transition:fade={{ duration: 150 }}
-    onclick={() => closeSheet(id)}
+    onclick={() => requestClose(id)}
     role="presentation"
   ></div>
   <div
@@ -49,7 +49,7 @@
       <h2 class="min-w-0 text-lg font-semibold">{title}</h2>
       {#if info}<InfoButton {title} text={info} {sources} />{/if}
       {#if actions}<div class="ml-auto">{@render actions()}</div>{/if}
-      <button class="press -mr-2 {actions ? 'ml-1' : 'ml-auto'} grid size-11 shrink-0 place-items-center rounded-full hover:bg-surface-2" onclick={() => closeSheet(id)} aria-label={t('a11y.close')}>
+      <button class="press -mr-2 {actions ? 'ml-1' : 'ml-auto'} grid size-11 shrink-0 place-items-center rounded-full hover:bg-surface-2" onclick={() => requestClose(id)} aria-label={t('a11y.close')}>
         <X size={24} />
       </button>
     </div>

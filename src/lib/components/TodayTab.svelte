@@ -95,7 +95,7 @@
 {#snippet hydrationCard()}
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-center justify-between gap-2">
-      <h2 class="flex items-center gap-1.5 text-base font-semibold">
+      <h2 class="flex items-center gap-1.5 text-lg font-semibold">
         <Droplets size={22} class="shrink-0 text-water" />
         {t('today.water')}
         {#if hydration.current >= 1}
@@ -156,7 +156,7 @@
 {#snippet medsCard()}
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-center justify-between gap-2">
-      <h2 class="flex items-center gap-1.5 text-base font-semibold">
+      <h2 class="flex items-center gap-1.5 text-lg font-semibold">
         <Pill size={22} class="shrink-0 text-med" />
         {t('today.meds')}
         <button class="press -my-2 -ml-1 grid size-11 shrink-0 place-items-center rounded-full text-muted" onclick={() => openSheet('medList')} aria-label={t('set.meds')}>
@@ -192,7 +192,7 @@
               </span>
             {/if}
             {#if count}
-              <span class="absolute top-2 right-2 grid size-7 place-items-center rounded-full bg-med text-sm font-semibold text-white tabular">{count}</span>
+              <span class="absolute top-2 right-2 grid size-7 place-items-center rounded-full bg-med text-sm font-semibold text-on-fill tabular">{count}</span>
             {/if}
           </button>
         {/each}
@@ -265,7 +265,7 @@
   {:else}
     <section>
       <button
-        class="press group relative flex h-36 w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-3xl bg-pain text-white shadow-lg shadow-pain/25"
+        class="press group relative flex h-36 w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-3xl bg-pain text-on-pain shadow-lg shadow-pain/25"
         onclick={start}
       >
         <Zap size={36} strokeWidth={2.4} />

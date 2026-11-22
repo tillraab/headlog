@@ -11,7 +11,7 @@ const fakeStorage = {
 };
 vi.stubGlobal('localStorage', fakeStorage);
 
-const { connect, disconnect, pauseSync, restoreFromGist, setPassphrase, sync, syncNow } = await import('./sync.svelte');
+const { backupProblem, connect, disconnect, pauseSync, restoreFromGist, setPassphrase, sync, syncNow } = await import('./sync.svelte');
 
 /** Fake GitHub gist API that keeps one gist in memory. `status` makes every call fail with it. */
 function fakeGitHub(content: string | null, status = 200) {
@@ -145,5 +145,25 @@ describe('a locked gist', () => {
     sync.link = { ...linked, locked: true };
     await setPassphrase('blue kettle');
     expect(calls).toEqual([]);
+  });
+});
+
+describe('a failing backup', () => {
+  it('keeps the error until an upload succeeds', async () => {
+    fakeGitHub('{}', 401);
+    sync.link = linked;
+    await syncNow(true).catch(() => {});
+    const failed = sync.link?.lastError;
+    fakeGitHub('{}');
+    await syncNow(true);
+    expect([failed, sync.link?.lastError]).toEqual(['GitHub 401', null]);
+  });
+
+  it.each([
+    ['GitHub 401', 'no longer accepts the token'],
+    ['GitHub 404', 'gist was not found'],
+    ['Failed to fetch', 'Failed to fetch']
+  ])('explains %s', (error, text) => {
+    expect(backupProblem({ ...linked, lastError: error })).toContain(text);
   });
 });

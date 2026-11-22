@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-11-23
+
+### Changed
+
+- Colours: text on bright fills (intensity, medication count, headache days, selected wake break) is dark in both themes; status green, orange and red are easier to read in light and dark mode. The day view icons use the soft style.
+- A sheet with unsaved changes asks before it closes by a tap beside it, its X or Back; returning to Today after a while away leaves open Settings and unsaved edits alone.
+- A failing automatic backup is shown in Settings with its cause, and the settings icon gets a red dot until a backup works again.
+- Day view: the factors come first, then the entries from the latest back to the morning.
+- Sleep sheet: an Edit button replaces the checkbox.
+- One style for sheet buttons and one switch for language, theme, backup and Insights periods, each option 44 px tall.
+- The date range and the days-in-30 averages start at the first entry of any kind.
+
+### Fixed
+
+- The relief question is planned again when deleting an intake is undone.
+
 ## [0.41.0] - 2026-11-22
 
 ### Fixed

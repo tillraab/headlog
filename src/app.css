@@ -17,9 +17,13 @@
   --color-med-soft: #fdf0d8;
   --color-water: #1f8fe0;
   --color-water-soft: #dcefff;
-  --color-ok: #16a26b;
-  --color-caution: #d98a04;
-  --color-over: #dc3a3a;
+  --color-ok: #12875a;
+  --color-caution: #a86a00;
+  --color-over: #c92f2f;
+  /* Text on the bright fills (medication, caution, the intensity scale): dark in both themes. */
+  --color-on-fill: #1a1a19;
+  /* Text on the headache red. */
+  --color-on-pain: #ffffff;
   /* Type scale for a phone held at arm's length: body 15 px, secondary 13 px, nothing under 12 px but chart axes. */
   --text-axis: 10px;
   --text-axis--line-height: 1;
@@ -54,6 +58,11 @@
   --color-med-soft: #3d2e14;
   --color-water: #4fb0f5;
   --color-water-soft: #15324a;
+  --color-ok: #34c88a;
+  --color-caution: #f0a530;
+  --color-over: #f26464;
+  --color-on-fill: #121212;
+  --color-on-pain: #1f0a10;
 }
 
 html,
@@ -92,8 +101,17 @@ body {
 }
 
 /** The main button of a card. */
+/* Sheet and card buttons: the main action, a second one on a grey fill, and a quiet one without fill (Cancel, Delete). */
 @utility btn-primary {
-  @apply min-h-11 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg;
+  @apply min-h-11 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50;
+}
+
+@utility btn-secondary {
+  @apply min-h-11 rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium disabled:opacity-50;
+}
+
+@utility btn-quiet {
+  @apply min-h-11 rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-50;
 }
 
 @utility no-scrollbar {

@@ -5,7 +5,7 @@
    */
   import { ChevronLeft, ChevronRight } from '@lucide/svelte';
   import { addMonths, endOfMonth, getDay, startOfMonth } from 'date-fns';
-  import { firstDrinkDay } from '$lib/analysis';
+  import { firstEntryDay } from '$lib/analysis';
   import { dayKey, dayRange, keyToDate, pickRangeDay, rangeDayCount } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -13,7 +13,7 @@
   import Sheet from './Sheet.svelte';
 
   const today = $derived(dayKey(clock.now));
-  const first = $derived(firstDrinkDay(data.drinks) ?? today);
+  const first = $derived(firstEntryDay(data) ?? today);
   let range = $state<{ from: string; to: string | null }>({ from: '', to: null });
   let month = $state(startOfMonth(Date.now()));
 
@@ -76,8 +76,8 @@
     </div>
     <p class="text-center text-xs text-muted">{t('range.firstDay', { date: fmt(keyToDate(first), 'd. MMM yyyy') })}</p>
     <div class="flex justify-end gap-2">
-      <button class="press min-h-11 rounded-full px-4 font-medium" onclick={() => closeSheet('range')}>{t('edit.cancel')}</button>
-      <button class="press min-h-11 rounded-full bg-primary px-5 font-semibold text-primary-fg" onclick={apply}>{t('range.apply')}</button>
+      <button class="press btn-quiet" onclick={() => closeSheet('range')}>{t('edit.cancel')}</button>
+      <button class="press btn-primary" onclick={apply}>{t('range.apply')}</button>
     </div>
   </div>
 </Sheet>

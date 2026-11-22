@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Pencil } from '@lucide/svelte';
   import { conflictingOngoing } from '$lib/analysis';
   import { RELIEFS, type Night } from '$lib/db';
   import { fromPreset } from '$lib/drinks';
@@ -7,7 +8,7 @@
   import { reliefLabels, t } from '$lib/i18n.svelte';
   import { manualNight, SHORT_WAKE_MINUTES } from '$lib/sleep';
   import { data, remove, saveDrink, saveEpisode, saveIntake, saveNight, type EntryTable } from '$lib/store.svelte';
-  import { closeSheet, fromLocalInput, toast, toLocalInput } from '$lib/ui.svelte';
+  import { closeSheet, fromLocalInput, toast, toLocalInput, trackUnsaved } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import TagPicker from './TagPicker.svelte';
   import SleepTimeline from './SleepTimeline.svelte';
@@ -22,6 +23,10 @@
     current?.kind === 'episode' ? t('edit.headache') : current?.kind === 'intake' ? t('edit.intake') : current?.kind === 'sleep' ? t('sleep.title') : t('edit.drink')
   );
   let error = $state('');
+  /** The entry differs from how it opened. */
+  const changed = () => !!editor.current && JSON.stringify(editor.current.item) !== editor.opened;
+  $effect(() => trackUnsaved('editor', changed));
+
   /** A night shown as an overview, without changes to save, only needs closing. */
   const viewOnly = $derived(current?.kind === 'sleep' && !editor.sleepEditing && JSON.stringify(current.item) === editor.opened);
 
@@ -84,11 +89,13 @@
 
 </script>
 
+<!-- The night opens as an overview; Edit shows the controls, and Cancel or Save end editing. -->
 {#snippet sleepEdit()}
-  <label class="flex min-h-11 items-center gap-2 font-medium">
-    <input type="checkbox" class="size-6 accent-primary" bind:checked={editor.sleepEditing} />
-    {t('sleep.edit')}
-  </label>
+  {#if !editor.sleepEditing}
+    <button class="press flex min-h-11 items-center gap-1.5 rounded-full px-3 font-medium text-primary" onclick={() => (editor.sleepEditing = true)}>
+      <Pencil size={18} />{t('sleep.edit')}
+    </button>
+  {/if}
 {/snippet}
 
 <Sheet
@@ -208,13 +215,13 @@
 
       <div class="mt-2 flex gap-2">
         {#if current.kind !== 'sleep' && current.item.id !== undefined}
-          <button class="press rounded-2xl px-4 py-3 font-medium text-over" onclick={del}>{t('edit.delete')}</button>
+          <button class="press btn-quiet text-over" onclick={del}>{t('edit.delete')}</button>
         {/if}
         {#if viewOnly}
-          <button class="press ml-auto rounded-2xl bg-surface-2 px-6 py-3 font-medium" onclick={close}>{t('edit.close')}</button>
+          <button class="press ml-auto btn-secondary" onclick={close}>{t('edit.close')}</button>
         {:else}
-          <button class="press ml-auto rounded-2xl px-4 py-3 font-medium" onclick={close}>{t('edit.cancel')}</button>
-          <button class="press rounded-2xl bg-primary px-6 py-3 font-semibold text-primary-fg" onclick={save}>{t('edit.save')}</button>
+          <button class="press ml-auto btn-quiet" onclick={close}>{t('edit.cancel')}</button>
+          <button class="press btn-primary px-6" onclick={save}>{t('edit.save')}</button>
         {/if}
       </div>
     </div>

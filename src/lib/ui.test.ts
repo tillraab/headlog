@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { AWAY_RESET_MS, awayLongEnough, closeAllSheets, factorSheet, openFactor, closeTopSheet, fromLocalInput, info, openSheet, sheets, showInfo, toLocalInput } from './ui.svelte';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AWAY_RESET_MS, awayLongEnough, busyInSheet, closeAllSheets, factorSheet, openFactor, closeTopSheet, fromLocalInput, info, openSheet, requestClose, sheets, showInfo, toLocalInput, trackUnsaved } from './ui.svelte';
 
 describe('fromLocalInput', () => {
   it.each(['', 'garbage', '2026-13-40T99:99'])('returns null for %j', (value) => {
@@ -76,5 +76,43 @@ describe('openFactor', () => {
     closeAllSheets();
     openFactor('caffeine');
     expect([factorSheet.key, sheets.stack]).toEqual(['caffeine', ['factor']]);
+  });
+});
+
+afterEach(() => {
+  closeAllSheets();
+  vi.unstubAllGlobals();
+});
+
+describe('requestClose', () => {
+  it('keeps a sheet with unsaved changes open when the user does not discard them', () => {
+    const untrack = trackUnsaved('editor', () => true);
+    vi.stubGlobal('confirm', () => false);
+    openSheet('editor');
+    requestClose('editor');
+    untrack();
+    expect(sheets.stack).toEqual(['editor']);
+  });
+
+  it('closes a sheet without changes at once', () => {
+    const untrack = trackUnsaved('editor', () => false);
+    openSheet('editor');
+    requestClose('editor');
+    untrack();
+    expect(sheets.stack).toEqual([]);
+  });
+});
+
+describe('busyInSheet', () => {
+  it.each([
+    ['settings', false, true],
+    ['editor', true, true],
+    ['editor', false, false]
+  ] as const)('is %s with changes %s: %s', (id, changes, busy) => {
+    const untrack = trackUnsaved('editor', () => changes);
+    openSheet(id);
+    const result = busyInSheet();
+    untrack();
+    expect(result).toBe(busy);
   });
 });

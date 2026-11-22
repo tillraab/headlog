@@ -44,7 +44,7 @@
   <div class="flex items-center justify-between">
     <span class="text-sm text-muted">{t('edit.tags')}</span>
     {#if list.length}
-      <button class="press min-h-9 px-1 text-sm font-medium text-primary" onclick={() => ((editing = !editing), (adding = false))}>
+      <button class="press min-h-11 px-1 text-sm font-medium text-primary" onclick={() => ((editing = !editing), (adding = false))}>
         {editing ? t('tags.done') : t('tags.edit')}
       </button>
     {/if}
@@ -73,7 +73,7 @@
   {#if adding}
     <form class="mt-1 flex gap-2" onsubmit={(e) => (e.preventDefault(), add())}>
       <input class="min-w-0 flex-1" bind:this={field} bind:value={text} placeholder={t('tags.placeholder')} />
-      <button class="press btn-primary disabled:opacity-50" disabled={!text.trim()}>{t('tags.add')}</button>
+      <button class="press btn-primary" disabled={!text.trim()}>{t('tags.add')}</button>
       <button type="button" class="press min-h-11 px-2 text-sm font-medium" onclick={() => ((adding = false), (text = ''))}>{t('edit.cancel')}</button>
     </form>
   {:else if !editing}

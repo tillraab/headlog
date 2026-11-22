@@ -1,3 +1,4 @@
+import { restoreBackup, type Backup } from './backup';
 import { db, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type Relief, type WeatherDay } from './db';
 import { DAY, dayKey, HOUR, MINUTE } from './days';
 import { fromPreset } from './drinks';
@@ -59,6 +60,12 @@ export function startClock() {
   };
 }
 
+/** Replaces all data with a backup and shows it, so no caller can forget to reload. */
+export async function restore(backup: Backup) {
+  await restoreBackup(backup);
+  await load();
+}
+
 export function ongoingEpisode(): Episode | undefined {
   return data.episodes.find((e) => e.end === null);
 }
@@ -78,15 +85,18 @@ export async function saveEpisode(episode: Draft<Episode>) {
 export async function saveIntake(intake: Draft<Intake>) {
   const before = intake.id === undefined ? undefined : await db.intakes.get(intake.id);
   const id = await db.intakes.put($state.snapshot(intake));
-  if (intake.relief !== null) void cancelReliefCheck(id).catch(() => {});
-  else if (before && before.time !== intake.time) void moveReliefCheck({ id, time: intake.time, name: intake.name });
+  if (intake.relief !== null || !before || before.time !== intake.time) syncReliefCheck({ ...intake, id });
   await load();
 }
 
-function moveReliefCheck(intake: { id: number; time: number; name: string }) {
+/**
+ * Plans the "did it help?" question of an intake afresh: none once it is rated, otherwise at its time plus the
+ * delay set, as long as that is still ahead.
+ */
+function syncReliefCheck(intake: Pick<Intake, 'id' | 'time' | 'name' | 'relief'>) {
   const delay = data.settings.reliefCheckMinutes;
-  return cancelReliefCheck(intake.id)
-    .then(() => (delay > 0 ? scheduleReliefCheck(intake, delay) : undefined))
+  void cancelReliefCheck(intake.id)
+    .then(() => (intake.relief === null && delay > 0 ? scheduleReliefCheck(intake, delay) : undefined))
     .catch(() => {});
 }
 
@@ -97,8 +107,7 @@ export async function saveDrink(drink: Draft<Drink>) {
 
 export async function logIntake(med: Medication, time = Date.now()): Promise<number> {
   const id = await db.intakes.add({ time, ...fromMedication(med), relief: null });
-  const delay = data.settings.reliefCheckMinutes;
-  if (delay > 0) void scheduleReliefCheck({ id, time, name: med.name }, delay).catch(() => {});
+  syncReliefCheck({ id, time, name: med.name, relief: null });
   await load();
   return id;
 }
@@ -120,6 +129,7 @@ export async function remove(table: EntryTable, id: number): Promise<() => Promi
   await load();
   return async () => {
     if (row) await db.table(table).put(row);
+    if (row && table === 'intakes') syncReliefCheck(row as Intake);
     await load();
   };
 }

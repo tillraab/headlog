@@ -1,5 +1,6 @@
-import { restoreBackup } from './backup';
 import { PassphraseError } from './crypto';
+import { t } from './i18n.svelte';
+import { restore } from './store.svelte';
 import { deleteGist, findGist, pull, push, readLink, writeLink, type GistLink } from './gist';
 
 /** `locked`: the gist holds an encrypted backup this phone has no working passphrase for. */
@@ -53,10 +54,24 @@ export async function syncNow(force = false) {
   const link = sync.link;
   // A locked gist holds a backup this phone cannot open; it is never replaced before it is opened.
   if (!link || link.locked) return;
-  await run(async () => {
-    const result = await push(link, force);
-    save(force ? { ...result, paused: false, pausedFor: undefined } : result);
-  });
+  try {
+    await run(async () => {
+      const result = await push(link, force);
+      save({ ...result, lastError: null, ...(force ? { paused: false, pausedFor: undefined } : {}) });
+    });
+  } catch (e) {
+    if (sync.link) save({ ...sync.link, lastError: sync.error });
+    throw e;
+  }
+}
+
+/** A failed upload in words: an expired token and a deleted gist get their own hint. */
+export function backupProblem(link: GistLink | null): string {
+  const error = link?.lastError;
+  if (!error) return '';
+  if (error.includes('401') || error.includes('403')) return t('sync.errToken');
+  if (error.includes('404')) return t('sync.errGone');
+  return t('sync.errOther', { error });
 }
 
 /** Stops automatic uploads, so deleted or demo data does not overwrite the backup. */
@@ -78,7 +93,7 @@ export async function restoreFromGist(version?: string, passphrase?: string) {
   if (!link) return;
   await run(async () => {
     try {
-      await restoreBackup(await pull(link, version, passphrase ?? link.passphrase));
+      await restore(await pull(link, version, passphrase ?? link.passphrase));
     } catch (e) {
       if (e instanceof PassphraseError) {
         sync.locked = true;

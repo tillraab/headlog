@@ -18,6 +18,8 @@ export interface GistLink {
   pausedFor?: 'demo' | 'wipe';
   /** The gist holds an encrypted backup this phone cannot open yet; nothing may replace it until it is opened. */
   locked?: boolean;
+  /** Why the last upload failed, until one succeeds; kept so a failing automatic backup does not go unnoticed. */
+  lastError?: string | null;
   /** With a passphrase, the backup is encrypted before upload; the salt of its key goes with it. */
   passphrase?: string | null;
   salt?: string;

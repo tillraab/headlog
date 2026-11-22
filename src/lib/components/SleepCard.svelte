@@ -38,8 +38,8 @@
     </div>
     <p class="text-muted">{t('sleep.card.question')}</p>
     <div class="grid grid-cols-2 gap-2">
-      <button class="press min-h-11 rounded-xl bg-surface-2 py-2.5 font-medium" onclick={() => openNight(day, true)}>{t('sleep.card.fix')}</button>
-      <button class="press min-h-11 rounded-xl bg-primary py-2.5 font-semibold text-primary-fg" onclick={confirm}>{t('sleep.card.ok')}</button>
+      <button class="press btn-secondary" onclick={() => openNight(day, true)}>{t('sleep.card.fix')}</button>
+      <button class="press btn-primary" onclick={confirm}>{t('sleep.card.ok')}</button>
     </div>
   </section>
 {:else if !night && data.settings.sleep.enabled}
