@@ -76,8 +76,8 @@
     </div>
     <p class="text-center text-xs text-muted">{t('range.firstDay', { date: fmt(keyToDate(first), 'd. MMM yyyy') })}</p>
     <div class="flex justify-end gap-2">
-      <button class="press min-h-11 rounded-full px-4 font-medium" onclick={() => closeSheet('range')}>{t('edit.cancel')}</button>
-      <button class="press min-h-11 rounded-full bg-primary px-5 font-semibold text-primary-fg" onclick={apply}>{t('range.apply')}</button>
+      <button class="press btn-quiet" onclick={() => closeSheet('range')}>{t('edit.cancel')}</button>
+      <button class="press btn-primary" onclick={apply}>{t('range.apply')}</button>
     </div>
   </div>
 </Sheet>

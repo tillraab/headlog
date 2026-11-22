@@ -95,7 +95,7 @@
 {#snippet hydrationCard()}
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-center justify-between gap-2">
-      <h2 class="flex items-center gap-1.5 text-base font-semibold">
+      <h2 class="flex items-center gap-1.5 text-lg font-semibold">
         <Droplets size={22} class="shrink-0 text-water" />
         {t('today.water')}
         {#if hydration.current >= 1}
@@ -156,7 +156,7 @@
 {#snippet medsCard()}
   <section class="card flex flex-col gap-3 p-4">
     <div class="flex items-center justify-between gap-2">
-      <h2 class="flex items-center gap-1.5 text-base font-semibold">
+      <h2 class="flex items-center gap-1.5 text-lg font-semibold">
         <Pill size={22} class="shrink-0 text-med" />
         {t('today.meds')}
         <button class="press -my-2 -ml-1 grid size-11 shrink-0 place-items-center rounded-full text-muted" onclick={() => openSheet('medList')} aria-label={t('set.meds')}>

@@ -39,7 +39,7 @@
       </div>
     </div>
     <p class="text-sm text-muted">{format === 'pdf' ? t('report.pdf') : t('report.csv')}</p>
-    <button class="press min-h-12 rounded-xl bg-primary px-4 py-3 font-semibold text-primary-fg disabled:opacity-50" disabled={busy} onclick={share}>
+    <button class="press btn-primary" disabled={busy} onclick={share}>
       {t('set.doctorExport')}
     </button>
   </div>

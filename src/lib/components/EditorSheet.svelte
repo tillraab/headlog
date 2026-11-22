@@ -212,13 +212,13 @@
 
       <div class="mt-2 flex gap-2">
         {#if current.kind !== 'sleep' && current.item.id !== undefined}
-          <button class="press rounded-2xl px-4 py-3 font-medium text-over" onclick={del}>{t('edit.delete')}</button>
+          <button class="press btn-quiet text-over" onclick={del}>{t('edit.delete')}</button>
         {/if}
         {#if viewOnly}
-          <button class="press ml-auto rounded-2xl bg-surface-2 px-6 py-3 font-medium" onclick={close}>{t('edit.close')}</button>
+          <button class="press ml-auto btn-secondary" onclick={close}>{t('edit.close')}</button>
         {:else}
-          <button class="press ml-auto rounded-2xl px-4 py-3 font-medium" onclick={close}>{t('edit.cancel')}</button>
-          <button class="press rounded-2xl bg-primary px-6 py-3 font-semibold text-primary-fg" onclick={save}>{t('edit.save')}</button>
+          <button class="press ml-auto btn-quiet" onclick={close}>{t('edit.cancel')}</button>
+          <button class="press btn-primary px-6" onclick={save}>{t('edit.save')}</button>
         {/if}
       </div>
     </div>

@@ -130,7 +130,7 @@
                     {preview.latest ? t('versions.latest', { time: fmt(preview.latest, 'd. MMM yyyy, HH:mm') }) : t('versions.empty')}
                   </span>
                 </p>
-                <button class="press rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-fg disabled:opacity-50" disabled={sync.busy} onclick={() => restore(v)}>
+                <button class="press btn-primary" disabled={sync.busy} onclick={() => restore(v)}>
                   {t('versions.restore')}
                 </button>
               {/if}

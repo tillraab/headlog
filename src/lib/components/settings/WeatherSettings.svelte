@@ -38,7 +38,7 @@
       <span>🌦️ {data.settings.weather.place.name}</span>
       <input
         type="checkbox"
-        class="size-6 accent-primary"
+        class="size-6 shrink-0 accent-primary"
         checked={data.settings.weather.enabled}
         onchange={async (e) => {
           await saveSettings({ weather: { ...data.settings.weather, enabled: e.currentTarget.checked } });
@@ -56,7 +56,7 @@
     }}
   >
     <input placeholder={data.settings.weather.place ? t('weather.change') : t('weather.search')} bind:value={placeQuery} />
-    <button class="press min-h-11 shrink-0 rounded-xl bg-primary px-4 font-semibold text-primary-fg disabled:opacity-50" disabled={!placeQuery.trim()}>
+    <button class="press btn-primary shrink-0" disabled={!placeQuery.trim()}>
       {t('weather.find')}
     </button>
   </form>

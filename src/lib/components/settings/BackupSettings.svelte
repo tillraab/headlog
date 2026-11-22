@@ -7,6 +7,7 @@
   import { data, restore } from '$lib/store.svelte';
   import { backupProblem, connect, disconnect, restoreFromGist, setPassphrase, sync, syncNow } from '$lib/sync.svelte';
   import { openSheet, toast } from '$lib/ui.svelte';
+  import Segmented from '../Segmented.svelte';
 
   let fileInput = $state<HTMLInputElement>();
 
@@ -110,20 +111,20 @@
 </script>
 
 <div class="card flex flex-col gap-3 p-4 text-body">
-  <div class="flex rounded-full bg-surface-2 p-1 text-sm">
-    {#each [['gist', t('backup.gist')], ['file', t('backup.file')]] as [key, label] (key)}
-      <button
-        class="press min-h-10 flex-1 rounded-full px-3 py-1.5 font-medium {backupMethod === key ? 'bg-surface shadow-sm' : 'text-muted'}"
-        aria-pressed={backupMethod === key}
-        onclick={() => (backupMethod = key as 'gist' | 'file')}>{label}</button
-      >
-    {/each}
-  </div>
+  <Segmented
+    fill
+    options={[
+      ['gist', t('backup.gist')],
+      ['file', t('backup.file')]
+    ]}
+    value={backupMethod}
+    onchange={(v) => (backupMethod = v)}
+  />
   {#if backupMethod === 'file'}
     <p class="text-muted">{t('set.backupHint')}</p>
     <div class="grid grid-cols-2 gap-2">
       <button class="press btn-primary" onclick={exportJson}>{t('set.export')}</button>
-      <button class="press min-h-11 rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium" onclick={() => fileInput?.click()}>{t('set.import')}</button>
+      <button class="press btn-secondary" onclick={() => fileInput?.click()}>{t('set.import')}</button>
     </div>
   {:else if sync.link}
     {#if backupProblem(sync.link)}<p class="rounded-xl bg-pain-soft p-3">{backupProblem(sync.link)}</p>{/if}
@@ -143,7 +144,7 @@
         <p class="text-sm text-muted">{t('crypt.onHint')}</p>
         <div class="flex flex-wrap gap-2">
           <button class="press min-h-11 rounded-xl bg-surface px-4 py-2.5 text-sm font-medium" onclick={() => (changing = true)}>{t('crypt.change')}</button>
-          <button class="press min-h-11 rounded-xl px-4 py-2.5 text-sm font-medium text-over disabled:opacity-50" disabled={sync.busy} onclick={() => encryptGist(null)}>
+          <button class="press btn-quiet text-over" disabled={sync.busy} onclick={() => encryptGist(null)}>
             {t('crypt.remove')}
           </button>
         </div>
@@ -165,26 +166,26 @@
         <p class="text-sm text-muted">{t('crypt.warning')}</p>
         <div class="flex flex-wrap gap-2">
           <button
-            class="press btn-primary disabled:opacity-50"
+            class="press btn-primary"
             disabled={passphrase.length < 8 || passphrase !== passphrase2 || sync.busy}
             onclick={() => encryptGist(passphrase)}>{t(encrypted ? 'crypt.save' : 'crypt.set')}</button
           >
           {#if changing}
-            <button class="press min-h-11 rounded-xl px-4 py-2.5 text-sm font-medium" onclick={() => ((changing = false), (passphrase = passphrase2 = ''))}>{t('edit.cancel')}</button>
+            <button class="press btn-quiet" onclick={() => ((changing = false), (passphrase = passphrase2 = ''))}>{t('edit.cancel')}</button>
           {/if}
         </div>
       {/if}
     </div>
     <div class="flex flex-wrap gap-2">
       <button
-        class="press btn-primary disabled:opacity-50"
+        class="press btn-primary"
         disabled={sync.busy || sync.locked}
         onclick={backupNow}>{t('sync.now')}</button
       >
-      <button class="press min-h-11 rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium disabled:opacity-50" disabled={sync.busy} onclick={restoreGist}>
+      <button class="press btn-secondary" disabled={sync.busy} onclick={restoreGist}>
         {t('sync.restore')}
       </button>
-      <button class="press min-h-11 rounded-xl px-4 py-2.5 text-sm font-medium text-over" onclick={disconnect}>{t('sync.disconnect')}</button>
+      <button class="press btn-quiet text-over" onclick={disconnect}>{t('sync.disconnect')}</button>
     </div>
     <button class="press min-h-11 self-start font-medium text-primary underline underline-offset-4" onclick={() => openSheet('versions')}>
       {t('versions.open')}
@@ -196,7 +197,7 @@
         {t('sync.tokenLink')}
       </a>
       <button
-        class="press btn-primary disabled:opacity-50"
+        class="press btn-primary"
         disabled={!token.trim() || sync.busy}
         onclick={linkGist}>{t('sync.connect')}</button
       >

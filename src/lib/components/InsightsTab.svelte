@@ -15,6 +15,7 @@
   import CardHeading from './CardHeading.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
   import RangeButton from './RangeButton.svelte';
+  import Segmented from './Segmented.svelte';
   import TimelineChart, { type Row } from './TimelineChart.svelte';
 
   const PERIODS = [3, 7, 30];
@@ -200,14 +201,12 @@
 <div class="flex flex-col gap-3 pb-6">
   <header class="flex flex-col gap-2 pt-2">
 <h1 class="text-3xl font-semibold">{t('tab.insights')}</h1>
-    <div class="flex rounded-full bg-surface-2 p-1 text-xs font-medium">
-      {#each PERIODS as p (p)}
-        <button class="press min-h-10 flex-auto rounded-full px-1 py-1.5 whitespace-nowrap {!custom && period === p ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={() => ((period = p), (custom = null))}>
-          {t('ins.days', { n: p })}
-        </button>
-      {/each}
-      <button class="press min-h-10 flex-auto rounded-full px-1 py-1.5 whitespace-nowrap {custom ? 'bg-surface shadow-sm' : 'text-muted'}" onclick={openCustom}>{t('ins.custom')}</button>
-    </div>
+    <Segmented
+      fill
+      options={[...PERIODS.map((p): [string, string] => [String(p), t('ins.days', { n: p })]), ['custom', t('ins.custom')]]}
+      value={custom ? 'custom' : String(period)}
+      onchange={(v) => (v === 'custom' ? openCustom() : ((period = Number(v)), (custom = null)))}
+    />
     {#if custom}
       <RangeButton from={custom.from} to={custom.to} onpick={(r) => (custom = r)} />
     {/if}
