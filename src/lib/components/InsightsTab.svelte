@@ -4,7 +4,7 @@
   import { entryDetailLines, formatComparison } from '$lib/format';
   import { addDays, endOfDay } from 'date-fns';
   import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays } from '$lib/days';
-  import { openDay, openSheet } from '$lib/ui.svelte';
+  import { openDay, openReport } from '$lib/ui.svelte';
   import { fmt, num, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { dropToNextDay, isPressureDrop, PRESSURE_DROP_HPA } from '$lib/weather';
@@ -14,7 +14,6 @@
   import CardHeading from './CardHeading.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
   import RangeButton from './RangeButton.svelte';
-  import ReportSheet from './ReportSheet.svelte';
   import TimelineChart, { type Row } from './TimelineChart.svelte';
 
   const PERIODS = [3, 7, 30];
@@ -24,7 +23,6 @@
   /** The chosen number of days, or a From–To range when `custom` is set. */
   let period = $state(30);
   let custom = $state<{ from: string; to: string } | null>(null);
-  let reportMonths = $state(1);
 
   const today = $derived(dayKey(clock.now));
   const keys = $derived(custom ? dayRange(keyToDate(custom.from), keyToDate(custom.to)) : lastDays(clock.now, period));
@@ -313,14 +311,10 @@
   {/if}
   <button
     class="press mt-3 flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 px-4 py-3 font-semibold"
-    onclick={() => {
-      reportMonths = reportFor;
-      openSheet('report');
-    }}
+    onclick={() => openReport(reportFor)}
   >
     <FileText size={22} />
     {t('pdf.insightsButton', { n: reportFor })}
   </button>
 </div>
 
-<ReportSheet bind:months={reportMonths} />

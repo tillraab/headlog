@@ -8,7 +8,9 @@
   import MedListSheet from '$lib/components/MedListSheet.svelte';
   import Celebration from '$lib/components/Celebration.svelte';
   import EditorSheet from '$lib/components/EditorSheet.svelte';
+  import CalendarFilterSheet from '$lib/components/CalendarFilterSheet.svelte';
   import DaySheet from '$lib/components/DaySheet.svelte';
+  import ReportSheet from '$lib/components/ReportSheet.svelte';
   import FactorSheet from '$lib/components/FactorSheet.svelte';
   import RangeSheet from '$lib/components/RangeSheet.svelte';
   import InfoPopover from '$lib/components/InfoPopover.svelte';
@@ -178,6 +180,8 @@
 <EditorSheet />
 <DaySheet day={dayView.day || dayKey(clock.now)} />
 <FactorSheet />
+<CalendarFilterSheet />
+<ReportSheet />
 <RangeSheet />
 <SettingsSheet />
 <MedListSheet />

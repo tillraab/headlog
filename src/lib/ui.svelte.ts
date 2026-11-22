@@ -39,6 +39,15 @@ export function tap(style: 'light' | 'medium' | 'heavy' = 'light') {
 }
 
 /** Every sheet of the app, by the id it opens with. */
+/** The months the doctor report sheet starts with. */
+export const report = $state({ months: 1 });
+
+/** Opens the doctor report sheet for the last `months` months. */
+export function openReport(months: number) {
+  report.months = months;
+  openSheet('report');
+}
+
 /** The day the day sheet shows. */
 export const dayView = $state({ day: '' });
 

@@ -8,7 +8,6 @@
   import { clock, data } from '$lib/store.svelte';
   import { openDay, openSheet, tap } from '$lib/ui.svelte';
   import { intakeColor } from '$lib/colors';
-  import CalendarFilterSheet from './CalendarFilterSheet.svelte';
   import InfoButton from './InfoButton.svelte';
 
   let month = $state(startOfMonth(Date.now()));
@@ -124,4 +123,3 @@
   </section>
 </div>
 
-<CalendarFilterSheet />
