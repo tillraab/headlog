@@ -452,6 +452,47 @@ export function monthlyCounts(
   return result;
 }
 
+/** Headache days among `keys` by peak intensity: mild (1–3), moderate (4–7) and severe (8–10). */
+export function severityDays(days: Map<string, number>, keys: string[]): [number, number, number] {
+  const counts: [number, number, number] = [0, 0, 0];
+  for (const key of keys) {
+    const intensity = days.get(key);
+    if (intensity) counts[intensity >= 8 ? 2 : intensity >= 4 ? 1 : 0]++;
+  }
+  return counts;
+}
+
+/** Upper ends of the duration buckets in hours: under 4 h, 4 to 24 h, 24 to 72 h, the rest longer. */
+const DURATION_BOUNDS = [4, 24, 72];
+
+/** Ended headaches by duration: under 4 h, 4 to 24 h, 24 to 72 h and over 72 h. Migraine lasts 4 to 72 h (ICHD-3 1.1). */
+export function durationBuckets(episodes: Pick<Episode, 'start' | 'end'>[]): number[] {
+  const counts = new Array(DURATION_BOUNDS.length + 1).fill(0);
+  for (const e of episodes) {
+    if (e.end === null) continue;
+    const hours = (e.end - e.start) / HOUR;
+    const bucket = DURATION_BOUNDS.findIndex((bound) => hours < bound);
+    counts[bucket === -1 ? DURATION_BOUNDS.length : bucket]++;
+  }
+  return counts;
+}
+
+/** Days with medication of each class in each of the `count` calendar months ending with `today`. */
+export function monthlyCategoryDays(intakes: Intake[], today: number, count: number): { month: Date; days: Map<MedCategory, number> }[] {
+  const result = [];
+  for (let n = count - 1; n >= 0; n--) {
+    const month = startOfMonth(addMonthsSafe(today, -n));
+    const prefix = dayKey(month).slice(0, 7);
+    const sets = new Map<MedCategory, Set<string>>();
+    for (const i of intakes) {
+      const key = dayKey(i.time);
+      if (key.startsWith(prefix)) sets.set(i.category, (sets.get(i.category) ?? new Set<string>()).add(key));
+    }
+    result.push({ month, days: new Map([...sets].map(([c, s]) => [c, s.size])) });
+  }
+  return result;
+}
+
 function addMonthsSafe(time: number, months: number): Date {
   const d = new Date(time);
   return new Date(d.getFullYear(), d.getMonth() + months, 1);
