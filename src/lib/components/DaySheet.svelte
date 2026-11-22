@@ -5,12 +5,12 @@
   import { ChevronRight, Pill, Plus, Zap } from '@lucide/svelte';
   import { addDays, endOfDay, setHours } from 'date-fns';
   import { formatDuration, formatLiters, hm, keyToDate } from '$lib/days';
-  import { edit } from '$lib/editor.svelte';
+  import { edit, openNight } from '$lib/editor.svelte';
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { hydrationBefore } from '$lib/analysis';
   import { factorIcon, prognosis, prognosisInput, type Status } from '$lib/prognosis';
-  import { openFactor } from '$lib/ui.svelte';
+  import { openFactor, openSheet } from '$lib/ui.svelte';
   import { dayKey } from '$lib/days';
   import { weatherEmoji } from '$lib/weather';
   import Sheet from './Sheet.svelte';
@@ -21,9 +21,14 @@
   const to = $derived(addDays(keyToDate(day), 1).getTime());
   const episodes = $derived(data.episodes.filter((e) => e.start < to && (e.end ?? clock.now) >= from));
   const intakes = $derived(data.intakes.filter((i) => i.time >= from && i.time < to));
-  /** Headaches and medication of the day in time order. */
+  const drinks = $derived(data.drinks.filter((d) => d.time >= from && d.time < to));
+  /** Headaches, medication and drinks of the day in time order. */
   const entries = $derived(
-    [...episodes.map((e) => ({ time: e.start, kind: 'episode' as const, item: e })), ...intakes.map((i) => ({ time: i.time, kind: 'intake' as const, item: i }))].sort((a, b) => a.time - b.time)
+    [
+      ...episodes.map((e) => ({ time: e.start, kind: 'episode' as const, item: e })),
+      ...intakes.map((i) => ({ time: i.time, kind: 'intake' as const, item: i })),
+      ...drinks.map((d) => ({ time: d.time, kind: 'drink' as const, item: d }))
+    ].sort((a, b) => a.time - b.time)
   );
   /** The forecast factors as they stood at the end of the day, or now for today. */
   const p = $derived(prognosis(prognosisInput(data), day < dayKey(clock.now) ? endOfDay(keyToDate(day)).getTime() : clock.now));
@@ -43,7 +48,7 @@
       label: t('prog.sleep'),
       status: p.sleep.status,
       value: night ? `${formatDuration(night.asleepMs)} · ${hm(night.start)}–${hm(night.end)}` : '–',
-      open: () => (night ? edit({ kind: 'sleep', item: night }) : undefined)
+      open: () => (night ? edit({ kind: 'sleep', item: night }) : openNight(day, true))
     },
     { icon: factorIcon('hydration'), label: t('prog.hydration'), status: p.hydration.status, value: formatLiters(p.hydration.today), open: () => openFactor('hydration', day) },
     { icon: factorIcon('caffeine'), label: t('prog.caffeine'), status: p.caffeine.status, value: `${Math.round(p.caffeine.today)} mg`, open: () => openFactor('caffeine', day) },
@@ -51,15 +56,21 @@
   ]);
   const noon = $derived(Math.min(setHours(keyToDate(day), 12).getTime(), clock.now));
 
+  /** A new headache on this day, from 9:00 to 12:00; today it ends now at the latest. */
+  function addHeadache() {
+    const start = Math.min(setHours(keyToDate(day), 9).getTime(), clock.now);
+    edit({ kind: 'episode', item: { start, end: Math.min(setHours(keyToDate(day), 12).getTime(), clock.now), intensity: 5, tags: [], note: '' } });
+  }
+
   function addMed() {
     const med = data.medications[0];
-    if (!med) return;
+    if (!med) return openSheet('medList');
     edit({ kind: 'intake', item: { time: noon, ...fromMedication(med), relief: null } });
   }
 
   function addDrink() {
     const p = data.drinkPresets[0];
-    if (!p) return;
+    if (!p) return openSheet('drinkList');
     edit({ kind: 'drink', item: { time: noon, ...fromPreset(p) } });
   }
 </script>
@@ -93,7 +104,7 @@
             {/if}
           </span>
         </button>
-      {:else}
+      {:else if entry.kind === 'intake'}
         {@const intake = entry.item}
         <button class="press flex items-center gap-3 rounded-2xl bg-med-soft p-3 text-left" onclick={() => edit({ kind: 'intake', item: intake })}>
           <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med text-white"><Pill size={20} /></span>
@@ -106,13 +117,20 @@
           </span>
           <span class="text-muted tabular">{hm(intake.time)}</span>
         </button>
+      {:else}
+        {@const drink = entry.item}
+        <button class="press flex items-center gap-3 rounded-2xl bg-surface-2 p-3 text-left" onclick={() => edit({ kind: 'drink', item: drink })}>
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-water-soft text-xl">{drink.emoji}</span>
+          <span class="min-w-0 flex-1"><span class="font-semibold">{drink.name}</span> {drink.ml} ml</span>
+          <span class="text-muted tabular">{hm(drink.time)}</span>
+        </button>
       {/if}
     {/each}
 
     <div class="flex flex-wrap gap-2">
       <button
         class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium"
-        onclick={() => edit({ kind: 'episode', item: { start: setHours(keyToDate(day), 9).getTime(), end: setHours(keyToDate(day), 12).getTime(), intensity: 5, tags: [], note: '' } })}
+        onclick={addHeadache}
       >
         <Plus size={20} />{t('day.addHeadache')}
       </button>

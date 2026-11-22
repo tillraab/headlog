@@ -27,7 +27,7 @@
         <h2 class="text-lg font-semibold">{t('welcome.title')}</h2>
         <p class="text-muted">{t('welcome.hint')}</p>
       </div>
-      <button class="press -mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted" onclick={dismiss} aria-label={t('edit.cancel')}>
+      <button class="press -mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted" onclick={dismiss} aria-label={t('a11y.close')}>
         <X size={22} />
       </button>
     </div>

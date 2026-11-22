@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { wipe } from './backup';
 import { db, seed } from './db';
-import { confirmNight, data, deleteMedication, endEpisode, load, logIntake, remove, saveSettings, setRelief, updateDrinkPreset, updateMedication, updateWeather } from './store.svelte';
+import { confirmNight, data, deleteDrinkPreset, deleteMedication, endEpisode, load, logIntake, remove, saveSettings, setRelief, updateDrinkPreset, updateMedication, updateWeather } from './store.svelte';
 import { dayKey, DAY } from './days';
 import { WEATHER_SYNC_KEY } from './weather';
 
@@ -35,6 +35,32 @@ describe('plain tags', () => {
     await db.settings.delete('plainTags');
     await load();
     expect((await db.episodes.toArray())[0].tags).toEqual(['Stress', 'Skipped meal', 'Neck pain']);
+  });
+});
+
+describe('deleting from the lists', () => {
+  it('brings a deleted medication back on undo', async () => {
+    await load();
+    const [med] = data.medications;
+    const undo = await deleteMedication(med.id);
+    await undo();
+    expect(data.medications.map((m) => m.id)).toContain(med.id);
+  });
+
+  it('brings a deleted drink back on undo', async () => {
+    await load();
+    const [drink] = data.drinkPresets;
+    const undo = await deleteDrinkPreset(drink.id);
+    await undo();
+    expect(data.drinkPresets.map((d) => d.id)).toContain(drink.id);
+  });
+
+  it('forgets a deleted medication in the calendar filter', async () => {
+    await load();
+    const [med] = data.medications;
+    await saveSettings({ calendarHiddenMeds: [med.id] });
+    await deleteMedication(med.id);
+    expect(data.settings.calendarHiddenMeds).toEqual([]);
   });
 });
 

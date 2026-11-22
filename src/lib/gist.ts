@@ -14,6 +14,10 @@ export interface GistLink {
   lastHash: string | null;
   /** Automatic uploads stop after deleting all data or loading demo data, until the next manual backup or restore. */
   paused?: boolean;
+  /** Why uploads are paused, so the app can say what to do. */
+  pausedFor?: 'demo' | 'wipe';
+  /** The gist holds an encrypted backup this phone cannot open yet; nothing may replace it until it is opened. */
+  locked?: boolean;
   /** With a passphrase, the backup is encrypted before upload; the salt of its key goes with it. */
   passphrase?: string | null;
   salt?: string;

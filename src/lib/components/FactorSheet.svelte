@@ -10,7 +10,7 @@
   import { SOURCES } from '$lib/sources';
   import { clock, data } from '$lib/store.svelte';
   import { LOW_HYDRATION } from '$lib/thresholds';
-  import { factorSheet } from '$lib/ui.svelte';
+  import { factorSheet, openSheet } from '$lib/ui.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
   import Sheet from './Sheet.svelte';
 
@@ -166,7 +166,7 @@
         <span class="mt-0.5 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold" style:color={STATUS[status]} style:background-color="color-mix(in oklab, {STATUS[status]} 14%, transparent)">
           {t(`prog.status.${status}`)}
         </span>
-        <span class="min-w-0">{whyText(p, key)}</span>
+        <span class="min-w-0">{whyText(p, key, !!data.settings.weather.place)}</span>
       </p>
       {#if status === 'bad' && !past}<p class="rounded-xl bg-surface p-3">💡 {t(`prog.tip.${key}`)}</p>{/if}
     {/if}
@@ -274,7 +274,12 @@
           {/each}
         </div>
       {:else}
-        <p class="text-muted">{t('prog.why.weatherUnknown')}</p>
+        {#if data.settings.weather.place}
+          <p class="text-muted">{t('prog.why.weatherNoData')}</p>
+        {:else}
+          <p class="text-muted">{t('prog.why.weatherUnknown')}</p>
+          <button class="press btn-primary self-start" onclick={() => openSheet('settings')}>{t('prog.setTown')}</button>
+        {/if}
       {/if}
     {/if}
   </div>

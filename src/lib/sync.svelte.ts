@@ -7,7 +7,7 @@ export const sync = $state<{ link: GistLink | null; busy: boolean; error: string
   link: typeof localStorage !== 'undefined' ? readLink() : null,
   busy: false,
   error: '',
-  locked: false
+  locked: (typeof localStorage !== 'undefined' && readLink()?.locked) || false
 });
 
 async function run(task: () => Promise<void>) {
@@ -51,16 +51,17 @@ export function disconnect() {
 
 export async function syncNow(force = false) {
   const link = sync.link;
-  if (!link) return;
+  // A locked gist holds a backup this phone cannot open; it is never replaced before it is opened.
+  if (!link || link.locked) return;
   await run(async () => {
     const result = await push(link, force);
-    save(force ? { ...result, paused: false } : result);
+    save(force ? { ...result, paused: false, pausedFor: undefined } : result);
   });
 }
 
 /** Stops automatic uploads, so deleted or demo data does not overwrite the backup. */
-export function pauseSync() {
-  if (sync.link) save({ ...sync.link, paused: true });
+export function pauseSync(reason: 'demo' | 'wipe') {
+  if (sync.link) save({ ...sync.link, paused: true, pausedFor: reason });
 }
 
 /** Uploads changes quietly, for app start and when the app goes to the background. */
@@ -81,13 +82,13 @@ export async function restoreFromGist(version?: string, passphrase?: string) {
     } catch (e) {
       if (e instanceof PassphraseError) {
         sync.locked = true;
-        // No upload may replace the encrypted backup before it is opened.
-        save({ ...link, paused: true });
+        // No upload may replace the encrypted backup before it is opened, also after a restart.
+        save({ ...link, paused: true, locked: true });
       }
       throw e;
     }
     sync.locked = false;
-    save({ ...link, lastHash: null, paused: false, ...(passphrase ? { passphrase, salt: undefined } : {}) });
+    save({ ...link, lastHash: null, paused: false, pausedFor: undefined, locked: false, ...(passphrase ? { passphrase, salt: undefined } : {}) });
   });
 }
 
@@ -97,10 +98,11 @@ export async function restoreFromGist(version?: string, passphrase?: string) {
  */
 export async function setPassphrase(passphrase: string | null) {
   const link = sync.link;
-  if (!link) return;
+  if (!link || link.locked) return;
   await run(async () => {
-    const moved = await push({ ...link, passphrase, salt: undefined, paused: false }, true, true);
-    if (link.gistId && link.gistId !== moved.gistId) await deleteGist(link.token, link.gistId);
+    const moved = await push({ ...link, passphrase, salt: undefined, paused: false, pausedFor: undefined }, true, true);
+    // The new gist is kept first, so a failed delete leaves the old one behind instead of losing the move.
     save(moved);
+    if (link.gistId && link.gistId !== moved.gistId) await deleteGist(link.token, link.gistId);
   });
 }

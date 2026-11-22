@@ -307,18 +307,19 @@ export interface OveruseRow {
   key: MedCategory;
   days: number;
   limit: number;
+  /** Judged like the 10/20 rule: under the limit is allowed, caution from 80 % of it. */
+  status: RuleStatus;
 }
 
-/**
- * The ICHD-3 overuse rows for the last 30 days: one per class with a limit that was
- * used, plus the rule for several classes together once two or more were used.
- */
+/** The ICHD-3 overuse rows for the last 30 days: one per class with a limit that was used. */
 export function overuseRows(intakes: Intake[], today: number | Date): OveruseRow[] {
   const days = categoryDays(intakes, today);
-  const rows: OveruseRow[] = (Object.keys(MONTHLY_LIMITS) as MedCategory[])
+  return (Object.keys(MONTHLY_LIMITS) as MedCategory[])
     .filter((c) => days.has(c))
-    .map((c) => ({ key: c, days: days.get(c)!, limit: MONTHLY_LIMITS[c]! }));
-  return rows;
+    .map((c) => {
+      const limit = MONTHLY_LIMITS[c]!;
+      return { key: c, days: days.get(c)!, limit, status: ruleStatus(days.get(c)!, limit - 1) };
+    });
 }
 
 export interface MedicationEffect {

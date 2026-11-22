@@ -164,14 +164,28 @@ export async function updateDrinkPreset(id: number, patch: Partial<DrinkPreset>)
   await load();
 }
 
-export async function deleteMedication(id: number) {
+/** Deletes a medication from the list; intakes logged with it stay. Returns the undo. */
+export async function deleteMedication(id: number): Promise<() => Promise<void>> {
+  const row = await db.medications.get(id);
   await db.medications.delete(id);
+  const hidden = data.settings.calendarHiddenMeds;
+  if (hidden.includes(id)) await saveSettings({ calendarHiddenMeds: hidden.filter((x) => x !== id) });
   await load();
+  return async () => {
+    if (row) await db.medications.put(row);
+    await load();
+  };
 }
 
-export async function deleteDrinkPreset(id: number) {
+/** Deletes a drink from the list; drinks logged with it stay. Returns the undo. */
+export async function deleteDrinkPreset(id: number): Promise<() => Promise<void>> {
+  const row = await db.drinkPresets.get(id);
   await db.drinkPresets.delete(id);
   await load();
+  return async () => {
+    if (row) await db.drinkPresets.put(row);
+    await load();
+  };
 }
 
 const WEATHER_SYNC_HOURS = 3;

@@ -24,7 +24,6 @@
 
   /** Renames, and picks the category when the name is a known active ingredient or brand. */
   async function rename(med: Medication, name: string) {
-    if (!name) return;
     const category = guessCategory(name);
     await updateMed(med, category ? { name, category } : { name });
     if (category && category !== med.category) toast(t('set.categoryGuessed', { category: t(`cat.${category}`) }));
@@ -61,7 +60,7 @@
           <div class="grid grid-cols-2 gap-2 px-3 pb-3">
             <label class="flex flex-col gap-1 text-xs text-muted">
               {t('set.name')}
-              <input class="bg-surface" value={med.name} onchange={(e) => rename(med, e.currentTarget.value.trim())} />
+              <input class="bg-surface" value={med.name} onchange={(e) => (e.currentTarget.value.trim() ? rename(med, e.currentTarget.value.trim()) : (e.currentTarget.value = med.name))} />
             </label>
             <label class="flex flex-col gap-1 text-xs text-muted">
               {t('set.dose')}
@@ -114,7 +113,7 @@
                   ></span>
                 </button>
               {/each}
-              <button class="press ml-auto grid size-11 place-items-center rounded-full text-over" onclick={() => deleteMedication(med.id)} aria-label={t('edit.delete')}>
+              <button class="press ml-auto grid size-11 place-items-center rounded-full text-over" onclick={async () => toast(t('toast.removed', { name: med.name }), await deleteMedication(med.id))} aria-label={t('edit.delete')}>
                 <Trash2 size={22} />
               </button>
             </div>
