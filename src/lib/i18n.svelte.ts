@@ -7,8 +7,6 @@ import { en } from './i18n/en';
 type Key = keyof typeof en;
 
 /** Symptom and trigger tags an episode can carry, each with a `tag.…` text. */
-export const TAGS = ['nausea', 'light', 'sound', 'aura', 'stress', 'sleep', 'screen', 'meal', 'alcohol', 'weather', 'period', 'exercise'] as const;
-export type Tag = (typeof TAGS)[number];
 
 export type Lang = 'en' | 'de';
 
@@ -65,15 +63,6 @@ export function fmt(date: number | Date, pattern: string): string {
 
 export function weekdayShort(): string[] {
   return t('weekday.short').split(',');
-}
-
-function isTag(tag: string): tag is Tag {
-  return (TAGS as readonly string[]).includes(tag);
-}
-
-/** The label of a tag, or the tag itself when it is not one of `TAGS`. */
-export function tagLabel(tag: string): string {
-  return isTag(tag) ? t(`tag.${tag}`) : tag;
 }
 
 /** Labels of the relief ratings, indexed by `Relief`. */

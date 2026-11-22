@@ -1,4 +1,4 @@
-import { db, DRINK_NAMES, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type Relief, type WeatherDay } from './db';
+import { db, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type Relief, type WeatherDay } from './db';
 import { DAY, dayKey, HOUR, MINUTE } from './days';
 import { fromPreset } from './drinks';
 import { i18n } from './i18n.svelte';
@@ -210,18 +210,6 @@ export async function confirmNight(day: string) {
   await updateSleep();
   const night = data.sleep.get(day);
   if (night && night.source !== 'manual') await saveNight({ ...night, source: 'manual' });
-}
-
-/** Renames the default drinks into `lang`. Names the user chose stay as they are. */
-export async function translateDrinkNames(lang: 'en' | 'de') {
-  const lists = Object.values(DRINK_NAMES);
-  await db.transaction('rw', db.drinkPresets, async () => {
-    for (const preset of await db.drinkPresets.toArray()) {
-      const index = lists.map((names) => names.indexOf(preset.name)).find((i) => i >= 0);
-      if (index !== undefined && DRINK_NAMES[lang][index] !== preset.name) await db.drinkPresets.update(preset.id, { name: DRINK_NAMES[lang][index] });
-    }
-  });
-  await load();
 }
 
 /** Swaps the order of two list entries. */

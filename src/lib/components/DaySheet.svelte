@@ -6,7 +6,7 @@
   import { addDays, endOfDay, setHours } from 'date-fns';
   import { formatDuration, formatLiters, hm, keyToDate } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
-  import { fmt, t, tagLabel } from '$lib/i18n.svelte';
+  import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { hydrationBefore } from '$lib/analysis';
   import { factorIcon, prognosis, prognosisInput, type Status } from '$lib/prognosis';
@@ -83,7 +83,7 @@
               · {formatDuration((ep.end ?? clock.now) - ep.start)}
             </span>
             {#if ep.tags.length}
-              <span class="text-xs text-muted">{ep.tags.map((tag) => tagLabel(tag)).join(' · ')}</span>
+              <span class="text-xs text-muted">{ep.tags.join(' · ')}</span>
             {/if}
             {#if ep.note}<span class="mt-1 text-xs italic">{ep.note}</span>{/if}
             {#if before.ml || before.usual}

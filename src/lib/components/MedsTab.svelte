@@ -1,6 +1,4 @@
 <script lang="ts">
-  let { onOpenTab }: { onOpenTab: (tab: 'calendar') => void } = $props();
-
   import { Pencil } from '@lucide/svelte';
   import { edit } from '$lib/editor.svelte';
   import { openSheet } from '$lib/ui.svelte';
@@ -89,9 +87,6 @@
         <p class="text-muted">{t('tenTwenty.nextRelief', { date: fmt(keyToDate(rule.nextRelief), 'EEE d. MMM') })}</p>
       {/if}
     </div>
-    <button class="press min-h-11 self-center rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={() => onOpenTab('calendar')}>
-      📅 {t('meds.toCalendar')}
-    </button>
   </section>
 
   {#if effect.length}
