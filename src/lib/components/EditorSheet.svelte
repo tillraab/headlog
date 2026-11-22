@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Pencil } from '@lucide/svelte';
   import { conflictingOngoing } from '$lib/analysis';
   import { RELIEFS, type Night } from '$lib/db';
   import { fromPreset } from '$lib/drinks';
@@ -88,11 +89,13 @@
 
 </script>
 
+<!-- The night opens as an overview; Edit shows the controls, and Cancel or Save end editing. -->
 {#snippet sleepEdit()}
-  <label class="flex min-h-11 items-center gap-2 font-medium">
-    <input type="checkbox" class="size-6 accent-primary" bind:checked={editor.sleepEditing} />
-    {t('sleep.edit')}
-  </label>
+  {#if !editor.sleepEditing}
+    <button class="press flex min-h-11 items-center gap-1.5 rounded-full px-3 font-medium text-primary" onclick={() => (editor.sleepEditing = true)}>
+      <Pencil size={18} />{t('sleep.edit')}
+    </button>
+  {/if}
 {/snippet}
 
 <Sheet
