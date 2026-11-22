@@ -94,6 +94,7 @@ export const en = {
   'day.addHeadache': 'Headache',
   'day.addMed': 'Medication',
   'day.addDrink': 'Drink',
+  'day.entries': 'Entries',
   'day.factors': 'Factors',
   'day.empty': 'Nothing logged on this day.',
   'day.hydrationBefore': '{ml} in the 72 h before',

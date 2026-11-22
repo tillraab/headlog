@@ -96,6 +96,7 @@ export const de: Record<keyof typeof en, string> = {
   'day.addHeadache': 'Kopfschmerz',
   'day.addMed': 'Medikament',
   'day.addDrink': 'Getränk',
+  'day.entries': 'Einträge',
   'day.factors': 'Faktoren',
   'day.empty': 'An diesem Tag nichts eingetragen.',
   'day.hydrationBefore': '{ml} in den 72 Std. davor',
