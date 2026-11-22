@@ -49,7 +49,7 @@
     {#if kind === 'episode'}<Zap size={20} />{:else if kind === 'intake'}<Pill size={20} />{:else}{emoji}{/if}
   </span>
   <span class="flex min-w-0 flex-1 flex-col">
-    <span><span class={card ? 'font-semibold' : ''}>{title}</span>{#if sub}<span class="text-muted tabular"> {sub}</span>{/if}</span>
+    <span><span class={card ? 'font-semibold' : ''}>{title}</span>{#if sub}<span class="text-muted tabular">{` ${sub}`}</span>{/if}</span>
     {#each lines as line, i (i)}<span class="text-xs text-muted">{line}</span>{/each}
   </span>
   {#if trailing}{@render trailing()}{/if}
