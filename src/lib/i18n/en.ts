@@ -291,6 +291,7 @@ export const en = {
   'edit.amount': 'Amount (ml)',
   'edit.save': 'Save',
   'edit.delete': 'Delete',
+  'edit.discardConfirm': 'Discard your changes?',
   'edit.cancel': 'Cancel',
   'edit.close': 'Close',
   'edit.endBeforeStart': 'The end must be after the start.',

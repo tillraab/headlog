@@ -4,8 +4,8 @@
   import { openSheet } from '$lib/ui.svelte';
   import CardHeading from './CardHeading.svelte';
   import LimitWheel from './LimitWheel.svelte';
-  import { intakeDays, medicationEffect, medicationLimits, overuseRows, tenTwenty, type RuleStatus } from '$lib/analysis';
-  import { medColor } from '$lib/colors';
+  import { intakeDays, medicationEffect, medicationLimits, overuseRows, tenTwenty } from '$lib/analysis';
+  import { medColor, RELIEF_COLOR, STATUS_COLOR } from '$lib/colors';
   import { DAY, keyToDate } from '$lib/days';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
@@ -13,11 +13,9 @@
 
   /** Days the effect of each medication looks back on. */
   const EFFECT_WINDOW_DAYS = 90;
-  const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   const medDays = $derived(new Set(intakeDays(data.intakes).keys()));
   const rule = $derived(tenTwenty(medDays, clock.now));
   const overuse = $derived(overuseRows(data.intakes, clock.now));
-  const RELIEF_COLOR = ['var(--color-over)', 'var(--color-caution)', 'var(--color-ok)'];
   /** Intakes and relief ratings per medication name over the last 90 days. */
   const effect = $derived(medicationEffect(data.intakes, clock.now - EFFECT_WINDOW_DAYS * DAY, clock.now, (i) => i.name));
   const recent = $derived([...data.intakes].sort((a, b) => b.time - a.time).slice(0, 8));

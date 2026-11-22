@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import type { Theme } from './settings';
+import { t } from './i18n.svelte';
 
 export interface Toast {
   id: number;
@@ -101,6 +102,26 @@ export function closeSheet(id: SheetId) {
   sheets.stack = sheets.stack.filter((s) => s !== id);
 }
 
+/** Sheets that hold unsaved changes, by a check whether they do; a sheet registers its check while it is mounted. */
+const unsaved = new Map<SheetId, () => boolean>();
+
+export function trackUnsaved(id: SheetId, hasChanges: () => boolean): () => void {
+  unsaved.set(id, hasChanges);
+  return () => unsaved.delete(id);
+}
+
+/** Whether an open sheet holds unsaved changes or is a place the user may be in the middle of something (Settings). */
+export function busyInSheet(): boolean {
+  return sheets.stack.some((id) => id === 'settings' || unsaved.get(id)?.());
+}
+
+/** Closes a sheet the way a tap beside it, its X or Back does: with unsaved changes only after asking. */
+export function requestClose(id: SheetId): boolean {
+  if (unsaved.get(id)?.() && !confirm(t('edit.discardConfirm'))) return false;
+  closeSheet(id);
+  return true;
+}
+
 export function closeAllSheets() {
   sheets.stack = [];
   closeInfo();
@@ -127,7 +148,7 @@ export function closeTopSheet(): boolean {
     return true;
   }
   if (!sheets.stack.length) return false;
-  sheets.stack = sheets.stack.slice(0, -1);
+  requestClose(sheets.stack[sheets.stack.length - 1]);
   return true;
 }
 

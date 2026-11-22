@@ -26,7 +26,7 @@
   import { dayKey } from '$lib/days';
   import { applyDrinkReminders, applyHeadacheChecks, applyReminders, applyRiskAlert, applySleepChecks, onNotificationAction, planAll } from '$lib/reminders';
   import { syncQuietly } from '$lib/sync.svelte';
-  import { applyTheme, awayLongEnough, closeAllSheets, closeTopSheet, dayView, home, openSheet, tap } from '$lib/ui.svelte';
+  import { applyTheme, awayLongEnough, busyInSheet, closeAllSheets, closeTopSheet, dayView, home, openSheet, tap } from '$lib/ui.svelte';
 
   const tabs = $derived([
     { id: 'today', label: t('tab.today'), icon: House },
@@ -84,7 +84,8 @@
         hiddenAt = Date.now();
         return syncQuietly();
       }
-      if (awayLongEnough(hiddenAt, Date.now())) backToToday();
+      // Back to Today after a while away, but not out of unsaved changes or Settings, e.g. after creating a GitHub token.
+      if (awayLongEnough(hiddenAt, Date.now()) && !busyInSheet()) backToToday();
       hiddenAt = null;
       reschedule();
       void updateWeather().catch(() => {});

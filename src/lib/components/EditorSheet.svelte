@@ -7,7 +7,7 @@
   import { reliefLabels, t } from '$lib/i18n.svelte';
   import { manualNight, SHORT_WAKE_MINUTES } from '$lib/sleep';
   import { data, remove, saveDrink, saveEpisode, saveIntake, saveNight, type EntryTable } from '$lib/store.svelte';
-  import { closeSheet, fromLocalInput, toast, toLocalInput } from '$lib/ui.svelte';
+  import { closeSheet, fromLocalInput, toast, toLocalInput, trackUnsaved } from '$lib/ui.svelte';
   import IntensityPicker from './IntensityPicker.svelte';
   import TagPicker from './TagPicker.svelte';
   import SleepTimeline from './SleepTimeline.svelte';
@@ -22,6 +22,10 @@
     current?.kind === 'episode' ? t('edit.headache') : current?.kind === 'intake' ? t('edit.intake') : current?.kind === 'sleep' ? t('sleep.title') : t('edit.drink')
   );
   let error = $state('');
+  /** The entry differs from how it opened. */
+  const changed = () => !!editor.current && JSON.stringify(editor.current.item) !== editor.opened;
+  $effect(() => trackUnsaved('editor', changed));
+
   /** A night shown as an overview, without changes to save, only needs closing. */
   const viewOnly = $derived(current?.kind === 'sleep' && !editor.sleepEditing && JSON.stringify(current.item) === editor.opened);
 

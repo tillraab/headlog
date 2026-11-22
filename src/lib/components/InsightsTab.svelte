@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { RULE_COLOR } from '$lib/colors';
   import { FileText } from '@lucide/svelte';
-  import { average, caffeineByDay, compareDays, firstDrinkDay, headacheDays, intakeDays, monthlyCounts, periodStats, rollingDays, ruleStatus, TEN_TWENTY_LIMIT, tenTwenty, timeline, type RuleStatus } from '$lib/analysis';
+  import { average, caffeineByDay, compareDays, firstDrinkDay, headacheDays, intakeDays, monthlyCounts, periodStats, rollingDays, ruleStatus, TEN_TWENTY_LIMIT, tenTwenty, timeline } from '$lib/analysis';
   import { entryDetailLines, formatComparison } from '$lib/format';
   import { addDays, endOfDay } from 'date-fns';
   import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays } from '$lib/days';
@@ -19,7 +20,6 @@
   const PERIODS = [3, 7, 30];
   /** From 15 headache days a month, ICHD-3 speaks of chronic headache (chronic migraine: for more than 3 months). */
   const CHRONIC_DAYS = 15;
-  const RULE_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-med)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
   /** The chosen number of days, or a From–To range when `custom` is set. */
   let period = $state(30);
   let custom = $state<{ from: string; to: string } | null>(null);

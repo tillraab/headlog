@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { intakeColor } from '$lib/colors';
+  import { FACTOR_COLOR, intakeColor } from '$lib/colors';
   import { fromPreset } from '$lib/drinks';
   import { ACUTE_CATEGORIES, fromMedication } from '$lib/medication';
   import { ChevronRight, Pill, Plus, Zap } from '@lucide/svelte';
@@ -9,7 +9,7 @@
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { hydrationBefore } from '$lib/analysis';
-  import { factorIcon, prognosis, prognosisInput, type Status } from '$lib/prognosis';
+  import { factorIcon, prognosis, prognosisInput } from '$lib/prognosis';
   import { openFactor, openSheet } from '$lib/ui.svelte';
   import { dayKey } from '$lib/days';
   import { weatherEmoji } from '$lib/weather';
@@ -34,7 +34,6 @@
   const p = $derived(prognosis(prognosisInput(data), day < dayKey(clock.now) ? endOfDay(keyToDate(day)).getTime() : clock.now));
   const weather = $derived(data.weather.get(day));
   const night = $derived(data.sleep.get(day));
-  const STATUS: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
   const factors = $derived([
     {
       icon: factorIcon('weather'),
@@ -86,7 +85,7 @@
         {@const ep = entry.item}
         {@const before = hydrationBefore(data.drinks, ep.start)}
         <button class="press flex items-start gap-3 rounded-2xl bg-pain-soft p-3 text-left" onclick={() => edit({ kind: 'episode', item: ep })}>
-          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-pain text-white"><Zap size={20} /></span>
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-pain-soft text-pain"><Zap size={20} /></span>
           <span class="flex min-w-0 flex-col">
             <span class="font-semibold">{t('today.headache')} · {ep.intensity}/10</span>
             <span class="text-muted tabular">
@@ -107,7 +106,7 @@
       {:else if entry.kind === 'intake'}
         {@const intake = entry.item}
         <button class="press flex items-center gap-3 rounded-2xl bg-med-soft p-3 text-left" onclick={() => edit({ kind: 'intake', item: intake })}>
-          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med text-white"><Pill size={20} /></span>
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med-soft text-med"><Pill size={20} /></span>
           <span class="flex min-w-0 flex-1 flex-col">
             <span><span class="font-semibold">{intake.name}</span> {intake.dose}</span>
             <span class="flex items-center gap-1.5 text-xs text-muted">
@@ -145,7 +144,7 @@
           <span class="text-xl leading-none">{f.icon}</span>
           <span class="flex-1 font-medium">{f.label}</span>
           <span class="min-w-0 truncate text-muted tabular">{f.value}</span>
-          <span class="size-2.5 shrink-0 rounded-full" style:background-color={STATUS[f.status]}></span>
+          <span class="size-2.5 shrink-0 rounded-full" style:background-color={FACTOR_COLOR[f.status]}></span>
           <ChevronRight size={18} class="shrink-0 text-muted" />
         </button>
       {/each}

@@ -91,7 +91,7 @@
         {@const future = key > today}
         <button
           class="press relative flex aspect-square flex-col items-center justify-center rounded-xl pb-1.5 text-base tabular disabled:opacity-30
-            {key === today ? 'ring-2 ring-primary' : ''} {intensity ? 'font-semibold text-white' : 'bg-surface-2'}"
+            {key === today ? 'ring-2 ring-primary' : ''} {intensity ? 'font-semibold text-fg' : 'bg-surface-2'}"
           style:background-color={painStyle(intensity)}
           disabled={future}
           onclick={() => openDay(key)}

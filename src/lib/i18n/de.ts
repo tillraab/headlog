@@ -294,6 +294,7 @@ export const de: Record<keyof typeof en, string> = {
   'edit.save': 'Speichern',
   'edit.delete': 'Löschen',
   'edit.close': 'Schließen',
+  'edit.discardConfirm': 'Änderungen verwerfen?',
   'edit.cancel': 'Abbrechen',
   'edit.endBeforeStart': 'Das Ende muss nach dem Beginn liegen.',
   'edit.invalidTime': 'Bitte ein gültiges Datum mit Uhrzeit eingeben.',
