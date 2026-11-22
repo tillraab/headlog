@@ -56,7 +56,7 @@
           limit={row.limit}
           title={t(`cat.${row.key}`)}
           period={t('meds.inDays', { n: 30 })}
-          color={STATUS_COLOR[row.days >= row.limit ? 'over' : row.days >= row.limit * 0.7 ? 'caution' : 'ok']}
+          color={STATUS_COLOR[row.status]}
           info={[
             { title: t('info.rule'), body: t('overuse.classRule', { cls: t(`cat.${row.key}`), limit: row.limit }) },
             { title: t('info.which'), body: t(`catDesc.${row.key}`) },

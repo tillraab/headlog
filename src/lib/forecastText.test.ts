@@ -10,7 +10,11 @@ const forecast = (drinks: Drink[]) => prognosis({ drinks, sleep: new Map(), weat
 
 describe('whyText', () => {
   it('says there is no weather without a home town', () => {
-    expect(whyText(forecast([]), 'weather')).toBe('no home town set');
+    expect(whyText(forecast([]), 'weather', false)).toBe('no home town set');
+  });
+
+  it('says the forecast is not loaded yet when a home town is set', () => {
+    expect(whyText(forecast([]), 'weather', true)).toBe('no forecast loaded yet');
   });
 
   it('names the amount and the pace when behind on drinks', () => {

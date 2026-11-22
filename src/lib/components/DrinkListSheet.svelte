@@ -3,6 +3,7 @@
   import type { DrinkPreset } from '$lib/db';
   import { num, t } from '$lib/i18n.svelte';
   import { data, deleteDrinkPreset, saveDrinkPreset, saveSettings, updateDrinkPreset } from '$lib/store.svelte';
+  import { toast } from '$lib/ui.svelte';
   import OrderButtons from './OrderButtons.svelte';
   import Sheet from './Sheet.svelte';
 
@@ -92,7 +93,7 @@
                   {emoji}
                 </button>
               {/each}
-              <button class="press ml-auto grid size-11 place-items-center rounded-full text-over" onclick={() => deleteDrinkPreset(preset.id)} aria-label={t('edit.delete')}>
+              <button class="press ml-auto grid size-11 place-items-center rounded-full text-over" onclick={async () => toast(t('toast.removed', { name: preset.name }), await deleteDrinkPreset(preset.id))} aria-label={t('edit.delete')}>
                 <Trash2 size={22} />
               </button>
             </div>

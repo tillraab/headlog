@@ -87,7 +87,7 @@
       {#each { length: offset } as _, i (i)}<span></span>{/each}
       {#each keys as key (key)}
         {@const intensity = show.headache ? hDays.get(key) : undefined}
-        {@const meds = mDays.get(key)?.filter((m) => shownMeds.some((s) => s.id === m.medId))}
+        {@const meds = show.medication ? mDays.get(key)?.filter((m) => !data.settings.calendarHiddenMeds.includes(m.medId)) : undefined}
         {@const icons = badFactors.get(key)}
         {@const future = key > today}
         <button

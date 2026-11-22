@@ -18,10 +18,11 @@ export function pressureChangeText(change: number): string {
   return n === 0 ? t('prog.stable') : `${change > 0 ? '+' : '−'}${n} hPa`;
 }
 
-export function whyText(p: Prognosis, key: FactorKey): string {
+/** Why a factor has its status. `hasTown`: a home town is set, so missing weather is only not loaded yet. */
+export function whyText(p: Prognosis, key: FactorKey, hasTown = true): string {
   switch (key) {
     case 'weather':
-      if (p.weather.status === 'unknown') return t('prog.why.weatherUnknown');
+      if (p.weather.status === 'unknown') return t(hasTown ? 'prog.why.weatherNoData' : 'prog.why.weatherUnknown');
       if (p.weather.status === 'bad') return t('prog.why.weatherBad', { n: Math.round(p.weather.drop), limit: PRESSURE_DROP_HPA });
       return weatherOkText(p.weather.change ?? -p.weather.drop);
     case 'hydration': {

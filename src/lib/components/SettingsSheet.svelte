@@ -60,7 +60,7 @@
 
   async function demo() {
     if (!confirm(t('set.demoConfirm'))) return;
-    pauseSync();
+    pauseSync('demo');
     const place = $state.snapshot(data.settings.weather.place);
     await loadDemo(Date.now(), undefined, i18n.lang);
     await load();
@@ -69,7 +69,7 @@
 
   async function reset() {
     if (!confirm(t('set.wipeConfirm'))) return;
-    pauseSync();
+    pauseSync('wipe');
     await wipe();
     await load();
   }
@@ -174,6 +174,7 @@
   function backupNow() {
     const empty = !data.episodes.length && !data.intakes.length && !data.drinks.length;
     if (empty && !confirm(t('sync.emptyConfirm'))) return;
+    if (sync.link?.pausedFor === 'demo' && !confirm(t('sync.demoConfirm'))) return;
     return guarded(async () => {
       await syncNow(true);
       toast(t('sync.done'));
@@ -438,7 +439,7 @@
     {#if placeError}<p class="text-sm text-over">{placeError}</p>{/if}
   </div>
 
-  {@render group(t('backup.title'), [t('sync.hint'), t('set.backupHint')])}
+  {@render group(t('backup.title'), t('sync.hint'))}
   <div class="card flex flex-col gap-3 p-4 text-body">
     <div class="flex rounded-full bg-surface-2 p-1 text-sm">
       {#each [['gist', t('backup.gist')], ['file', t('backup.file')]] as [key, label] (key)}
@@ -456,7 +457,7 @@
         <button class="press min-h-11 rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium" onclick={() => fileInput?.click()}>{t('set.import')}</button>
       </div>
     {:else if sync.link}
-      {#if sync.link.paused && !sync.locked}<p class="rounded-xl bg-med-soft p-3">{t('sync.paused')}</p>{/if}
+      {#if sync.link.paused && !sync.locked}<p class="rounded-xl bg-med-soft p-3">{t(sync.link.pausedFor === 'demo' ? 'sync.pausedDemo' : 'sync.paused')}</p>{/if}
       <p class="text-muted">
         {sync.link.lastSync ? t('sync.last', { time: fmt(sync.link.lastSync, 'd. MMM HH:mm') }) : t('sync.never')}
         {#if encrypted}<span class="text-ok"> · 🔒 {t('crypt.short')}</span>{/if}

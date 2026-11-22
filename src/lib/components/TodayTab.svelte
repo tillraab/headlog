@@ -201,7 +201,7 @@
         <p class="text-sm text-muted">{t('tenTwenty.ifToday', { n: rule.ifTakenToday, limit: rule.limit })}</p>
       {/if}
     {:else}
-      <p class="text-muted">{t('today.noMeds')}</p>
+      <button class="press btn-primary self-start" onclick={() => openSheet('medList')}>{t('today.noMeds')}</button>
     {/if}
   </section>
 {/snippet}

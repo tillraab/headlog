@@ -427,9 +427,18 @@ describe('overuseRows', () => {
   it('has one row per class used, with its limit', () => {
     const rows = overuseRows([intake('2026-03-02T08:00', 'analgesic'), intake('2026-03-02T09:00', 'triptan'), intake('2026-03-04T08:00', 'triptan')], month);
     expect(rows).toEqual([
-      { key: 'analgesic', days: 1, limit: 15 },
-      { key: 'triptan', days: 2, limit: 10 }
+      { key: 'analgesic', days: 1, limit: 15, status: 'ok' },
+      { key: 'triptan', days: 2, limit: 10, status: 'ok' }
     ]);
+  });
+
+  it.each([
+    [7, 'ok'],
+    [8, 'caution'],
+    [10, 'over']
+  ] as const)('judges %s triptan days like the 10/20 rule: %s', (n, status) => {
+    const intakes = Array.from({ length: n }, (_, i) => intake(`2026-03-${String(i + 2).padStart(2, '0')}T08:00`, 'triptan'));
+    expect(overuseRows(intakes, month)[0].status).toBe(status);
   });
 
   it('leaves out preventive medication and antiemetics', () => {

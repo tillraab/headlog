@@ -68,7 +68,7 @@ describe('connect', () => {
 describe('syncNow', () => {
   it('uploads nothing while paused', async () => {
     sync.link = linked;
-    pauseSync();
+    pauseSync('wipe');
     const calls = fakeGitHub('{}');
     await syncNow();
     expect(calls).toEqual([]);
@@ -76,7 +76,7 @@ describe('syncNow', () => {
 
   it('uploads and unpauses on a manual backup', async () => {
     sync.link = linked;
-    pauseSync();
+    pauseSync('wipe');
     const calls = fakeGitHub('{}');
     await syncNow(true);
     expect([calls, sync.link?.paused]).toEqual([['PATCH /gists/g1'], false]);
@@ -131,3 +131,19 @@ describe('setPassphrase', () => {
   });
 });
 
+
+describe('a locked gist', () => {
+  it('is never replaced by a manual backup', async () => {
+    const calls = fakeGitHub(null);
+    sync.link = { ...linked, locked: true };
+    await syncNow(true);
+    expect(calls).toEqual([]);
+  });
+
+  it('is not moved to a new gist by a passphrase', async () => {
+    const calls = fakeGitHub(null);
+    sync.link = { ...linked, locked: true };
+    await setPassphrase('blue kettle');
+    expect(calls).toEqual([]);
+  });
+});

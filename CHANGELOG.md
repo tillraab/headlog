@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-11-22
+
+### Fixed
+
+- Gist backup: a locked encrypted backup stays locked after a restart, so neither Back up now nor a new passphrase can replace or delete it before it is opened. A passphrase change keeps the new gist even when deleting the old one fails.
+- After loading demo data, the backup note points to Restore, and Back up now asks before replacing your backup with demo data.
+- Calendar: intakes of a deleted medication keep their dots.
+- Meds: the class wheels turn orange and red at the same points as the 10/20 rule.
+- Weather: with a home town set, missing weather reads "no forecast loaded yet"; without one, the sheet offers Set home town.
+
+### Changed
+
+- Deleting a medication or drink from the list can be undone; an empty medication name keeps the old one.
+- Day view: drinks are listed, the Sleep row adds a night when none is recorded, Medication and Drink open the lists when they are empty, and a new headache today does not end in the future.
+- Today: "Add your medication" opens the medication list when it is empty.
+
 ## [0.40.0] - 2026-11-22
 
 ### Changed
