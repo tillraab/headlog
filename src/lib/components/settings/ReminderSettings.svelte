@@ -9,6 +9,7 @@
   import { toast } from '$lib/ui.svelte';
   import HourSelect from '../HourSelect.svelte';
   import InfoButton from '../InfoButton.svelte';
+  import Toggle from '../Toggle.svelte';
 
   /** What the evening warning will say tonight, as the data stands now; nothing once the hour has passed. */
   const riskTonight = $derived.by(() => {
@@ -29,9 +30,8 @@
     return minutes < 60 ? t('rem.minutes', { n: minutes }) : t('rem.hours', { n: num(minutes / 60, 0, 2) });
   }
 
-  async function toggleDrinkReminder(input: HTMLInputElement) {
-    const enabled = await allowed(input);
-    await setDrinkReminder({ enabled });
+  async function toggleDrinkReminder(want: boolean) {
+    await setDrinkReminder({ enabled: await allowed(want) });
   }
 
   function setDrinkReminder(patch: Partial<typeof data.settings.drinkReminder>) {
@@ -39,16 +39,14 @@
   }
 
   /** Whether a reminder switch may turn on. Turns the switch back off when notifications are not allowed. */
-  async function allowed(input: HTMLInputElement): Promise<boolean> {
-    if (!input.checked || (await requestReminderPermission())) return input.checked;
+  async function allowed(want: boolean): Promise<boolean> {
+    if (!want || (await requestReminderPermission())) return want;
     toast(t('rem.denied'));
-    input.checked = false;
     return false;
   }
 
-  async function toggleReminders(input: HTMLInputElement) {
-    const enabled = await allowed(input);
-    await saveSettings({ reminders: { ...data.settings.reminders, enabled } });
+  async function toggleReminders(want: boolean) {
+    await saveSettings({ reminders: { ...data.settings.reminders, enabled: await allowed(want) } });
   }
 </script>
 
@@ -72,15 +70,10 @@
       {#each [1, 2, 3, 4, 6] as n (n)}<option value={n}>{t('rem.headacheEvery', { d: duration(n * 60) })}</option>{/each}
     </select>
   </label>
-  <label class="flex items-center justify-between gap-4 text-body">
+  <div class="flex items-center justify-between gap-4 text-body">
     {t('rem.drinkSetting')}
-    <input
-      type="checkbox"
-      class="size-6 shrink-0 accent-primary"
-      checked={data.settings.drinkReminder.enabled}
-      onchange={(e) => toggleDrinkReminder(e.currentTarget)}
-    />
-  </label>
+    <Toggle label={t('rem.drinkSetting')} checked={data.settings.drinkReminder.enabled} onchange={toggleDrinkReminder} />
+  </div>
   {#if data.settings.drinkReminder.enabled}
     <label class="flex items-center justify-between gap-4 text-body">
       {t('rem.drinkAfter')}
@@ -101,15 +94,10 @@
       </span>
     </div>
   {/if}
-  <label class="flex items-center justify-between gap-4 text-body">
+  <div class="flex items-center justify-between gap-4 text-body">
     <span class="flex items-center gap-1">{t('rem.enabled')}<InfoButton title={t('rem.enabled')} text={t('rem.hint')} /></span>
-    <input
-      type="checkbox"
-      class="size-6 shrink-0 accent-primary"
-      checked={data.settings.reminders.enabled}
-      onchange={(e) => toggleReminders(e.currentTarget)}
-    />
-  </label>
+    <Toggle label={t('rem.enabled')} checked={data.settings.reminders.enabled} onchange={toggleReminders} />
+  </div>
   {#if data.settings.reminders.enabled}
     {#each [['noon', [10, 11, 12, 13, 14, 15]], ['evening', [16, 17, 18, 19, 20, 21]]] as const as [field, hours] (field)}
       <label class="flex items-center justify-between gap-4 text-body">

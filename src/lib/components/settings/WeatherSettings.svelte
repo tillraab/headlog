@@ -4,6 +4,7 @@
   import { data, saveSettings, updateWeather } from '$lib/store.svelte';
   import { toast } from '$lib/ui.svelte';
   import { searchPlaces, type Place } from '$lib/weather';
+  import Toggle from '../Toggle.svelte';
 
   let placeQuery = $state('');
   let places = $state<(Place & { region: string })[]>([]);
@@ -34,18 +35,17 @@
 
 <div class="card flex flex-col gap-3 p-4 text-body">
   {#if data.settings.weather.place}
-    <label class="flex items-center justify-between gap-4">
+    <div class="flex items-center justify-between gap-4">
       <span>🌦️ {data.settings.weather.place.name}</span>
-      <input
-        type="checkbox"
-        class="size-6 shrink-0 accent-primary"
+      <Toggle
+        label={data.settings.weather.place.name}
         checked={data.settings.weather.enabled}
-        onchange={async (e) => {
-          await saveSettings({ weather: { ...data.settings.weather, enabled: e.currentTarget.checked } });
-          if (e.currentTarget.checked) void updateWeather(true).catch(() => {});
+        onchange={async (enabled) => {
+          await saveSettings({ weather: { ...data.settings.weather, enabled } });
+          if (enabled) void updateWeather(true).catch(() => {});
         }}
       />
-    </label>
+    </div>
     <p class="text-sm text-muted">{t('weather.days', { n: data.weather.size })}</p>
   {/if}
   <form

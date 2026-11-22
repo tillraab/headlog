@@ -4,6 +4,7 @@
   import { FALL_ASLEEP_OPTIONS, openUsageAccessSettings, screenAccess } from '$lib/sleep';
   import { data, saveSettings, updateSleep } from '$lib/store.svelte';
   import HourSelect from '../HourSelect.svelte';
+  import Toggle from '../Toggle.svelte';
 
   let access = $state<{ supported: boolean; granted: boolean } | null>(null);
 
@@ -25,18 +26,17 @@
   {#if access && !access.supported}
     <p class="text-muted">{t('sleep.unsupported')}</p>
   {:else}
-    <label class="flex items-center justify-between gap-4">
+    <div class="flex items-center justify-between gap-4">
       {t('sleep.setting')}
-      <input
-        type="checkbox"
-        class="size-6 shrink-0 accent-primary"
+      <Toggle
+        label={t('sleep.setting')}
         checked={data.settings.sleep.enabled}
-        onchange={async (e) => {
-          await saveSettings({ sleep: { ...data.settings.sleep, enabled: e.currentTarget.checked } });
+        onchange={async (enabled) => {
+          await saveSettings({ sleep: { ...data.settings.sleep, enabled } });
           await checkAccess();
         }}
       />
-    </label>
+    </div>
     {#if data.settings.sleep.enabled}
       <label class="flex items-center justify-between gap-4">
         {t('sleep.fallAsleepSetting')}
