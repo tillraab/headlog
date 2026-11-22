@@ -16,6 +16,7 @@
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
   import SleepCard from './SleepCard.svelte';
+  import EntryRow from './EntryRow.svelte';
 
   let { onOpenTab }: { onOpenTab: (tab: 'meds') => void } = $props();
 
@@ -313,24 +314,19 @@
       <ul>
         {#each log as entry (entry.kind + entry.item.id)}
           <li>
-            <button class="press flex min-h-12 w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface-2" onclick={() => edit(entry)}>
-              <span class="w-13 shrink-0 text-muted tabular">{hm(entry.time)}</span>
-              {#if entry.kind === 'episode'}
-                <span class="grid size-10 shrink-0 place-items-center rounded-full bg-pain-soft text-pain"><Zap size={20} /></span>
-                <span class="flex-1">
-                  {t('today.headache')} · {entry.item.intensity}/10
-                  <span class="text-muted">
-                    {entry.item.end ? `· ${formatDuration(entry.item.end - entry.item.start)}` : `· ${t('edit.ongoing').toLowerCase()}`}
-                  </span>
-                </span>
-              {:else if entry.kind === 'intake'}
-                <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med-soft text-med"><Pill size={20} /></span>
-                <span class="flex-1">{entry.item.name} <span class="text-muted">{entry.item.dose}</span></span>
-              {:else}
-                <span class="grid size-10 shrink-0 place-items-center rounded-full bg-water-soft text-xl">{entry.item.emoji}</span>
-                <span class="flex-1">{entry.item.name} <span class="text-muted tabular">{entry.item.ml} ml</span></span>
-              {/if}
-            </button>
+            {#if entry.kind === 'episode'}
+              <EntryRow
+                kind="episode"
+                time={hm(entry.time)}
+                title={`${t('today.headache')} · ${entry.item.intensity}/10`}
+                sub={entry.item.end ? `· ${formatDuration(entry.item.end - entry.item.start)}` : `· ${t('edit.ongoing').toLowerCase()}`}
+                onclick={() => edit(entry)}
+              />
+            {:else if entry.kind === 'intake'}
+              <EntryRow kind="intake" time={hm(entry.time)} title={entry.item.name} sub={entry.item.dose} onclick={() => edit(entry)} />
+            {:else}
+              <EntryRow kind="drink" time={hm(entry.time)} title={entry.item.name} sub={`${entry.item.ml} ml`} emoji={entry.item.emoji} onclick={() => edit(entry)} />
+            {/if}
           </li>
         {/each}
       </ul>

@@ -13,6 +13,7 @@
   import { LOW_HYDRATION } from '$lib/thresholds';
   import { factorSheet, openSheet } from '$lib/ui.svelte';
   import { PRESSURE_DROP_HPA, weatherEmoji } from '$lib/weather';
+  import SectionLabel from './SectionLabel.svelte';
   import Sheet from './Sheet.svelte';
 
   /** A day chart: hours from 0 to 24 across, one or more lines, a marker at the current time. */
@@ -192,7 +193,7 @@
       </div>
       {#if dayDrinks.length}
         <div class="flex flex-col gap-1.5">
-          <p class="text-xs font-semibold tracking-wide text-muted uppercase">{t('fs.drinks')}</p>
+          <SectionLabel>{t('fs.drinks')}</SectionLabel>
           <div class="flex flex-wrap gap-1.5">
             {#each dayDrinks as drink (drink.id)}
               <button class="press min-h-11 rounded-full bg-surface px-3 py-1.5 text-sm tabular" onclick={() => edit({ kind: 'drink', item: drink })}>

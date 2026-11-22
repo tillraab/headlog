@@ -7,6 +7,7 @@
   import { fmt, t } from '$lib/i18n.svelte';
   import { restoreFromGist, sync } from '$lib/sync.svelte';
   import { closeSheet, sheets, toast } from '$lib/ui.svelte';
+  import SectionLabel from './SectionLabel.svelte';
   import Sheet from './Sheet.svelte';
 
   interface Preview {
@@ -108,7 +109,7 @@
   <p class="mb-4 text-sm text-muted">{t('versions.hint')}</p>
 
   {#each days as group (group.day)}
-    <h3 class="mt-4 mb-1 text-xs font-semibold tracking-wide text-muted uppercase">{dayLabel(group.day)}</h3>
+    <SectionLabel class="mt-4 mb-1">{dayLabel(group.day)}</SectionLabel>
     <ul class="card flex flex-col p-1">
       {#each group.items as v (v.version)}
         {@const preview = previews[v.version]}
