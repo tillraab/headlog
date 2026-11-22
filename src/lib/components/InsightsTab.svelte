@@ -4,8 +4,8 @@
   import { entryDetailLines, formatComparison } from '$lib/format';
   import { addDays, endOfDay } from 'date-fns';
   import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays } from '$lib/days';
-  import { openSheet } from '$lib/ui.svelte';
-  import { fmt, num, t, tagLabel, weekdayShort } from '$lib/i18n.svelte';
+  import { openDay, openSheet } from '$lib/ui.svelte';
+  import { fmt, num, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { dropToNextDay, isPressureDrop, PRESSURE_DROP_HPA } from '$lib/weather';
   import { SOURCES } from '$lib/sources';
@@ -252,7 +252,7 @@
     {@render heading(t('ins.connections'))}
     <section class="card p-4">
       <CardHeading class="mb-3" title={t('tl.title')} info={[t('tl.hint'), t('tl.linesHint', { sleep: SHORT_SLEEP_HOURS }), ...rollingInfo]} sources={rollingSources} />
-      <TimelineChart {rows} keys={chartKeys} forecast={chartKeys.length - keys.length} bands={series.headache.map((v) => v > 0)} details={dayDetails} />
+      <TimelineChart {rows} keys={chartKeys} forecast={chartKeys.length - keys.length} bands={series.headache.map((v) => v > 0)} details={dayDetails} onday={openDay} />
     </section>
 
     <section class="card p-4">
@@ -300,7 +300,7 @@
         <ul class="flex flex-col gap-2">
           {#each stats.tags as tag (tag.tag)}
             <li class="flex items-center gap-3">
-              <span class="w-36 truncate">{tagLabel(tag.tag)}</span>
+              <span class="w-36 truncate">{tag.tag}</span>
               <div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
                 <div class="h-full rounded-full bg-primary" style:width="{(tag.count / maxTag) * 100}%"></div>
               </div>

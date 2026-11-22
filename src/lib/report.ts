@@ -24,7 +24,7 @@ import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } fr
 import { formatComparison } from './format';
 import { MONTHLY_LIMITS, type MedCategory } from './medication';
 import { dayKey, dayRange, formatDuration, formatLiters, hm, HOUR, keyToDate } from './days';
-import { fmt, num, reliefLabels, t, tagLabel } from './i18n.svelte';
+import { fmt, num, reliefLabels, t } from './i18n.svelte';
 import { PRESSURE_DROP_HPA } from './weather';
 
 type Rgb = [number, number, number];
@@ -302,7 +302,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
       alternateRowStyles: { fillColor: SOFT },
       columnStyles: { 0: { cellWidth: 70 } }
     });
-    const tags = stats.tags.slice(0, 8).map((x) => `${tagLabel(x.tag)} ${x.count}×`).join(' · ');
+    const tags = stats.tags.slice(0, 8).map((x) => `${x.tag} ${x.count}×`).join(' · ');
     let entriesTop = tableEnd + 6;
     if (tags) {
       doc.setFontSize(7.5);
@@ -332,7 +332,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     const medLine = (i: Intake) => `${hm(i.time)} ${i.name} ${i.dose}`.trim() + reliefText(i.relief);
     const e = row.episode;
     if (!e) return [fmt(row.time, 'EEE d. MMM'), t('pdf.noHeadache'), '–', medLine(row.intakes[0]), factorText(row.factors).join('\n') || '–', ''];
-    const reasons = [...factorText(row.factors), ...e.tags.map(tagLabel)];
+    const reasons = [...factorText(row.factors), ...e.tags];
     return [
       fmt(e.start, 'EEE d. MMM'),
       `${hm(e.start)}–${e.end ? hm(e.end) : '…'}\n${formatDuration((e.end ?? now) - e.start)}`,
@@ -515,7 +515,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     if (!tags.length) text(t('pdf.noTags'), x + 4, top + 13, 7.5, MUTED);
     tags.forEach((tag, i) => {
       const ty = top + 12 + i * 7.2;
-      text(tagLabel(tag.tag), x + 4, ty + 2, 7.5, INK);
+      text(tag.tag, x + 4, ty + 2, 7.5, INK);
       text(String(tag.count), x + w - 4, ty + 2, 7.5, MUTED, false, 'right');
       doc.setFillColor(...EMPTY);
       doc.roundedRect(x + 4, ty + 3.4, w - 8, 1.6, 0.8, 0.8, 'F');

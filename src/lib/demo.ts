@@ -30,6 +30,12 @@ const NOTES = {
  * and pressure drops today and tomorrow with a short night today, so the forecast turns red and the
  * evening warning fires.
  */
+/** Symptoms and triggers of the demo headaches, in the demo's language. */
+const DEMO_TAGS = {
+  en: ['Stress', 'Poor sleep', 'Screen time', 'Light-sensitive', 'Nausea', 'Weather', 'Skipped meal'],
+  de: ['Stress', 'Schlecht geschlafen', 'Bildschirmzeit', 'Lichtempfindlich', 'Übelkeit', 'Wetter', 'Mahlzeit ausgelassen']
+};
+
 export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lang: 'en' | 'de' = 'en') {
   await wipe(database);
   await seed(database, lang);
@@ -47,7 +53,7 @@ export async function loadDemo(today = Date.now(), database: HeadLogDb = db, lan
   const drinks: Omit<Drink, 'id'>[] = [];
   const nights: Night[] = [];
   const weather: WeatherDay[] = [];
-  const tagPool = ['stress', 'sleep', 'screen', 'light', 'nausea', 'weather', 'meal'];
+  const tagPool = DEMO_TAGS[lang];
   let pressure = 1016;
   let lowWaterYesterday = false;
   let wineYesterday = false;

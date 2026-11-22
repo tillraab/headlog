@@ -1,18 +1,13 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { i18n } from './i18n.svelte';
-import { myTags, tagFromText, tagIdeas } from './tags';
-
-afterEach(() => {
-  i18n.lang = 'en';
-});
+import { describe, expect, it } from 'vitest';
+import { myTags, withTag } from './tags';
 
 describe('myTags', () => {
   it('keeps the saved list', () => {
-    expect(myTags(['period'], [{ tags: ['stress'] }])).toEqual(['period']);
+    expect(myTags(['Period'], [{ tags: ['Stress'] }])).toEqual(['Period']);
   });
 
   it('starts from the tags already used, most used first', () => {
-    expect(myTags(null, [{ tags: ['stress'] }, { tags: ['nausea', 'stress'] }])).toEqual(['stress', 'nausea']);
+    expect(myTags(null, [{ tags: ['Stress'] }, { tags: ['Nausea', 'Stress'] }])).toEqual(['Stress', 'Nausea']);
   });
 
   it('is empty for a diary without tags', () => {
@@ -20,19 +15,12 @@ describe('myTags', () => {
   });
 });
 
-describe('tagFromText', () => {
-  it.each([
-    ['en', ' stress ', 'stress'],
-    ['de', 'Periode', 'period'],
-    ['en', 'Neck pain', 'Neck pain']
-  ] as const)('reads "%s" text %s as %s', (lang, text, tag) => {
-    i18n.lang = lang;
-    expect(tagFromText(text)).toBe(tag);
+describe('withTag', () => {
+  it('adds the typed words, trimmed', () => {
+    expect(withTag(['Stress'], ' Neck pain ')).toEqual({ list: ['Stress', 'Neck pain'], tag: 'Neck pain' });
   });
-});
 
-describe('tagIdeas', () => {
-  it('leaves out tags already on the list', () => {
-    expect(tagIdeas(['stress'])).not.toContain('stress');
+  it('reuses an entry that differs only in case', () => {
+    expect(withTag(['Stress'], 'stress')).toEqual({ list: ['Stress'], tag: 'Stress' });
   });
 });

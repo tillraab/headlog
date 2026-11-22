@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-11-22
+
+### Changed
+
+- Your own lists are not translated: drink names, medication names and symptoms stay as written when the language changes. Existing tags become plain words in the app language once.
+- Symptoms and triggers are a checklist, one entry per row. Add takes your own words without suggestions; Edit removes entries from the list.
+- Calendar: one Show button opens a checklist of what is marked, with every medication on its own and the five factors.
+- Insights: a day tapped on the timeline can be opened in the day view, as in the Calendar.
+
+### Removed
+
+- Meds: the link to the Calendar.
+
 ## [0.39.0] - 2026-11-20
 
 ### Changed

@@ -39,7 +39,16 @@ export function tap(style: 'light' | 'medium' | 'heavy' = 'light') {
 }
 
 /** Every sheet of the app, by the id it opens with. */
-export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor' | 'range';
+/** The day the day sheet shows. */
+export const dayView = $state({ day: '' });
+
+/** Opens the day sheet for `day`: its entries and factors. */
+export function openDay(day: string) {
+  dayView.day = day;
+  openSheet('day');
+}
+
+export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor' | 'range' | 'calendarFilter';
 
 /** The date range the range picker edits, and what receives the chosen range. */
 export const rangePicker = $state<{ from: string; to: string; onpick: (range: { from: string; to: string }) => void }>({ from: '', to: '', onpick: () => {} });

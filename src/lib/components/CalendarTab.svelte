@@ -1,18 +1,17 @@
 <script lang="ts">
-  import { ChevronLeft, ChevronRight } from '@lucide/svelte';
-  import { addMonths, endOfDay, endOfMonth, getDay, isAfter, startOfDay, startOfMonth } from 'date-fns';
+  import { ChevronDown, ChevronLeft, ChevronRight, SlidersHorizontal } from '@lucide/svelte';
+  import { addMonths, endOfDay, endOfMonth, getDay, isAfter, startOfMonth } from 'date-fns';
   import { headacheDays, intakeDays } from '$lib/analysis';
-  import { FACTOR_ICONS, prognosis, prognosisInput, type FactorKey } from '$lib/prognosis';
+  import { FACTOR_ICONS, prognosis, prognosisInput } from '$lib/prognosis';
   import { dayKey, dayRange, keyToDate } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
-  import { clock, data, saveSettings } from '$lib/store.svelte';
-  import { openSheet, tap } from '$lib/ui.svelte';
+  import { clock, data } from '$lib/store.svelte';
+  import { openDay, openSheet, tap } from '$lib/ui.svelte';
   import { intakeColor } from '$lib/colors';
-  import DaySheet from './DaySheet.svelte';
+  import CalendarFilterSheet from './CalendarFilterSheet.svelte';
   import InfoButton from './InfoButton.svelte';
 
   let month = $state(startOfMonth(Date.now()));
-  let selected = $state<string | null>(null);
 
   const hDays = $derived(headacheDays(data.episodes, clock.now));
   const mDays = $derived(intakeDays(data.intakes, false));
@@ -36,21 +35,18 @@
     return result;
   });
 
-  const chips = $derived<{ key: 'headache' | 'medication' | FactorKey; label: string }[]>([
-    { key: 'headache', label: t('cal.headache') },
-    { key: 'medication', label: t('cal.medication') },
-    ...FACTOR_ICONS.map(([key, icon]) => ({ key, label: `${icon} ${t(`prog.${key}`)}` }))
-  ]);
-
-  function toggle(key: 'headache' | 'medication' | FactorKey) {
-    tap();
-    saveSettings({ calendar: { ...show, [key]: !show[key] } });
-  }
-
-  function open(key: string) {
-    selected = key;
-    openSheet('day');
-  }
+  /** Medications whose dots are shown. */
+  const shownMeds = $derived(show.medication ? data.medications.filter((m) => !data.settings.calendarHiddenMeds.includes(m.id)) : []);
+  /** What the calendar marks, in a few words, for the filter button. */
+  const summary = $derived(
+    [
+      show.headache ? t('cal.headache') : '',
+      shownMeds.length === data.medications.length && shownMeds.length ? t('cal.medication') : shownMeds.map((m) => m.name).join(', '),
+      shownFactors.length ? shownFactors.map(([, icon]) => icon).join('') : ''
+    ]
+      .filter(Boolean)
+      .join(' · ') || t('cal.nothing')
+  );
 
   function painStyle(intensity: number | undefined): string | undefined {
     if (!intensity) return undefined;
@@ -76,17 +72,12 @@
     </div>
   </header>
 
-  <div class="flex flex-wrap gap-1.5 text-sm" role="group" aria-label={t('cal.show')}>
-    {#each chips as chip (chip.key)}
-      <button
-        class="press min-h-9 rounded-full px-2.5 font-medium {show[chip.key] ? 'bg-primary text-primary-fg' : 'bg-surface-2 text-muted'}"
-        aria-pressed={show[chip.key]}
-        onclick={() => toggle(chip.key)}
-      >
-        {chip.label}
-      </button>
-    {/each}
-  </div>
+  <button class="press flex min-h-11 items-center gap-2 rounded-xl bg-surface-2 px-3 text-left text-sm" aria-haspopup="dialog" onclick={() => (tap(), openSheet('calendarFilter'))}>
+    <SlidersHorizontal size={18} class="shrink-0 text-muted" />
+    <span class="shrink-0 font-medium">{t('cal.filter')}</span>
+    <span class="min-w-0 flex-1 truncate text-muted">{summary}</span>
+    <ChevronDown size={18} class="shrink-0 text-muted" />
+  </button>
 
   <section class="card p-3">
     <div class="mb-1 grid grid-cols-7 text-center text-sm font-medium text-muted">
@@ -96,7 +87,7 @@
       {#each { length: offset } as _, i (i)}<span></span>{/each}
       {#each keys as key (key)}
         {@const intensity = show.headache ? hDays.get(key) : undefined}
-        {@const meds = show.medication ? mDays.get(key) : undefined}
+        {@const meds = mDays.get(key)?.filter((m) => shownMeds.some((s) => s.id === m.medId))}
         {@const icons = badFactors.get(key)}
         {@const future = key > today}
         <button
@@ -104,7 +95,7 @@
             {key === today ? 'ring-2 ring-primary' : ''} {intensity ? 'font-semibold text-white' : 'bg-surface-2'}"
           style:background-color={painStyle(intensity)}
           disabled={future}
-          onclick={() => open(key)}
+          onclick={() => openDay(key)}
         >
           {#if icons}
             <span class="absolute inset-x-0 top-0.5 flex justify-center text-[0.65rem] leading-none tracking-[-0.1em]" aria-hidden="true">{icons.join('')}</span>
@@ -122,7 +113,7 @@
     </div>
     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-sm text-muted">
       {#if show.headache}<span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-pain"></span>{t('cal.headache')}</span>{/if}
-      {#each show.medication ? data.medications : [] as med (med.id)}
+      {#each shownMeds as med (med.id)}
         <span class="flex items-center gap-1.5">
           <span class="size-2.5 rounded-full" style:background-color={intakeColor({ medId: med.id, name: med.name, category: med.category }, data.medications)}></span>{med.name}
         </span>
@@ -133,4 +124,4 @@
   </section>
 </div>
 
-<DaySheet day={selected ?? dayKey(startOfDay(clock.now))} />
+<CalendarFilterSheet />

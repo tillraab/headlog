@@ -24,6 +24,7 @@
    * Charts that share one time axis, one row each, with headache days as faint red bands through
    * every row. Tap or drag across a chart to see all values of that day.
    */
+  import { ChevronRight } from '@lucide/svelte';
   import { getDay } from 'date-fns';
   import { keyToDate } from '$lib/days';
   import { fmt, t } from '$lib/i18n.svelte';
@@ -34,7 +35,8 @@
     keys,
     details,
     forecast = 0,
-    showLast = false
+    showLast = false,
+    onday
   }: {
     rows: Row[];
     bands: boolean[];
@@ -44,6 +46,8 @@
     forecast?: number;
     /** Shows the values of the last day before the forecast until another day is tapped. */
     showLast?: boolean;
+    /** Opens the selected day, from the detail box; forecast days have nothing to open. */
+    onday?: (key: string) => void;
   } = $props();
 
   const H = 48;
@@ -89,19 +93,34 @@
 </script>
 
 <div class="flex flex-col gap-3">
-  <div class="overflow-hidden rounded-xl bg-surface-2 px-3 py-2 text-xs leading-5" style:height="{boxHeight}rem">
-    {#if selected === null}
-      <p class="text-muted">{t('tl.tapHint')}</p>
-    {:else}
-      <p class="truncate font-semibold">
-        {fmt(keyToDate(keys[selected]), 'EEEE, d. MMMM')}
-        {#if selected >= n - forecast}<span class="font-normal text-muted">· {t('tl.forecast')}</span>{/if}
-      </p>
-      {#each (details?.(selected) ?? []).slice(0, DETAIL_LINES) as line, i (i)}
-        <p class="truncate text-muted">{line}</p>
-      {/each}
-    {/if}
-  </div>
+  {#snippet detail(index: number, link: boolean)}
+    <p class="flex items-baseline gap-2 font-semibold">
+      <span class="min-w-0 truncate">{fmt(keyToDate(keys[index]), 'EEEE, d. MMMM')}</span>
+      {#if index >= n - forecast}<span class="font-normal text-muted">· {t('tl.forecast')}</span>{/if}
+      {#if link}<span class="ml-auto flex shrink-0 items-center text-primary">{t('tl.openDay')}<ChevronRight size={16} /></span>{/if}
+    </p>
+    {#each (details?.(index) ?? []).slice(0, DETAIL_LINES) as line, i (i)}
+      <p class="truncate text-muted">{line}</p>
+    {/each}
+  {/snippet}
+  {#if selected !== null && onday && selected < n - forecast}
+    {@const index = selected}
+    <button
+      class="press block w-full overflow-hidden rounded-xl bg-surface-2 px-3 py-2 text-left text-xs leading-5 ring-1 ring-primary/40"
+      style:height="{boxHeight}rem"
+      onclick={() => onday(keys[index])}
+    >
+      {@render detail(index, true)}
+    </button>
+  {:else}
+    <div class="overflow-hidden rounded-xl bg-surface-2 px-3 py-2 text-xs leading-5" style:height="{boxHeight}rem">
+      {#if selected === null}
+        <p class="text-muted">{t('tl.tapHint')}</p>
+      {:else}
+        {@render detail(selected, false)}
+      {/if}
+    </div>
+  {/if}
 
   {#each rows as row (row.label)}
     {@const s = scale(row)}

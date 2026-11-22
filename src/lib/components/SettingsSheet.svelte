@@ -4,7 +4,7 @@
   import { loadDemo } from '$lib/demo';
   import { fmt, i18n, num, setLang, t, type Lang } from '$lib/i18n.svelte';
   import { formatLiters, hourLabel } from '$lib/days';
-  import { clock, data, load, saveSettings, translateDrinkNames, updateSleep, updateWeather } from '$lib/store.svelte';
+  import { clock, data, load, saveSettings, updateSleep, updateWeather } from '$lib/store.svelte';
   import { prognosisInput, tomorrowRisk } from '$lib/prognosis';
   import { setHours, startOfDay } from 'date-fns';
   import { requestReminderPermission } from '$lib/reminders';
@@ -189,9 +189,8 @@
     });
   }
 
-  async function changeLang(lang: Lang) {
+  function changeLang(lang: Lang) {
     setLang(lang);
-    await translateDrinkNames(lang);
   }
 
   async function setTheme(theme: Theme) {

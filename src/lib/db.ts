@@ -11,7 +11,7 @@ export interface Episode {
   end: number | null;
   /** Peak intensity from 1 (barely noticeable) to 10 (worst imaginable). */
   intensity: number;
-  /** Symptom and trigger tags, keys of `TAGS`. */
+  /** Symptoms and triggers, in the user's own words. */
   tags: string[];
   note: string;
 }

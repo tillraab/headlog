@@ -1,5 +1,4 @@
 import type { Episode } from './db';
-import { TAGS, tagLabel } from './i18n.svelte';
 
 /**
  * The symptoms and triggers offered in the headache editor: the user's own list, or, before they changed it, the
@@ -12,13 +11,9 @@ export function myTags(saved: string[] | null, episodes: Pick<Episode, 'tags'>[]
   return [...counts].sort((a, b) => b[1] - a[1]).map(([tag]) => tag);
 }
 
-/** A typed tag: one of `TAGS` when the text is its label, so it is translated with the app; otherwise the text. */
-export function tagFromText(text: string): string {
+/** The list with `text` added, unless it is empty or already on it, ignoring case. */
+export function withTag(list: string[], text: string): { list: string[]; tag: string } {
   const typed = text.trim();
-  return TAGS.find((tag) => tagLabel(tag).toLowerCase() === typed.toLowerCase()) ?? typed;
-}
-
-/** Ideas for new tags: the built-in ones not on the list yet. */
-export function tagIdeas(list: string[]): string[] {
-  return TAGS.filter((tag) => !list.includes(tag));
+  const existing = list.find((tag) => tag.toLowerCase() === typed.toLowerCase());
+  return existing || !typed ? { list, tag: existing ?? '' } : { list: [...list, typed], tag: typed };
 }
