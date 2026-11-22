@@ -3,8 +3,9 @@
   import { hydrationMl } from '$lib/drinks';
   import { ChevronDown, Droplets, Pencil, Pill, Zap } from '@lucide/svelte';
   import { isToday, startOfDay } from 'date-fns';
-  import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty, waterOn } from '$lib/analysis';
-  import { DAY, formatDuration, formatLiters, hm, HOUR, MINUTE } from '$lib/days';
+  import { hydrationStreak, intakeDays, isStreakMilestone, medicationLimits, periodStats, tenTwenty, waterOn } from '$lib/analysis';
+  import { reliefQuestion } from '$lib/medication';
+  import { DAY, formatDuration, formatLiters, hm } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache, type EntryTable } from '$lib/store.svelte';
@@ -20,7 +21,6 @@
   let { onOpenTab }: { onOpenTab: (tab: 'meds') => void } = $props();
 
   /** Today asks "did it help?" for an unrated intake up to this long after it. */
-  const RELIEF_ASK_WINDOW = 12 * HOUR;
   /** An ongoing headache longer than this asks whether it has ended. */
   const LONG_HEADACHE = DAY;
 
@@ -53,9 +53,7 @@
   const alcoholCount = $derived(todayDrinks.filter((d) => d.alcohol).length);
   const waterPct = $derived(Math.min(1, waterMl / data.settings.waterGoalMl));
   const hydration = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
-  const unrated = $derived(
-    data.intakes.findLast((i) => i.relief === null && clock.now - i.time > (data.settings.reliefCheckMinutes || 60) * MINUTE && clock.now - i.time < RELIEF_ASK_WINDOW)
-  );
+  const unrated = $derived(reliefQuestion(data.intakes, clock.now, data.settings.reliefCheckMinutes));
   const todayEpisodes = $derived(data.episodes.filter((e) => (e.end ?? clock.now) >= dayStart));
 
   const log = $derived(
@@ -87,7 +85,7 @@
   /** Celebrates reaching today's hydration goal, with the streak it extends. */
   function cheer() {
     const days = hydrationStreak(data.drinks, data.settings.waterGoalMl, Date.now()).current;
-    const milestone = [3, 7, 14, 21, 30, 50, 100].includes(days);
+    const milestone = isStreakMilestone(days);
     celebrate(t('streak.goal'), days > 1 ? t(milestone ? 'streak.milestone' : 'streak.days', { n: days }) : t('streak.first'));
   }
 </script>

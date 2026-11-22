@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Pencil } from '@lucide/svelte';
-  import { conflictingOngoing } from '$lib/analysis';
+  import { entryProblem } from '$lib/entryCheck';
   import { RELIEFS, type Night } from '$lib/db';
   import { fromPreset } from '$lib/drinks';
   import { fromMedication } from '$lib/medication';
@@ -46,30 +46,18 @@
   async function save() {
     const c = editor.current;
     if (!c) return;
-    const times = c.kind === 'episode' ? [c.item.start, c.item.end ?? 0] : c.kind === 'sleep' ? [c.item.start, c.item.end] : [c.item.time];
-    if (!times.every(Number.isFinite)) {
-      error = t('edit.invalidTime');
+    const problem = entryProblem(c, data.episodes);
+    if (problem) {
+      error = t(problem);
       return;
     }
     if (c.kind === 'episode') {
-      if (c.item.end !== null && c.item.end <= c.item.start) {
-        error = t('edit.endBeforeStart');
-        return;
-      }
-      if (conflictingOngoing(data.episodes, c.item)) {
-        error = t('edit.otherOngoing');
-        return;
-      }
       await saveEpisode(c.item);
     } else if (c.kind === 'intake') {
       const med = data.medications.find((m) => m.id === c.item.medId);
       if (med && c.item.id === undefined) Object.assign(c.item, fromMedication(med));
       await saveIntake(c.item);
     } else if (c.kind === 'sleep') {
-      if (c.item.end <= c.item.start) {
-        error = t('edit.endBeforeStart');
-        return;
-      }
       await saveNight(manualNight(c.item.day, c.item.start, c.item.end, c.item.breaks));
     } else {
       await saveDrink(c.item);
