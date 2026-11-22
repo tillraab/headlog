@@ -25,7 +25,7 @@
   import { clock, confirmNight, data, endEpisode, load, setRelief, startClock, updateSleep, updateWeather } from '$lib/store.svelte';
   import { dayKey } from '$lib/days';
   import { applyDrinkReminders, applyHeadacheChecks, applyReminders, applyRiskAlert, applySleepChecks, onNotificationAction, planAll } from '$lib/reminders';
-  import { syncQuietly } from '$lib/sync.svelte';
+  import { backupProblem, sync, syncQuietly } from '$lib/sync.svelte';
   import { applyTheme, awayLongEnough, busyInSheet, closeAllSheets, closeTopSheet, dayView, home, openSheet, tap } from '$lib/ui.svelte';
 
   const tabs = $derived([
@@ -136,8 +136,13 @@
         <img src="favicon.svg" alt="" class="size-7" />
         HeadLog
       </span>
-      <button class="press -mr-2 grid size-11 place-items-center rounded-full text-muted" onclick={() => openSheet('settings')} aria-label={t('set.title')}>
+      <button
+        class="press relative -mr-2 grid size-11 place-items-center rounded-full text-muted"
+        onclick={() => openSheet('settings')}
+        aria-label={backupProblem(sync.link) ? `${t('set.title')}: ${t('sync.problem')}` : t('set.title')}
+      >
         <Settings size={22} />
+        {#if backupProblem(sync.link)}<span class="absolute top-1.5 right-1.5 size-2.5 rounded-full bg-over ring-2 ring-bg"></span>{/if}
       </button>
     </div>
   </header>

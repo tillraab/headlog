@@ -5,7 +5,6 @@
   import type { Drink, Episode, Intake } from '$lib/db';
   import { listVersions, pull, VERSIONS_PER_PAGE, type GistVersion } from '$lib/gist';
   import { fmt, t } from '$lib/i18n.svelte';
-  import { load } from '$lib/store.svelte';
   import { restoreFromGist, sync } from '$lib/sync.svelte';
   import { closeSheet, sheets, toast } from '$lib/ui.svelte';
   import Sheet from './Sheet.svelte';
@@ -90,7 +89,6 @@
     if (!confirm(t('versions.confirm', { time: fmt(v.at, 'd. MMM yyyy, HH:mm') }))) return;
     try {
       await restoreFromGist(v.version);
-      await load();
       toast(t('set.imported'));
       closeSheet('versions');
       closeSheet('settings');

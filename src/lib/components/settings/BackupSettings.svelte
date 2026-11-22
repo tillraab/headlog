@@ -1,11 +1,11 @@
 <script lang="ts">
   /** Backup to a GitHub gist, with its encryption, or to a JSON file. */
   import { Lock, LockOpen } from '@lucide/svelte';
-  import { createBackup, isBackup, restoreBackup, saveFile } from '$lib/backup';
+  import { createBackup, isBackup, saveFile } from '$lib/backup';
   import { PassphraseError } from '$lib/crypto';
   import { fmt, t } from '$lib/i18n.svelte';
-  import { data, load } from '$lib/store.svelte';
-  import { connect, disconnect, restoreFromGist, setPassphrase, sync, syncNow } from '$lib/sync.svelte';
+  import { data, restore } from '$lib/store.svelte';
+  import { backupProblem, connect, disconnect, restoreFromGist, setPassphrase, sync, syncNow } from '$lib/sync.svelte';
   import { openSheet, toast } from '$lib/ui.svelte';
 
   let fileInput = $state<HTMLInputElement>();
@@ -28,8 +28,7 @@
     }
     if (!confirm(t('set.importConfirm'))) return;
     try {
-      await restoreBackup(parsed);
-      await load();
+      await restore(parsed);
     } catch {
       toast(t('set.restoreFailed'));
       return;
@@ -55,7 +54,6 @@
       token = '';
       if (existing && confirm(t('sync.existing'))) {
         await restoreFromGist();
-        await load();
         toast(t('set.imported'));
       } else if (!existing) {
         toast(t('sync.done'));
@@ -77,7 +75,6 @@
     if (!confirm(t('sync.restoreConfirm'))) return;
     return guarded(async () => {
       await restoreFromGist();
-      await load();
       toast(t('set.imported'));
     });
   }
@@ -107,7 +104,6 @@
     return guarded(async () => {
       await restoreFromGist(undefined, unlockWith);
       unlockWith = '';
-      await load();
       toast(t('set.imported'));
     });
   }
@@ -130,6 +126,7 @@
       <button class="press min-h-11 rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-medium" onclick={() => fileInput?.click()}>{t('set.import')}</button>
     </div>
   {:else if sync.link}
+    {#if backupProblem(sync.link)}<p class="rounded-xl bg-pain-soft p-3">{backupProblem(sync.link)}</p>{/if}
     {#if sync.link.paused && !sync.locked}<p class="rounded-xl bg-med-soft p-3">{t(sync.link.pausedFor === 'demo' ? 'sync.pausedDemo' : 'sync.paused')}</p>{/if}
     <p class="text-muted">
       {sync.link.lastSync ? t('sync.last', { time: fmt(sync.link.lastSync, 'd. MMM HH:mm') }) : t('sync.never')}

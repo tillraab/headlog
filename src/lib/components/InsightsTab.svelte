@@ -1,7 +1,7 @@
 <script lang="ts">
   import { RULE_COLOR } from '$lib/colors';
   import { FileText } from '@lucide/svelte';
-  import { average, caffeineByDay, compareDays, firstDrinkDay, headacheDays, intakeDays, monthlyCounts, periodStats, rollingDays, ruleStatus, TEN_TWENTY_LIMIT, tenTwenty, timeline } from '$lib/analysis';
+  import { average, caffeineByDay, compareDays, firstEntryDay, headacheDays, intakeDays, monthlyCounts, periodStats, rollingDays, ruleStatus, TEN_TWENTY_LIMIT, tenTwenty, timeline } from '$lib/analysis';
   import { entryDetailLines, formatComparison } from '$lib/format';
   import { addDays, endOfDay } from 'date-fns';
   import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays } from '$lib/days';
@@ -38,7 +38,7 @@
 
   function openCustom() {
     const from = dayKey(addDays(clock.now, -89));
-    const first = firstDrinkDay(data.drinks);
+    const first = firstEntryDay(data);
     custom ??= { from: first && first > from ? first : from, to: today };
   }
   /**
@@ -77,8 +77,8 @@
     const headache = rollingDays(new Set(headacheDays(data.episodes, clock.now).keys()), last, span).map((r) => r.count);
     const med = rollingDays(acuteDays, last, span).map((r) => r.count);
     const ahead = forecastKeys.map(() => null);
-    /** Days before the first logged drink are before the app was in use; their counts are left out of the average. */
-    const first = firstDrinkDay(data.drinks);
+    /** Days before the first entry are before the app was in use; their counts are left out of the average. */
+    const first = firstEntryDay(data);
     const inUse = (counts: number[]) => counts.filter((_, i) => first === null || keys[i] >= first);
     const lastCount = (counts: number[]) =>
       keys[keys.length - 1] === today ? t('cal.rollingNow', { n: counts[counts.length - 1] }) : t('cal.rollingOn', { n: counts[counts.length - 1], date: fmt(last, 'd. MMM') });

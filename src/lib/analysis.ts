@@ -45,6 +45,12 @@ export function firstDrinkDay(drinks: Drink[]): string | null {
   return dayKey(Math.min(...drinks.map((d) => d.time)));
 }
 
+/** The day of the first entry of any kind, when the diary was first used; null for an empty diary. */
+export function firstEntryDay(data: { episodes: Pick<Episode, 'start'>[]; intakes: Pick<Intake, 'time'>[]; drinks: Pick<Drink, 'time'>[] }): string | null {
+  const times = [...data.episodes.map((e) => e.start), ...data.intakes.map((i) => i.time), ...data.drinks.map((d) => d.time)];
+  return times.length ? dayKey(Math.min(...times)) : null;
+}
+
 export function waterByDay(drinks: Drink[]): Map<string, number> {
   const days = new Map<string, number>();
   for (const d of drinks) {

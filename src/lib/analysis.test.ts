@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, categoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay } from './analysis';
+import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, categoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay, firstEntryDay } from './analysis';
 import { prognosis } from './prognosis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import type { MedCategory } from './medication';
@@ -515,5 +515,15 @@ describe('pressureAround', () => {
   it('marks the days before a drop, from yesterday to the day after tomorrow', () => {
     const weather = new Map(['2026-03-09', '2026-03-10', '2026-03-11', '2026-03-12', '2026-03-13'].map((k, i) => [k, w(k, [0, 0, 8, 2, 9][i])]));
     expect(pressureAround(weather, at('2026-03-10T12:00')).map((d) => [d.offset, d.marked])).toEqual([[-1, false], [0, true], [1, false], [2, true]]);
+  });
+});
+
+describe('firstEntryDay', () => {
+  it('takes the earliest entry of any kind', () => {
+    expect(firstEntryDay({ episodes: [{ start: at('2026-03-02T09:00') }], intakes: [{ time: at('2026-03-05T09:00') }], drinks: [{ time: at('2026-03-04T09:00') }] })).toBe('2026-03-02');
+  });
+
+  it('is null for an empty diary', () => {
+    expect(firstEntryDay({ episodes: [], intakes: [], drinks: [] })).toBeNull();
   });
 });
