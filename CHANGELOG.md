@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-11-23
+
+### Changed
+
+- Doctor report redesigned. Page 1 has a header with the logo and three key figures (headache days and acute medication days per month, average intensity), then days per month, the 30-day course, medication against its limits and which medication helps. Page 2 opens with a week-by-week calendar coloured by intensity, with medication days marked and the headaches started per weekday under its columns, followed by onset by time of day, possible triggers and symptoms. The diary follows.
+
 ## [0.43.0] - 2026-11-23
 
 ### Changed
