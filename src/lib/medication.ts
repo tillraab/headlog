@@ -1,4 +1,5 @@
 import type { Intake, Medication } from './db';
+import { HOUR, MINUTE } from './days';
 
 /** Medication classes, in the order the medication list offers them. */
 export const CATEGORIES = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'antiemetic', 'preventive', 'other'] as const;
@@ -48,4 +49,23 @@ export function guessCategory(name: string): MedCategory | null {
 /** The parts of a medication copied onto an intake, so history survives edits and deletes of the list. */
 export function fromMedication(med: Medication): Pick<Intake, 'medId' | 'name' | 'dose' | 'category'> {
   return { medId: med.id, name: med.name, dose: med.dose, category: med.category };
+}
+
+/** A personal limit from the two typed fields: no limit without days; the window 1 to 365 days, 30 when empty. */
+export function personalLimit(days: string, window: string): Pick<Medication, 'limitDays' | 'limitWindow'> {
+  const n = Math.round(Number(days));
+  const m = Math.min(365, Math.max(1, Math.round(Number(window)) || 30));
+  return n > 0 ? { limitDays: Math.min(n, m), limitWindow: m } : { limitDays: undefined, limitWindow: undefined };
+}
+
+/** How long after an intake Today still asks whether it helped. */
+export const RELIEF_ASK_WINDOW = 12 * HOUR;
+
+/**
+ * The intake Today asks about: the latest unrated one whose relief question is due (the delay set, or an hour when
+ * the notification is off) and less than 12 hours old.
+ */
+export function reliefQuestion(intakes: Intake[], now: number, delayMinutes: number): Intake | undefined {
+  const due = (delayMinutes || 60) * MINUTE;
+  return intakes.findLast((i) => i.relief === null && now - i.time > due && now - i.time < RELIEF_ASK_WINDOW);
 }

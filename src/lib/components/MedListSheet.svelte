@@ -2,7 +2,7 @@
   import { Plus, Trash2 } from '@lucide/svelte';
   import { MED_COLORS } from '$lib/colors';
   import type { Medication } from '$lib/db';
-  import { CATEGORIES, guessCategory, type MedCategory } from '$lib/medication';
+  import { CATEGORIES, guessCategory, personalLimit, type MedCategory } from '$lib/medication';
   import { toast } from '$lib/ui.svelte';
   import { t } from '$lib/i18n.svelte';
   import { data, deleteMedication, saveMedication, updateMedication } from '$lib/store.svelte';
@@ -34,9 +34,7 @@
   }
 
   function updateLimit(med: Medication, days: string, window: string) {
-    const n = Math.round(Number(days));
-    const m = Math.min(365, Math.max(1, Math.round(Number(window)) || 30));
-    return updateMed(med, n > 0 ? { limitDays: Math.min(n, m), limitWindow: m } : { limitDays: undefined, limitWindow: undefined });
+    return updateMed(med, personalLimit(days, window));
   }
 </script>
 

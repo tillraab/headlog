@@ -3,6 +3,7 @@
    * What the calendar marks, as a checklist: headaches, medication with each medication on its own, and the forecast
    * factors, each marking the days it was unfavourable.
    */
+  import { withMedShown } from '$lib/calendarFilter';
   import { intakeColor } from '$lib/colors';
   import { t } from '$lib/i18n.svelte';
   import { FACTOR_ICONS, type FactorKey } from '$lib/prognosis';
@@ -27,10 +28,13 @@
 
   function setMed(id: number, value: boolean) {
     tap();
-    const shown = new Set(shownMeds.map((m) => m.id));
-    if (value) shown.add(id);
-    else shown.delete(id);
-    void saveSettings({ calendar: { ...show, medication: shown.size > 0 }, calendarHiddenMeds: shown.size ? data.medications.filter((m) => !shown.has(m.id)).map((m) => m.id) : [] });
+    const next = withMedShown(
+      data.medications.map((m) => m.id),
+      shownMeds.map((m) => m.id),
+      id,
+      value
+    );
+    void saveSettings({ calendar: { ...show, medication: next.medication }, calendarHiddenMeds: next.hidden });
   }
 </script>
 
