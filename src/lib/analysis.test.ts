@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, categoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay, firstEntryDay, isStreakMilestone } from './analysis';
+import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, categoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay, firstEntryDay, severityDays, monthlyCategoryDays, isStreakMilestone } from './analysis';
 import { prognosis } from './prognosis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import type { MedCategory } from './medication';
@@ -536,5 +536,26 @@ describe('isStreakMilestone', () => {
     [100, true]
   ])('%s days: %s', (days, milestone) => {
     expect(isStreakMilestone(days)).toBe(milestone);
+  });
+});
+
+describe('severityDays', () => {
+  it('counts the days of the keys as mild, moderate and severe by peak intensity', () => {
+    const days = new Map([
+      ['2026-03-01', 3],
+      ['2026-03-02', 4],
+      ['2026-03-03', 7],
+      ['2026-03-04', 8],
+      ['2026-04-01', 9]
+    ]);
+    expect(severityDays(days, lastDays(at('2026-03-31T12:00'), 31))).toEqual([1, 2, 1]);
+  });
+});
+
+describe('monthlyCategoryDays', () => {
+  it('counts the days per class in each month, once per day', () => {
+    const intakes = [intake('2026-02-10T08:00'), intake('2026-03-02T08:00'), intake('2026-03-02T20:00'), intake('2026-03-05T08:00', 'triptan')];
+    const months = monthlyCategoryDays(intakes, at('2026-03-31T12:00'), 2).map((m) => Object.fromEntries(m.days));
+    expect(months).toEqual([{ analgesic: 1 }, { analgesic: 1, triptan: 1 }]);
   });
 });
