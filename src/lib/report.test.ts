@@ -3,7 +3,7 @@ import { createBackup } from './backup';
 import { HeadLogDb, type Drink, type Episode, type Intake, type Medication, type Night } from './db';
 import { loadDemo } from './demo';
 import { i18n } from './i18n.svelte';
-import { doctorReport, reportData, type ReportInput } from './report';
+import { calendarBlocks, doctorReport, reportData, weekdayOnsets, type ReportInput } from './report';
 
 const now = new Date('2026-03-31T18:00').getTime();
 
@@ -34,10 +34,11 @@ afterEach(() => {
 });
 
 describe('doctorReport', () => {
-  it('writes the summary, the details with the possible triggers and the diary', async () => {
+  it('writes the summary, the details with the calendar and the possible triggers, and the diary', async () => {
     const text = await demoReport();
     const pages = text.match(/\/Type \/Page\b/g)?.length ?? 0;
-    expect([text.startsWith('%PDF'), text.includes('Test Person'), text.includes('Possible triggers'), text.includes('pressure drop'), pages >= 2]).toEqual([
+    expect([text.startsWith('%PDF'), text.includes('Test Person'), text.includes('Day by day'), text.includes('Possible triggers'), text.includes('pressure drop'), pages >= 3]).toEqual([
+      true,
       true,
       true,
       true,
@@ -93,9 +94,14 @@ describe('reportData', () => {
     ]);
   });
 
-  it('marks the months from the first diary entry on as logged', () => {
+  it('counts the rates and the months only from the first diary entry on', () => {
     const report = reportData(input([episode('2026-03-02T09:00', '2026-03-02T12:00')], []), now, 3);
-    expect(report.monthly.map((m) => m.logged)).toEqual([false, false, true]);
+    expect([report.first, report.covered, report.monthly.map((m) => m.logged)]).toEqual(['2026-03-02', 30, [false, false, true]]);
+  });
+
+  it('counts the whole period when the diary starts before it', () => {
+    const report = reportData(input([episode('2025-11-02T09:00', '2025-11-02T12:00')], []), now, 3);
+    expect(report.covered).toEqual(report.span);
   });
 
   it('lists the 10/20 rule and each class used in the last 30 days as limits', () => {
@@ -105,5 +111,50 @@ describe('reportData', () => {
       ['class', 1, 15],
       ['class', 1, 10]
     ]);
+  });
+});
+
+describe('calendarBlocks', () => {
+  const at = (time: string) => new Date(time).getTime();
+
+  it.each([
+    ['one month', '2026-03-31T18:00', 1, [6]],
+    ['three months', '2026-03-31T18:00', 3, [14]],
+    ['six months', '2026-03-31T18:00', 6, [14, 14]],
+    ['twelve months', '2026-03-31T18:00', 12, [14, 14, 14, 14]]
+  ])('splits %s into quarters with one row per week', (_, time, months, rows) => {
+    expect(calendarBlocks(at(time), months).map((weeks) => weeks.length)).toEqual(rows);
+  });
+
+  it('starts each row on Monday and leaves out the days before the period', () => {
+    const [weeks] = calendarBlocks(at('2026-03-31T18:00'), 1);
+    expect(weeks[0].days).toEqual([null, null, null, null, null, null, '2026-03-01']);
+  });
+
+  it('leaves out the days after now', () => {
+    const [weeks] = calendarBlocks(at('2026-03-11T08:00'), 1);
+    expect(weeks.at(-1)!.days).toEqual(['2026-03-09', '2026-03-10', '2026-03-11', null, null, null, null]);
+  });
+
+  it('marks the week in which each month starts', () => {
+    const [weeks] = calendarBlocks(at('2026-03-31T18:00'), 3);
+    expect(weeks.flatMap((w, i) => (w.month ? [[i, w.month.getMonth()]] : []))).toEqual([
+      [0, 0],
+      [4, 1],
+      [8, 2]
+    ]);
+  });
+
+  it('shows a week that two blocks share in both, each with the days of its own months', () => {
+    const [first, second] = calendarBlocks(at('2026-03-31T18:00'), 6);
+    expect([first.at(-1)!.days, second[0].days]).toEqual([
+      ['2025-12-29', '2025-12-30', '2025-12-31', null, null, null, null],
+      [null, null, null, '2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04']
+    ]);
+  });
+
+  it('counts the headaches started in a block by weekday and leaves out those of other blocks', () => {
+    const [first] = calendarBlocks(at('2026-03-31T18:00'), 6);
+    expect(weekdayOnsets(first, ['2025-12-29', '2025-12-31', '2025-12-31', '2026-01-01', '2025-10-06'])).toEqual([2, 0, 2, 0, 0, 0, 0]);
   });
 });

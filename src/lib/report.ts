@@ -1,4 +1,4 @@
-import { addMonths, endOfMonth, startOfMonth } from 'date-fns';
+import { addDays, addMonths, endOfMonth, startOfMonth, startOfWeek } from 'date-fns';
 import { GState, jsPDF } from 'jspdf';
 import { autoTable, type CellHookData } from 'jspdf-autotable';
 import {
@@ -27,8 +27,8 @@ import {
 } from './analysis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import { formatComparison } from './format';
-import { dayKey, dayRange, formatDuration, formatLiters, hm, HOUR } from './days';
-import { fmt, reliefLabels, t, weekdayShort } from './i18n.svelte';
+import { dayKey, dayRange, formatDuration, formatLiters, hm, HOUR, keyToDate } from './days';
+import { fmt, num, reliefLabels, t, weekdayShort } from './i18n.svelte';
 import { LOGO_PNG } from './logo';
 import { PRESSURE_DROP_HPA } from './weather';
 
@@ -42,7 +42,7 @@ const SURFACE_2: Rgb = [235, 235, 234];
 const PANEL: Rgb = [245, 245, 244];
 const WHITE: Rgb = [255, 255, 255];
 const PRIMARY: Rgb = [91, 75, 214];
-/** The two ends of the app icon's gradient, for the header band. */
+/** The two ends of the app icon's gradient, for the rule under the header. */
 const BRAND: [Rgb, Rgb] = [
   [122, 53, 162],
   [207, 74, 147]
@@ -62,7 +62,7 @@ const RULE_COLOR: Record<RuleStatus, Rgb> = { ok: MED, caution: CAUTION, over: O
 const RELIEF_COLOR: Rgb[] = [OVER, CAUTION, OK, SURFACE_2];
 
 /** Type sizes in pt. */
-const SIZE = { title: 20, page: 16, section: 10.5, body: 8.5, small: 7.5, axis: 7 };
+const SIZE = { page: 16, section: 10.5, body: 8.5, small: 7.5, axis: 7 };
 
 /** The chronic-headache frequency of ICHD-3 1.3 and 2.3: headache on 15 or more days a month. */
 const CHRONIC_DAYS = 15;
@@ -161,6 +161,10 @@ export interface ReportData {
   from: Date;
   /** Days in the period, today included. */
   span: number;
+  /** Day of the first diary entry, or null without any. */
+  first: string | null;
+  /** Days of the period from the first diary entry on; the rates per month count these. */
+  covered: number;
   stats: PeriodStats;
   /** Peak intensity per headache day, and the days with acute medication, over all data. */
   headacheDays: Map<string, number>;
@@ -230,6 +234,8 @@ export function reportData(input: ReportInput, now: number, months: number): Rep
   return {
     from,
     span,
+    first,
+    covered: first !== null && first > dayKey(from) ? dayRange(keyToDate(first), now).length : span,
     stats: periodStats(input, now, span),
     headacheDays: hDays,
     medDays,
@@ -254,6 +260,49 @@ export function reportData(input: ReportInput, now: number, months: number): Rep
   };
 }
 
+/** One row of the calendar, Monday to Sunday. */
+export interface CalendarWeek {
+  /** Day keys, null for a day outside the block or after `now`. */
+  days: (string | null)[];
+  /** The month whose first day falls in this week. */
+  month?: Date;
+}
+
+/** Months in one block of the calendar at most: a quarter. */
+const MONTHS_PER_BLOCK = 3;
+
+/**
+ * The calendar of the `months` calendar months up to `now` in blocks of whole months, at most a
+ * quarter each, with one row per week from Monday. A week that two blocks share appears in both,
+ * each with its own days.
+ */
+export function calendarBlocks(now: number, months: number): CalendarWeek[][] {
+  const from = startOfMonth(addMonths(now, -(months - 1)));
+  const count = Math.ceil(months / MONTHS_PER_BLOCK);
+  const perBlock = Math.ceil(months / count);
+  return Array.from({ length: count }, (_, b) => {
+    const start = addMonths(from, b * perBlock);
+    const first = dayKey(start);
+    const last = dayKey(Math.min(endOfMonth(addMonths(start, perBlock - 1)).getTime(), now));
+    const weeks: CalendarWeek[] = [];
+    for (let monday = startOfWeek(start, { weekStartsOn: 1 }); dayKey(monday) <= last; monday = addDays(monday, 7)) {
+      const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+      const days = dates.map((d) => (dayKey(d) >= first && dayKey(d) <= last ? dayKey(d) : null));
+      const opening = dates.find((d, i) => d.getDate() === 1 && days[i] !== null);
+      weeks.push(opening ? { days, month: opening } : { days });
+    }
+    return weeks;
+  });
+}
+
+/** Headaches started on each weekday of the calendar `weeks`, given the days they started on. */
+export function weekdayOnsets(weeks: CalendarWeek[], starts: string[]): number[] {
+  return [0, 1, 2, 3, 4, 5, 6].map((i) => starts.filter((key) => weeks.some((w) => w.days[i] === key)).length);
+}
+
+/** Height of the chart of headaches started by time of day, in mm. */
+const ONSETS_H = 26;
+
 /** Columns of the diary table that the cell hooks draw differently. */
 const INTENSITY_COLUMN = 3;
 const MEDICATION_COLUMN = 4;
@@ -277,10 +326,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   const H = doc.internal.pageSize.getHeight();
   const M = 14;
   const inner = W - 2 * M;
-  /** Height of the header band on page 1 and on the pages after it. */
-  const bandH = 32;
-  const slimBandH = 13;
-  const contentTop = 31;
+  const contentTop = 34;
   const footerY = H - 13;
   const contentBottom = footerY - 5;
 
@@ -320,25 +366,45 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     doc.setLineDashPattern([], 0);
   };
   const opacity = (value: number) => doc.setGState(new GState({ opacity: value, 'stroke-opacity': value }));
+  /** How far below the baseline of a section title its content starts. */
+  const sectionHeight = (w: number, hint?: string) => (hint ? 4.5 + wrap(hint, w, SIZE.small).length * lineHeight(SIZE.small) + 1.5 : 4);
   /** A section title with an optional hint below it. Returns where the content starts. */
   const section = (title: string, x: number, y: number, w: number, hint?: string) => {
     text(title, x, y, SIZE.section, FG, true);
-    if (!hint) return y + 4;
-    const lines = wrap(hint, w, SIZE.small);
-    text(lines, x, y + 4.5, SIZE.small, MUTED);
-    return y + 4.5 + lines.length * lineHeight(SIZE.small) + 1.5;
+    if (hint) text(wrap(hint, w, SIZE.small), x, y + 4.5, SIZE.small, MUTED);
+    return y + sectionHeight(w, hint);
   };
-  /** Small squares with labels in a row from `x`. */
-  const legend = (items: [Rgb, string][], x: number, y: number) => {
-    for (const [color, label] of items) {
+  /** Distance between the rows of a legend that wraps. */
+  const legendRow = 4.4;
+  /** Where each legend item goes, from the left end of the first row, wrapped at `w`. */
+  const legendPlaces = (labels: string[], w = Infinity) => {
+    let x = 0;
+    let row = 0;
+    return labels.map((label) => {
+      const itemW = 3.6 + width(label, SIZE.small);
+      if (x > 0 && x + itemW > w) [x, row] = [0, row + 1];
+      const place = { x, row };
+      x += itemW + 4;
+      return place;
+    });
+  };
+  /** Small squares with labels in a row from `x`, wrapped at `w`. A white square gets an outline. */
+  const legend = (items: [Rgb, string][], x: number, y: number, w = Infinity) => {
+    const places = legendPlaces(
+      items.map(([, label]) => label),
+      w
+    );
+    items.forEach(([color, label], i) => {
+      const lx = x + places[i].x;
+      const ly = y + places[i].row * legendRow;
       fill(color);
-      doc.roundedRect(x, y - 2.3, 2.6, 2.6, 0.5, 0.5, 'F');
-      text(label, x + 3.6, y, SIZE.small, MUTED);
-      x += 3.6 + width(label, SIZE.small) + 4;
-    }
+      doc.setDrawColor(...LINE);
+      doc.roundedRect(lx, ly - 2.3, 2.6, 2.6, 0.5, 0.5, color === WHITE ? 'FD' : 'F');
+      text(label, lx + 3.6, ly, SIZE.small, MUTED);
+    });
   };
   const legendWidth = (labels: string[]) => labels.reduce((sum, label) => sum + 7.6 + width(label, SIZE.small), -4);
-  const pageTitle = (title: string) => text(title, M, 24.5, SIZE.page, FG, true);
+  const pageTitle = (title: string) => text(title, M, 28, SIZE.page, FG, true);
 
   summaryPage();
   doc.addPage();
@@ -349,8 +415,8 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   const pages = doc.getNumberOfPages();
   for (let page = 1; page <= pages; page++) {
     doc.setPage(page);
-    if (page === 1) header();
-    else slimHeader();
+    if (page === 1) titleHeader();
+    else runningHeader();
     doc.setDrawColor(...LINE);
     doc.setLineWidth(0.2);
     doc.line(M, footerY, W - M, footerY);
@@ -360,37 +426,64 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
 
   return new Uint8Array(doc.output('arraybuffer'));
 
-  /** A band across the top of the page in the gradient of the app icon, drawn as thin strips. */
-  function band(h: number) {
-    const strips = 60;
-    for (let i = 0; i < strips; i++) {
-      const f = i / (strips - 1);
+  /** A rule across the page at `y` in the gradient of the app icon, drawn as thin strips. */
+  function brandRule(y: number, h: number) {
+    const steps = 60;
+    const sw = inner / steps;
+    for (let i = 0; i < steps; i++) {
+      const f = i / (steps - 1);
       fill(BRAND[0].map((c, j) => Math.round(c + (BRAND[1][j] - c) * f)) as Rgb);
-      doc.rect((W * i) / strips, 0, W / strips + 0.2, h, 'F');
+      doc.rect(M + i * sw, y, sw + 0.05, h, 'F');
     }
   }
 
-  /** Page 1: the band with logo, title and name on the left, period and creation date on the right. */
-  function header() {
-    band(bandH);
-    doc.addImage(LOGO_PNG, 'PNG', M, 8, 16, 16);
-    const x = M + 21;
-    text(t('pdf.title'), x, input.name ? 15.5 : 18.5, SIZE.title, WHITE, true);
-    if (input.name) text(input.name, x, 22.5, 11, WHITE);
-    text(period, W - M, 15.5, 10.5, WHITE, true, 'right');
-    opacity(0.85);
-    text(t('pdf.created', { date: fmt(now, 'd. MMM yyyy') }), W - M, 21.5, SIZE.small, WHITE, false, 'right');
-    opacity(1);
+  /**
+   * The header of page 1: logo, title, name and period on the left; headache days and acute medication
+   * days per month and the average intensity on the right.
+   */
+  function titleHeader() {
+    const colW = 33;
+    const figuresLeft = W - M - 3 * colW;
+    const x = M + 20;
+    const textW = figuresLeft - x - 4;
+    doc.addImage(LOGO_PNG, 'PNG', M, 10, 16, 16);
+    let titleSize = 15;
+    while (titleSize > 11 && width(t('pdf.title'), titleSize, true) > textW) titleSize -= 0.5;
+    text(t('pdf.title'), x, 15.5, titleSize, FG, true);
+    if (input.name) text(wrap(input.name, textW, 10)[0], x, 21, 10, FG);
+    const y = input.name ? 25.4 : 21;
+    text(period, x, y, SIZE.small, MUTED);
+    text(t('pdf.created', { date: fmt(now, 'd. MMM yyyy') }), x, y + 3.4, SIZE.small, MUTED);
+
+    const perMonth = (n: number) => num((n / report.covered) * 30, 1);
+    const figures: { value: string; unit?: string; label: string; color: Rgb }[] = [
+      { value: perMonth(stats.headacheDays), label: t('pdf.heroHeadache'), color: PAIN },
+      { value: perMonth(stats.medDays), label: t('pdf.heroMed'), color: MED },
+      stats.avgIntensity === null
+        ? { value: '–', label: t('pdf.heroIntensity'), color: FG }
+        : { value: num(stats.avgIntensity, 1), unit: t('pdf.ofTen'), label: t('pdf.heroIntensity'), color: FG }
+    ];
+    figures.forEach((f, i) => {
+      const fx = figuresLeft + i * colW;
+      doc.setDrawColor(...LINE);
+      doc.setLineWidth(0.3);
+      doc.line(fx, 11, fx, 30);
+      text(f.value, fx + 4, 19.5, 20, f.color, true);
+      if (f.unit) text(f.unit, fx + 5 + width(f.value, 20, true), 19.5, SIZE.small, MUTED);
+      text(wrap(f.label, colW - 6, SIZE.axis).slice(0, 2), fx + 4, 24.2, SIZE.axis, MUTED);
+    });
+    brandRule(33, 0.9);
   }
 
-  /** Pages after the first: a slim band with logo, title, name and period. */
-  function slimHeader() {
-    band(slimBandH);
-    doc.addImage(LOGO_PNG, 'PNG', M, 2.5, 8, 8);
-    const x = M + 11;
-    text(t('pdf.title'), x, 8.1, 10, WHITE, true);
-    if (input.name) text(input.name, x + width(t('pdf.title'), 10, true) + 3, 8.1, 10, WHITE);
-    text(period, W - M, 8.1, SIZE.body, WHITE, false, 'right');
+  /** Pages after the first: logo, title and name on the left, period and creation date on the right. */
+  function runningHeader() {
+    doc.addImage(LOGO_PNG, 'PNG', M, 8.6, 6.5, 6.5);
+    const x = M + 8.5;
+    text(t('pdf.title'), x, 13, 10, FG, true);
+    if (input.name) text(input.name, x + width(t('pdf.title'), 10, true) + 3, 13, 10, MUTED);
+    text(period, W - M, 13, 8.5, FG, false, 'right');
+    text(t('pdf.created', { date: fmt(now, 'd. MMM yyyy') }), W - M, 16.6, SIZE.axis, MUTED, false, 'right');
+    brandRule(18.8, 0.6);
   }
 
   /**
@@ -398,7 +491,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
    * how well each medication helps. The charts take the room the rest leaves, up to a height.
    */
   function summaryPage() {
-    const top = bandH + 9;
+    const top = 42;
     const limitsH = 56;
     const reliefH = reliefHeight();
     const room = contentBottom - top - limitsH - reliefH;
@@ -530,10 +623,119 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     }
   }
 
-  /** Page 2: the attack profile, the possible triggers and the symptoms. */
+  /**
+   * Page 2: the calendar, the onsets by time of day, the possible triggers and the symptoms. A
+   * calendar of one block leaves room beside it for the onsets by time of day and the symptoms; a
+   * wider one spans the page, and both go next to the triggers.
+   */
   function detailsPage() {
     pageTitle(t('pdf.pageDetails'));
-    triggers(profile(contentTop + 3) + 10);
+    const blocks = calendarBlocks(now, months);
+    const top = contentTop + 5;
+    const gap = 9;
+    const sideW = 56;
+    if (blocks.length === 1) {
+      const room = contentBottom - top - gap - triggersHeight(inner);
+      const cal = calendar(blocks, top, inner - 64 - gap, room);
+      const sideX = M + cal.width + gap;
+      const w = W - M - sideX;
+      timeOfDay(sideX, top - 3, w);
+      const tagsTop = top - 3 + ONSETS_H + gap + 3;
+      tags(sideX, tagsTop, w);
+      triggers(M, Math.max(cal.bottom, tagsTop + tagsHeight(w)) + gap, inner);
+    } else {
+      const sideH = ONSETS_H + gap + 3 + tagsHeight(sideW);
+      const lowerH = Math.max(triggersHeight(inner - sideW - gap), sideH);
+      const cal = calendar(blocks, top, inner, contentBottom - top - gap - lowerH);
+      const lowerTop = cal.bottom + gap;
+      triggers(M, lowerTop, inner - sideW - gap);
+      timeOfDay(W - M - sideW, lowerTop - 3, sideW);
+      tags(W - M - sideW, lowerTop + ONSETS_H + gap, sideW);
+    }
+  }
+
+  /**
+   * The calendar as one card within `w`: blocks side by side with one row per week and one column per
+   * weekday, each day coloured by its highest intensity with a mark under days with acute medication;
+   * under each block's last week the headaches that started on each weekday in that block, on one
+   * scale for all blocks; then the legend. Its rows share what is left of `room` up to a comfortable
+   * height. Returns its width and where it ends.
+   */
+  function calendar(blocks: CalendarWeek[][], top: number, w: number, room: number) {
+    const hint = t('pdf.calendarHint', { n: report.episodes });
+    const items: [Rgb, string][] = [
+      [SEVERITY[0], t('pdf.legendMild')],
+      [SEVERITY[1], t('pdf.legendModerate')],
+      [SEVERITY[2], t('pdf.legendSevere')],
+      [WHITE, t('pdf.legendNone')],
+      [LINE, t('pdf.legendBefore')],
+      [MED, t('pdf.legendMed')]
+    ];
+    const blockGap = 6;
+    const pad = 3;
+    const label = blocks.length > 1 ? 10 : 13;
+    const head = 6.5;
+    /** From the last week row: the rule, the counts and the bars of the headaches started. */
+    const barsGap = 6.5;
+    const barsH = 8;
+    const rows = Math.max(...blocks.map((b) => b.length));
+    const fitCol = ((w - 2 * pad - (blocks.length - 1) * blockGap) / blocks.length - label) / 7;
+    const legendRows = (lw: number) => Math.max(...legendPlaces(items.map(([, l]) => l), lw).map((p) => p.row)) + 1;
+    /** The widest the card can get, for the room its hint and legend take. */
+    const widest = (blocks.length > 1 ? w : 2 * pad + label + 7 * Math.min(fitCol, 12 * 1.45)) - 2 * pad;
+    const fixed = sectionHeight(widest, hint) + head + barsGap + barsH + 5 + legendRows(widest) * legendRow + pad;
+    const roomRow = Math.min(12, (room - fixed) / rows);
+    const col = Math.min(fitCol, roomRow * 1.45);
+    const cellW = col - 0.6;
+    const cellH = Math.min(roomRow - 1.9, cellW * 0.9);
+    const rowH = cellH + 1.9;
+    const blockW = label + 7 * col;
+    const width = blocks.length > 1 ? w : 2 * pad + blockW;
+
+    const starts = report.entries.flatMap((e) => (e.episode ? [dayKey(e.episode.start)] : []));
+    const counts = blocks.map((weeks) => weekdayOnsets(weeks, starts));
+    const max = Math.max(1, ...counts.flat());
+    const y = section(t('pdf.calendar'), M, top, width, hint);
+    const barsTop = y + head + rows * rowH + barsGap;
+    const legendTop = barsTop + barsH + 5 + 2.3;
+    const bottom = legendTop + (legendRows(width - 2 * pad) - 1) * legendRow + pad;
+    panel(M, y, width, bottom - y);
+    blocks.forEach((weeks, b) => {
+      const x = M + pad + b * (blockW + blockGap);
+      const left = x + label;
+      weekdayShort().forEach((day, i) => text(day, left + i * col + cellW / 2, y + 4.6, SIZE.axis, MUTED, false, 'center'));
+      weeks.forEach((week, r) => {
+        const ry = y + head + r * rowH;
+        if (week.month) text(fmt(week.month, 'MMM'), x, ry + cellH / 2 + 1.1, SIZE.axis, FG, true);
+        week.days.forEach((key, i) => {
+          if (key === null) return;
+          const cx = left + i * col;
+          const intensity = report.headacheDays.get(key);
+          fill(report.first === null || key < report.first ? LINE : intensity === undefined ? WHITE : SEVERITY[severity(intensity)]);
+          doc.roundedRect(cx, ry, cellW, cellH, 0.5, 0.5, 'F');
+          if (report.medDays.has(key)) {
+            fill(MED);
+            doc.rect(cx + cellW * 0.15, ry + cellH + 0.45, cellW * 0.7, 0.9, 'F');
+          }
+        });
+      });
+      doc.setDrawColor(...LINE);
+      doc.setLineWidth(0.3);
+      doc.line(x, barsTop - 4.5, left + 7 * col - 0.6, barsTop - 4.5);
+      text(wrap(t('pdf.started'), label - 1, SIZE.axis), x, barsTop + 1.5, SIZE.axis, MUTED);
+      counts[b].forEach((n, i) => {
+        const cx = left + i * col;
+        fill(LINE);
+        doc.rect(cx, barsTop + barsH - 0.3, cellW, 0.3, 'F');
+        if (!n) return;
+        const bh = (barsH * n) / max;
+        fill(PAIN);
+        doc.rect(cx, barsTop + barsH - bh, cellW, bh, 'F');
+        text(String(n), cx + cellW / 2, barsTop + barsH - bh - 0.8, SIZE.axis, FG, false, 'center');
+      });
+    });
+    legend(items, M + pad, legendTop, width - 2 * pad);
+    return { width, bottom };
   }
 
   /** Stacked headache days by severity next to acute medication days per month, against the chronic line at 15. */
@@ -653,27 +855,12 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     doc.lines(segments, path[0][0], path[0][1], [1, 1], style, style === 'F');
   }
 
-  /** Two small bar charts side by side: time of day and weekday of onset. Returns where they end. */
-  function profile(top: number) {
-    const y = section(t('pdf.profile'), M, top, inner, t('pdf.profileHint', { n: report.episodes }));
-    const gap = 4;
-    const w = (inner - gap) / 2;
-    const h = 30;
-    const charts: [string, number[], string[]][] = [
-      [t('pdf.onset'), stats.timeOfDay, stats.timeOfDay.map((_, i) => `${i * 3}`)],
-      [t('pdf.onsetWeekday'), stats.weekday, weekdayShort()]
-    ];
-    charts.forEach(([title, values, labels], i) => {
-      const x = M + i * (w + gap);
-      panel(x, y, w, h);
-      text(title, x + 4, y + 5.5, SIZE.small, FG, true);
-      columns({ left: x + 4, right: x + w - 4, top: y + 11, bottom: y + 24.5 }, values, labels);
-    });
-    return y + h;
-  }
-
-  /** Vertical bars with their values above and labels below. */
-  function columns(box: Box, values: number[], labels: string[]) {
+  /** A panel with the headaches started per three hours of the day. */
+  function timeOfDay(x: number, top: number, w: number) {
+    panel(x, top, w, ONSETS_H);
+    text(t('pdf.onset'), x + 4, top + 5.5, SIZE.small, FG, true);
+    const values = stats.timeOfDay;
+    const box = { left: x + 4, right: x + w - 4, top: top + 11, bottom: top + 21.5 };
     const max = Math.max(1, ...values);
     const slot = (box.right - box.left) / values.length;
     const bw = Math.min(8, slot * 0.62);
@@ -687,30 +874,37 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
         doc.rect(cx - bw / 2, box.bottom - bh, bw, bh, 'F');
         text(String(v), cx, box.bottom - bh - 1, SIZE.axis, FG, false, 'center');
       }
-      text(labels[i], cx, box.bottom + 3.6, SIZE.axis, MUTED, false, 'center');
+      text(String(i * 3), cx, box.bottom + 3.6, SIZE.axis, MUTED, false, 'center');
     });
   }
 
-  /** Each factor as a pair of bars, headache-start days against other days, next to the symptom and trigger tags. */
-  function triggers(top: number) {
-    const tagsW = 56;
-    const pairsW = inner - tagsW - 10;
-    const y = section(t('pdf.reasons'), M, top, pairsW);
+  /** Possible triggers that the data allows to compare. */
+  function comparedTriggers() {
+    return report.triggers.filter((r) => r.comparison);
+  }
+
+  function triggersHeight(w: number) {
+    return 10 + Math.max(1, comparedTriggers().length) * 13 + 2 + wrap(t('pdf.reasonsHint'), w, SIZE.axis).length * lineHeight(SIZE.axis);
+  }
+
+  /** Each factor as a pair of bars, headache-start days against other days. */
+  function triggers(x: number, top: number, w: number) {
+    const y = section(t('pdf.reasons'), x, top, w);
     legend(
       [
         [PAIN, t('pdf.onHeadacheDays')],
         [LINE, t('pdf.onOtherDays')]
       ],
-      M,
+      x,
       y + 1.5
     );
-    const rows = report.triggers.filter((r) => r.comparison);
+    const rows = comparedTriggers();
     const valueW = 30;
     rows.forEach(({ key, comparison, withFactor }, i) => {
       const c = comparison!;
       const ry = y + 6 + i * 13;
-      text(t(`pdf.factor.${key}`, { n: PRESSURE_DROP_HPA }), M, ry + 2.5, SIZE.body, FG, true);
-      if (report.episodes) text(t('pdf.ofHeadaches', { n: withFactor, total: report.episodes }), M + pairsW, ry + 2.5, SIZE.axis, MUTED, false, 'right');
+      text(t(`pdf.factor.${key}`, { n: PRESSURE_DROP_HPA }), x, ry + 2.5, SIZE.body, FG, true);
+      if (report.episodes) text(t('pdf.ofHeadaches', { n: withFactor, total: report.episodes }), x + w, ry + 2.5, SIZE.axis, MUTED, false, 'right');
       const max = Math.max(c.headache, c.clear, 0.0001);
       const bars: [number, number, Rgb][] = [
         [c.headache, c.nHeadache, PAIN],
@@ -719,19 +913,27 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
       bars.forEach(([value, n, color], j) => {
         const by = ry + 4.3 + j * 3.6;
         fill(color);
-        doc.rect(M, by, Math.max(0.4, ((pairsW - valueW) * value) / max), 2.6, 'F');
-        text(`${formatComparison(key, value)} · ${t('pdf.daysN', { n })}`, M + pairsW, by + 2.2, SIZE.axis, FG, false, 'right');
+        doc.rect(x, by, Math.max(0.4, ((w - valueW) * value) / max), 2.6, 'F');
+        text(`${formatComparison(key, value)} · ${t('pdf.daysN', { n })}`, x + w, by + 2.2, SIZE.axis, FG, false, 'right');
       });
     });
     const hintY = y + 6 + Math.max(1, rows.length) * 13 + 2;
-    text(wrap(t('pdf.reasonsHint'), inner, SIZE.axis), M, hintY, SIZE.axis, MUTED);
-    tags(M + pairsW + 10, top, tagsW);
+    text(wrap(t('pdf.reasonsHint'), w, SIZE.axis), x, hintY, SIZE.axis, MUTED);
+  }
+
+  /** The most common symptom and trigger tags, at most eight. */
+  function topTags() {
+    return stats.tags.slice(0, 8);
+  }
+
+  function tagsHeight(w: number) {
+    return sectionHeight(w, t('pdf.tagsHint')) + Math.max(1, topTags().length) * 7.4;
   }
 
   /** The most common symptom and trigger tags as bars. */
   function tags(x: number, top: number, w: number) {
     const y = section(t('ins.tags'), x, top, w, t('pdf.tagsHint'));
-    const list = stats.tags.slice(0, 8);
+    const list = topTags();
     const max = Math.max(1, ...list.map((tag) => tag.count));
     if (!list.length) text(t('pdf.noTags'), x, y + 4, SIZE.body, MUTED);
     list.forEach((tag, i) => {
