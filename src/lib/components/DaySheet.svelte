@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { FACTOR_COLOR, intakeColor } from '$lib/colors';
+  import { FACTOR_COLOR } from '$lib/colors';
   import { fromPreset } from '$lib/drinks';
   import { ACUTE_CATEGORIES, fromMedication } from '$lib/medication';
-  import { ChevronRight, Pill, Plus, Zap } from '@lucide/svelte';
+  import { ChevronRight, Plus } from '@lucide/svelte';
   import { addDays, endOfDay, setHours } from 'date-fns';
   import { formatDuration, formatLiters, hm, keyToDate } from '$lib/days';
   import { edit, openNight } from '$lib/editor.svelte';
@@ -13,6 +13,8 @@
   import { openFactor, openSheet } from '$lib/ui.svelte';
   import { dayKey } from '$lib/days';
   import { weatherEmoji } from '$lib/weather';
+  import EntryRow from './EntryRow.svelte';
+  import SectionLabel from './SectionLabel.svelte';
   import Sheet from './Sheet.svelte';
 
   let { day }: { day: string } = $props();
@@ -76,7 +78,7 @@
 
 <Sheet id="day" title={fmt(keyToDate(day), 'EEEE, d. MMMM yyyy')}>
   <div class="flex flex-col gap-3">
-    <h3 class="text-sm font-semibold tracking-wide text-muted uppercase">{t('day.factors')}</h3>
+    <SectionLabel>{t('day.factors')}</SectionLabel>
     <div class="flex flex-col overflow-hidden rounded-2xl bg-surface">
       {#each factors as f (f.label)}
         <button class="press flex min-h-12 items-center gap-3 border-b border-line px-3 py-2 text-left last:border-b-0" onclick={f.open}>
@@ -89,7 +91,7 @@
       {/each}
     </div>
 
-    <h3 class="mt-2 text-sm font-semibold tracking-wide text-muted uppercase">{t('day.entries')}</h3>
+    <SectionLabel class="mt-2">{t('day.entries')}</SectionLabel>
     <div class="flex flex-wrap gap-2">
       <button
         class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium"
@@ -108,45 +110,32 @@
       {#if entry.kind === 'episode'}
         {@const ep = entry.item}
         {@const before = hydrationBefore(data.drinks, ep.start)}
-        <button class="press flex items-start gap-3 rounded-2xl bg-pain-soft p-3 text-left" onclick={() => edit({ kind: 'episode', item: ep })}>
-          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-pain-soft text-pain"><Zap size={20} /></span>
-          <span class="flex min-w-0 flex-col">
-            <span class="font-semibold">{t('today.headache')} · {ep.intensity}/10</span>
-            <span class="text-muted tabular">
-              {hm(ep.start)}–{ep.end ? hm(ep.end) : '…'}
-              · {formatDuration((ep.end ?? clock.now) - ep.start)}
-            </span>
-            {#if ep.tags.length}
-              <span class="text-xs text-muted">{ep.tags.join(' · ')}</span>
-            {/if}
-            {#if ep.note}<span class="mt-1 text-xs italic">{ep.note}</span>{/if}
-            {#if before.ml || before.usual}
-              <span class="mt-1 text-xs text-muted">
-                💧 {t('day.hydrationBefore', { ml: formatLiters(before.ml) })}{before.usual ? ` ${t('day.hydrationUsual', { ml: formatLiters(before.usual) })}` : ''}
-              </span>
-            {/if}
-          </span>
-        </button>
+        <EntryRow
+          kind="episode"
+          time={hm(ep.start)}
+          title={`${t('today.headache')} · ${ep.intensity}/10`}
+          lines={[
+            `${hm(ep.start)}–${ep.end ? hm(ep.end) : '…'} · ${formatDuration((ep.end ?? clock.now) - ep.start)}`,
+            ep.tags.join(' · '),
+            ep.note,
+            before.ml || before.usual
+              ? `💧 ${t('day.hydrationBefore', { ml: formatLiters(before.ml) })}${before.usual ? ` ${t('day.hydrationUsual', { ml: formatLiters(before.usual) })}` : ''}`
+              : ''
+          ].filter(Boolean)}
+          onclick={() => edit({ kind: 'episode', item: ep })}
+        />
       {:else if entry.kind === 'intake'}
         {@const intake = entry.item}
-        <button class="press flex items-center gap-3 rounded-2xl bg-med-soft p-3 text-left" onclick={() => edit({ kind: 'intake', item: intake })}>
-          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med-soft text-med"><Pill size={20} /></span>
-          <span class="flex min-w-0 flex-1 flex-col">
-            <span><span class="font-semibold">{intake.name}</span> {intake.dose}</span>
-            <span class="flex items-center gap-1.5 text-xs text-muted">
-              <span class="size-2.5 rounded-full" style:background-color={intakeColor(intake, data.medications)}></span>
-              {ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')}
-            </span>
-          </span>
-          <span class="text-muted tabular">{hm(intake.time)}</span>
-        </button>
+        <EntryRow
+          kind="intake"
+          time={hm(intake.time)}
+          title={intake.name}
+          sub={intake.dose}
+          lines={[ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')]}
+          onclick={() => edit({ kind: 'intake', item: intake })}
+        />
       {:else}
-        {@const drink = entry.item}
-        <button class="press flex items-center gap-3 rounded-2xl bg-surface-2 p-3 text-left" onclick={() => edit({ kind: 'drink', item: drink })}>
-          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-water-soft text-xl">{drink.emoji}</span>
-          <span class="min-w-0 flex-1"><span class="font-semibold">{drink.name}</span> {drink.ml} ml</span>
-          <span class="text-muted tabular">{hm(drink.time)}</span>
-        </button>
+        <EntryRow kind="drink" time={hm(entry.item.time)} title={entry.item.name} sub={`${entry.item.ml} ml`} emoji={entry.item.emoji} onclick={() => edit({ kind: 'drink', item: entry.item })} />
       {/if}
     {/each}
   </div>

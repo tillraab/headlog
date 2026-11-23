@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-11-23
+
+### Changed
+
+- Settings that turn something on or off (drink reminder, behind reminder, sleep, weather) use switches. Lists you tick from keep their checkboxes.
+- Headaches, medication and drinks look the same in Today's log, the day view and the recent intakes: time on the left, icon, title and details.
+- Medications and drinks are edited in one list style, with move buttons and a delete row per item.
+
 ## [0.42.0] - 2026-11-23
 
 ### Changed

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { wipe } from './backup';
 import { db, seed } from './db';
-import { confirmNight, data, deleteDrinkPreset, deleteMedication, endEpisode, load, logIntake, remove, saveSettings, setRelief, updateDrinkPreset, updateMedication, updateWeather } from './store.svelte';
+import { addToList, confirmNight, data, endEpisode, load, logIntake, remove, removeFromList, saveSettings, setRelief, updateInList, updateWeather } from './store.svelte';
 import { dayKey, DAY } from './days';
 import { WEATHER_SYNC_KEY } from './weather';
 
@@ -42,7 +42,7 @@ describe('deleting from the lists', () => {
   it('brings a deleted medication back on undo', async () => {
     await load();
     const [med] = data.medications;
-    const undo = await deleteMedication(med.id);
+    const undo = await removeFromList('medications', med.id);
     await undo();
     expect(data.medications.map((m) => m.id)).toContain(med.id);
   });
@@ -50,7 +50,7 @@ describe('deleting from the lists', () => {
   it('brings a deleted drink back on undo', async () => {
     await load();
     const [drink] = data.drinkPresets;
-    const undo = await deleteDrinkPreset(drink.id);
+    const undo = await removeFromList('drinkPresets', drink.id);
     await undo();
     expect(data.drinkPresets.map((d) => d.id)).toContain(drink.id);
   });
@@ -59,30 +59,38 @@ describe('deleting from the lists', () => {
     await load();
     const [med] = data.medications;
     await saveSettings({ calendarHiddenMeds: [med.id] });
-    await deleteMedication(med.id);
+    await removeFromList('medications', med.id);
     expect(data.settings.calendarHiddenMeds).toEqual([]);
   });
 });
 
-describe('updateDrinkPreset', () => {
+describe('addToList', () => {
+  it('adds the entry at the end of its list', async () => {
+    await load();
+    const id = await addToList('drinkPresets', { name: 'Cola', emoji: '🥤', ml: 330 });
+    expect(data.drinkPresets.at(-1)?.id).toBe(id);
+  });
+});
+
+describe('updateInList for drinks', () => {
   it('keeps both of two quick edits to different fields', async () => {
     const [glass] = await db.drinkPresets.orderBy('order').toArray();
-    await Promise.all([updateDrinkPreset(glass.id, { ml: 500 }), updateDrinkPreset(glass.id, { emoji: '🍺' })]);
+    await Promise.all([updateInList('drinkPresets', glass.id, { ml: 500 }), updateInList('drinkPresets', glass.id, { emoji: '🍺' })]);
     const saved = (await db.drinkPresets.get(glass.id))!;
     expect([saved.ml, saved.emoji]).toEqual([500, '🍺']);
   });
 
   it('removes a field set to undefined', async () => {
     const id = await db.drinkPresets.add({ name: 'Cola', emoji: '🥤', ml: 330, order: 9, caffeineMg: 30 });
-    await updateDrinkPreset(id, { caffeineMg: undefined });
+    await updateInList('drinkPresets', id, { caffeineMg: undefined });
     expect((await db.drinkPresets.get(id))!.caffeineMg).toBeUndefined();
   });
 });
 
-describe('updateMedication', () => {
+describe('updateInList for medications', () => {
   it('keeps both of two quick edits to different fields', async () => {
     const [med] = await db.medications.orderBy('order').toArray();
-    await Promise.all([updateMedication(med.id, { dose: '10 mg' }), updateMedication(med.id, { name: 'Rizatriptan' })]);
+    await Promise.all([updateInList('medications', med.id, { dose: '10 mg' }), updateInList('medications', med.id, { name: 'Rizatriptan' })]);
     const saved = (await db.medications.get(med.id))!;
     expect([saved.name, saved.dose]).toEqual(['Rizatriptan', '10 mg']);
   });
@@ -130,8 +138,8 @@ describe('intakes', () => {
     await load();
     const [med] = data.medications;
     const id = await logIntake(med, 1000);
-    await updateMedication(med.id, { name: 'Renamed', dose: '1 g', category: 'other' });
-    await deleteMedication(med.id);
+    await updateInList('medications', med.id, { name: 'Renamed', dose: '1 g', category: 'other' });
+    await removeFromList('medications', med.id);
     const intake = (await db.intakes.get(id))!;
     expect([intake.name, intake.dose, intake.category]).toEqual([med.name, med.dose, med.category]);
   });

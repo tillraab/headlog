@@ -192,6 +192,11 @@ export interface Streak {
   todayReached: boolean;
 }
 
+/** Streak lengths worth a special word when the hydration goal is reached. */
+export function isStreakMilestone(days: number): boolean {
+  return [3, 7, 14, 21, 30, 50, 100].includes(days);
+}
+
 /** Hydration goal streak. Today does not break the streak before it is over. */
 export function hydrationStreak(drinks: Drink[], goalMl: number, today: number | Date): Streak {
   const water = waterByDay(drinks);

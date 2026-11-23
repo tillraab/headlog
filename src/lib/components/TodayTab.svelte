@@ -3,8 +3,9 @@
   import { hydrationMl } from '$lib/drinks';
   import { ChevronDown, Droplets, Pencil, Pill, Zap } from '@lucide/svelte';
   import { isToday, startOfDay } from 'date-fns';
-  import { hydrationStreak, intakeDays, medicationLimits, periodStats, tenTwenty, waterOn } from '$lib/analysis';
-  import { DAY, formatDuration, formatLiters, hm, HOUR, MINUTE } from '$lib/days';
+  import { hydrationStreak, intakeDays, isStreakMilestone, medicationLimits, periodStats, tenTwenty, waterOn } from '$lib/analysis';
+  import { reliefQuestion } from '$lib/medication';
+  import { DAY, formatDuration, formatLiters, hm } from '$lib/days';
   import { edit } from '$lib/editor.svelte';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache, type EntryTable } from '$lib/store.svelte';
@@ -16,11 +17,11 @@
   import IntensityPicker from './IntensityPicker.svelte';
   import RuleBadge from './RuleBadge.svelte';
   import SleepCard from './SleepCard.svelte';
+  import EntryRow from './EntryRow.svelte';
 
   let { onOpenTab }: { onOpenTab: (tab: 'meds') => void } = $props();
 
   /** Today asks "did it help?" for an unrated intake up to this long after it. */
-  const RELIEF_ASK_WINDOW = 12 * HOUR;
   /** An ongoing headache longer than this asks whether it has ended. */
   const LONG_HEADACHE = DAY;
 
@@ -53,9 +54,7 @@
   const alcoholCount = $derived(todayDrinks.filter((d) => d.alcohol).length);
   const waterPct = $derived(Math.min(1, waterMl / data.settings.waterGoalMl));
   const hydration = $derived(hydrationStreak(data.drinks, data.settings.waterGoalMl, clock.now));
-  const unrated = $derived(
-    data.intakes.findLast((i) => i.relief === null && clock.now - i.time > (data.settings.reliefCheckMinutes || 60) * MINUTE && clock.now - i.time < RELIEF_ASK_WINDOW)
-  );
+  const unrated = $derived(reliefQuestion(data.intakes, clock.now, data.settings.reliefCheckMinutes));
   const todayEpisodes = $derived(data.episodes.filter((e) => (e.end ?? clock.now) >= dayStart));
 
   const log = $derived(
@@ -87,7 +86,7 @@
   /** Celebrates reaching today's hydration goal, with the streak it extends. */
   function cheer() {
     const days = hydrationStreak(data.drinks, data.settings.waterGoalMl, Date.now()).current;
-    const milestone = [3, 7, 14, 21, 30, 50, 100].includes(days);
+    const milestone = isStreakMilestone(days);
     celebrate(t('streak.goal'), days > 1 ? t(milestone ? 'streak.milestone' : 'streak.days', { n: days }) : t('streak.first'));
   }
 </script>
@@ -313,24 +312,19 @@
       <ul>
         {#each log as entry (entry.kind + entry.item.id)}
           <li>
-            <button class="press flex min-h-12 w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface-2" onclick={() => edit(entry)}>
-              <span class="w-13 shrink-0 text-muted tabular">{hm(entry.time)}</span>
-              {#if entry.kind === 'episode'}
-                <span class="grid size-10 shrink-0 place-items-center rounded-full bg-pain-soft text-pain"><Zap size={20} /></span>
-                <span class="flex-1">
-                  {t('today.headache')} · {entry.item.intensity}/10
-                  <span class="text-muted">
-                    {entry.item.end ? `· ${formatDuration(entry.item.end - entry.item.start)}` : `· ${t('edit.ongoing').toLowerCase()}`}
-                  </span>
-                </span>
-              {:else if entry.kind === 'intake'}
-                <span class="grid size-10 shrink-0 place-items-center rounded-full bg-med-soft text-med"><Pill size={20} /></span>
-                <span class="flex-1">{entry.item.name} <span class="text-muted">{entry.item.dose}</span></span>
-              {:else}
-                <span class="grid size-10 shrink-0 place-items-center rounded-full bg-water-soft text-xl">{entry.item.emoji}</span>
-                <span class="flex-1">{entry.item.name} <span class="text-muted tabular">{entry.item.ml} ml</span></span>
-              {/if}
-            </button>
+            {#if entry.kind === 'episode'}
+              <EntryRow
+                kind="episode"
+                time={hm(entry.time)}
+                title={`${t('today.headache')} · ${entry.item.intensity}/10`}
+                sub={entry.item.end ? `· ${formatDuration(entry.item.end - entry.item.start)}` : `· ${t('edit.ongoing').toLowerCase()}`}
+                onclick={() => edit(entry)}
+              />
+            {:else if entry.kind === 'intake'}
+              <EntryRow kind="intake" time={hm(entry.time)} title={entry.item.name} sub={entry.item.dose} onclick={() => edit(entry)} />
+            {:else}
+              <EntryRow kind="drink" time={hm(entry.time)} title={entry.item.name} sub={`${entry.item.ml} ml`} emoji={entry.item.emoji} onclick={() => edit(entry)} />
+            {/if}
           </li>
         {/each}
       </ul>

@@ -152,48 +152,38 @@ export async function setRelief(intakeId: number, relief: Relief, time?: number)
   await load();
 }
 
-export async function saveMedication(med: Draft<Medication>) {
-  await db.medications.put($state.snapshot(med));
-  await load();
-}
+/** The user's own lists: medications and drinks, each sorted by `order`. */
+export type ListTable = 'medications' | 'drinkPresets';
+type ListRow = Medication | DrinkPreset;
 
-export async function saveDrinkPreset(preset: Draft<DrinkPreset>) {
-  await db.drinkPresets.put($state.snapshot(preset));
+/** Adds an entry at the end of a list and returns its id. */
+export async function addToList(table: 'medications', item: Omit<Draft<Medication>, 'order'>): Promise<number>;
+export async function addToList(table: 'drinkPresets', item: Omit<Draft<DrinkPreset>, 'order'>): Promise<number>;
+export async function addToList(table: ListTable, item: Omit<Draft<ListRow>, 'order'>): Promise<number> {
+  const rows: { order: number }[] = await db[table].toArray();
+  const order = rows.length ? Math.max(...rows.map((r) => r.order)) + 1 : 0;
+  const id = (await db.table(table).add({ ...$state.snapshot(item), order })) as number;
   await load();
+  return id;
 }
 
 /** Changes only the given fields, so two quick edits in a row cannot undo each other. */
-export async function updateMedication(id: number, patch: Partial<Medication>) {
-  await db.medications.update(id, $state.snapshot(patch));
+export async function updateInList(table: 'medications', id: number, patch: Partial<Medication>): Promise<void>;
+export async function updateInList(table: 'drinkPresets', id: number, patch: Partial<DrinkPreset>): Promise<void>;
+export async function updateInList(table: ListTable, id: number, patch: Partial<ListRow>) {
+  await db.table(table).update(id, $state.snapshot(patch));
   await load();
 }
 
-/** Changes only the given fields, so two quick edits in a row cannot undo each other. */
-export async function updateDrinkPreset(id: number, patch: Partial<DrinkPreset>) {
-  await db.drinkPresets.update(id, $state.snapshot(patch));
-  await load();
-}
-
-/** Deletes a medication from the list; intakes logged with it stay. Returns the undo. */
-export async function deleteMedication(id: number): Promise<() => Promise<void>> {
-  const row = await db.medications.get(id);
-  await db.medications.delete(id);
+/** Deletes an entry from a list; entries logged with it stay. Returns the undo. */
+export async function removeFromList(table: ListTable, id: number): Promise<() => Promise<void>> {
+  const row = await db.table(table).get(id);
+  await db.table(table).delete(id);
   const hidden = data.settings.calendarHiddenMeds;
-  if (hidden.includes(id)) await saveSettings({ calendarHiddenMeds: hidden.filter((x) => x !== id) });
+  if (table === 'medications' && hidden.includes(id)) await saveSettings({ calendarHiddenMeds: hidden.filter((x) => x !== id) });
   await load();
   return async () => {
-    if (row) await db.medications.put(row);
-    await load();
-  };
-}
-
-/** Deletes a drink from the list; drinks logged with it stay. Returns the undo. */
-export async function deleteDrinkPreset(id: number): Promise<() => Promise<void>> {
-  const row = await db.drinkPresets.get(id);
-  await db.drinkPresets.delete(id);
-  await load();
-  return async () => {
-    if (row) await db.drinkPresets.put(row);
+    if (row) await db.table(table).put(row);
     await load();
   };
 }
@@ -237,7 +227,7 @@ export async function confirmNight(day: string) {
 }
 
 /** Swaps the order of two list entries. */
-export async function swapOrder(table: 'medications' | 'drinkPresets', a: { id: number; order: number }, b: { id: number; order: number }) {
+export async function swapOrder(table: ListTable, a: { id: number; order: number }, b: { id: number; order: number }) {
   await db.transaction('rw', db[table], async () => {
     await db[table].update(a.id, { order: b.order });
     await db[table].update(b.id, { order: a.order });
