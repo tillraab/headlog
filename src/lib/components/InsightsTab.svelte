@@ -15,6 +15,7 @@
   import CardHeading from './CardHeading.svelte';
   import ComparisonChart, { type Pair } from './ComparisonChart.svelte';
   import RangeButton from './RangeButton.svelte';
+  import SectionLabel from './SectionLabel.svelte';
   import Segmented from './Segmented.svelte';
   import TimelineChart, { type Row } from './TimelineChart.svelte';
 
@@ -195,7 +196,7 @@
 </script>
 
 {#snippet heading(title: string)}
-  <h2 class="mt-3 -mb-1 text-sm font-semibold tracking-wide text-muted uppercase">{title}</h2>
+  <SectionLabel class="mt-3 -mb-1">{title}</SectionLabel>
 {/snippet}
 
 <div class="flex flex-col gap-3 pb-6">

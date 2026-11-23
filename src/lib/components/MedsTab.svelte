@@ -4,9 +4,10 @@
   import { openSheet } from '$lib/ui.svelte';
   import CardHeading from './CardHeading.svelte';
   import LimitWheel from './LimitWheel.svelte';
+  import EntryRow from './EntryRow.svelte';
   import { intakeDays, medicationEffect, medicationLimits, overuseRows, tenTwenty } from '$lib/analysis';
   import { medColor, RELIEF_COLOR, STATUS_COLOR } from '$lib/colors';
-  import { DAY, keyToDate } from '$lib/days';
+  import { DAY, hm, keyToDate } from '$lib/days';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { SOURCES } from '$lib/sources';
@@ -122,16 +123,20 @@
       <ul>
         {#each recent as intake (intake.id)}
           <li>
-            <button class="press flex min-h-12 w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface-2" onclick={() => edit({ kind: 'intake', item: intake })}>
-              <span class="size-3 shrink-0 rounded-full" style:background-color={medColor(intake, data.medications)}></span>
-              <span class="flex min-w-0 flex-1 flex-col">
-                <span>{intake.name} <span class="text-muted">{intake.dose}</span></span>
-                <span class="text-xs text-muted tabular">{fmt(intake.time, 'EEE d. MMM HH:mm')}</span>
-              </span>
-              <span class="shrink-0 text-right text-sm font-medium" style:color={intake.relief === null ? undefined : RELIEF_COLOR[intake.relief]}>
-                {intake.relief === null ? t('meds.rate') : reliefLabels()[intake.relief]}
-              </span>
-            </button>
+            <EntryRow
+              kind="intake"
+              time={hm(intake.time)}
+              title={intake.name}
+              sub={intake.dose}
+              lines={[fmt(intake.time, 'EEE d. MMM')]}
+              onclick={() => edit({ kind: 'intake', item: intake })}
+            >
+              {#snippet trailing()}
+                <span class="shrink-0 text-right text-sm font-medium" style:color={intake.relief === null ? undefined : RELIEF_COLOR[intake.relief]}>
+                  {intake.relief === null ? t('meds.rate') : reliefLabels()[intake.relief]}
+                </span>
+              {/snippet}
+            </EntryRow>
           </li>
         {/each}
       </ul>
