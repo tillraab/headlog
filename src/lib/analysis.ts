@@ -457,6 +457,32 @@ export function monthlyCounts(
   return result;
 }
 
+/** Headache days among `keys` by peak intensity: mild (1–3), moderate (4–7) and severe (8–10). */
+export function severityDays(days: Map<string, number>, keys: string[]): [number, number, number] {
+  const counts: [number, number, number] = [0, 0, 0];
+  for (const key of keys) {
+    const intensity = days.get(key);
+    if (intensity) counts[intensity >= 8 ? 2 : intensity >= 4 ? 1 : 0]++;
+  }
+  return counts;
+}
+
+/** Days with medication of each class in each of the `count` calendar months ending with `today`. */
+export function monthlyCategoryDays(intakes: Intake[], today: number, count: number): { month: Date; days: Map<MedCategory, number> }[] {
+  const result = [];
+  for (let n = count - 1; n >= 0; n--) {
+    const month = startOfMonth(addMonthsSafe(today, -n));
+    const prefix = dayKey(month).slice(0, 7);
+    const sets = new Map<MedCategory, Set<string>>();
+    for (const i of intakes) {
+      const key = dayKey(i.time);
+      if (key.startsWith(prefix)) sets.set(i.category, (sets.get(i.category) ?? new Set<string>()).add(key));
+    }
+    result.push({ month, days: new Map([...sets].map(([c, s]) => [c, s.size])) });
+  }
+  return result;
+}
+
 function addMonthsSafe(time: number, months: number): Date {
   const d = new Date(time);
   return new Date(d.getFullYear(), d.getMonth() + months, 1);
