@@ -2,10 +2,8 @@ import { addMonths, endOfMonth, startOfMonth } from 'date-fns';
 import { GState, jsPDF } from 'jspdf';
 import { autoTable, type CellHookData } from 'jspdf-autotable';
 import {
-  average,
   compareDays,
   dayFactors,
-  durationBuckets,
   firstEntryDay,
   headacheDays,
   intakeDays,
@@ -25,13 +23,13 @@ import {
   type DayFactors,
   type MedicationEffect,
   type PeriodStats,
-  type RuleStatus,
-  type TenTwenty
+  type RuleStatus
 } from './analysis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import { formatComparison } from './format';
-import { dayKey, dayRange, formatDuration, formatLiters, hm, HOUR, keyToDate } from './days';
-import { fmt, num, reliefLabels, t, weekdayShort } from './i18n.svelte';
+import { dayKey, dayRange, formatDuration, formatLiters, hm, HOUR } from './days';
+import { fmt, reliefLabels, t, weekdayShort } from './i18n.svelte';
+import { LOGO_PNG } from './logo';
 import { PRESSURE_DROP_HPA } from './weather';
 
 type Rgb = [number, number, number];
@@ -44,6 +42,11 @@ const SURFACE_2: Rgb = [235, 235, 234];
 const PANEL: Rgb = [245, 245, 244];
 const WHITE: Rgb = [255, 255, 255];
 const PRIMARY: Rgb = [91, 75, 214];
+/** The two ends of the app icon's gradient, for the header band. */
+const BRAND: [Rgb, Rgb] = [
+  [122, 53, 162],
+  [207, 74, 147]
+];
 const PAIN: Rgb = [226, 70, 107];
 const MED: Rgb = [230, 149, 18];
 const OK: Rgb = [18, 135, 90];
@@ -59,7 +62,7 @@ const RULE_COLOR: Record<RuleStatus, Rgb> = { ok: MED, caution: CAUTION, over: O
 const RELIEF_COLOR: Rgb[] = [OVER, CAUTION, OK, SURFACE_2];
 
 /** Type sizes in pt. */
-const SIZE = { hero: 24, page: 16, section: 10.5, body: 8.5, small: 7.5, axis: 7 };
+const SIZE = { title: 20, page: 16, section: 10.5, body: 8.5, small: 7.5, axis: 7 };
 
 /** The chronic-headache frequency of ICHD-3 1.3 and 2.3: headache on 15 or more days a month. */
 const CHRONIC_DAYS = 15;
@@ -79,8 +82,6 @@ export interface ReportInput {
   waterGoalMl: number;
   name: string;
   version: string;
-  /** App icon as a PNG data URL, drawn in the header when given. */
-  logo?: string;
 }
 
 /** The factors of a day as short text, e.g. "pressure drop 8 hPa · 0.6 l the day before". */
@@ -140,10 +141,6 @@ export interface MonthRow {
   med: number;
   /** Headache days as mild, moderate and severe. */
   severity: [number, number, number];
-  /** Mean intensity of the headaches that started in the month, or null without any. */
-  intensity: number | null;
-  /** Whether the month is over by `now`. */
-  complete: boolean;
   /** Whether the diary was in use in the month: it ends on or after the first entry. */
   logged: boolean;
 }
@@ -159,39 +156,21 @@ export interface LimitRow {
   monthsAtLimit: number | null;
 }
 
-/** The rates of the period of the same length before the report's period. */
-export interface PreviousPeriod {
-  from: Date;
-  to: Date;
-  /** Headache and acute medication days per 30 days. */
-  headache: number;
-  med: number;
-  intensity: number | null;
-}
-
 export interface ReportData {
   /** First day of the period: the start of the first month. */
   from: Date;
   /** Days in the period, today included. */
   span: number;
-  /** Days of the period from the first diary entry on; the rates per month count these. */
-  covered: number;
   stats: PeriodStats;
-  /** The 10/20 rule as it stands at `now`. */
-  rule: TenTwenty;
   /** Peak intensity per headache day, and the days with acute medication, over all data. */
   headacheDays: Map<string, number>;
   medDays: Set<string>;
   monthly: MonthRow[];
-  /** The period before, or null when the diary does not reach back into it. */
-  previous: PreviousPeriod | null;
   /** The 10/20 rule, each ICHD-3 class used in the last 30 days and each personal limit. */
   limits: LimitRow[];
   /** Headache days and acute medication days in the 30 days up to each day of the period. */
   rollingHeadache: { key: string; count: number }[];
   rollingMed: { key: string; count: number }[];
-  /** Headaches of the period by duration: under 4 h, 4 to 24 h, 24 to 72 h, over 72 h. */
-  durations: number[];
   /** Medication used in the period, grouped by name and dose, with its list entry for the personal limit. */
   medications: (MedicationEffect & { med?: Medication })[];
   triggers: TriggerRow[];
@@ -202,19 +181,6 @@ export interface ReportData {
 
 /** The trigger rows in the order the report lists them; the comparison and the day factor share their key. */
 const TRIGGERS: (ComparisonKey & keyof DayFactors)[] = ['pressure', 'hydration', 'sleep', 'alcohol', 'caffeine'];
-
-/**
- * Headache days and acute medication days per 30 days and the mean intensity from `from` to `to`,
- * counted from the first diary entry when that is later. Null when the diary starts after `to`.
- */
-function previousPeriod(input: ReportInput, from: Date, to: number): PreviousPeriod | null {
-  const first = firstEntryDay(input);
-  if (first === null || first > dayKey(to)) return null;
-  const start = first > dayKey(from) ? keyToDate(first) : from;
-  const span = dayRange(start, to).length;
-  const stats = periodStats(input, to, span);
-  return { from, to: new Date(to), headache: (stats.headacheDays / span) * 30, med: (stats.medDays / span) * 30, intensity: stats.avgIntensity };
-}
 
 /** Everything the doctor report shows, without the drawing. Covers the `months` calendar months up to `now`. */
 export function reportData(input: ReportInput, now: number, months: number): ReportData {
@@ -233,12 +199,9 @@ export function reportData(input: ReportInput, now: number, months: number): Rep
 
   const monthly = monthlyCounts(input, now, months).map((m) => {
     const end = endOfMonth(m.month);
-    const started = episodes.filter((e) => e.start >= m.month.getTime() && e.start <= end.getTime());
     return {
       ...m,
       severity: severityDays(hDays, dayRange(m.month, Math.min(end.getTime(), now))),
-      intensity: average(started.map((e) => e.intensity)),
-      complete: dayKey(end) <= dayKey(now),
       logged: first !== null && dayKey(end) >= first
     };
   });
@@ -267,17 +230,13 @@ export function reportData(input: ReportInput, now: number, months: number): Rep
   return {
     from,
     span,
-    covered: first !== null && first > dayKey(from) ? dayRange(keyToDate(first), now).length : span,
     stats: periodStats(input, now, span),
-    rule,
     headacheDays: hDays,
     medDays,
     monthly,
-    previous: previousPeriod(input, startOfMonth(addMonths(from, -months)), fromMs - 1),
     limits,
     rollingHeadache: rollingDays(new Set(hDays.keys()), now, span),
     rollingMed: rollingDays(medDays, now, span),
-    durations: durationBuckets(episodes),
     medications: medicationEffect(intakes, fromMs, now, (i) => `${i.name} ${i.dose}`.trim()).map((m) => ({
       ...m,
       med: input.medications.find((x) => x.id === m.medId)
@@ -295,69 +254,6 @@ export function reportData(input: ReportInput, now: number, months: number): Rep
   };
 }
 
-/** A point worth discussing, with the status its dot shows; `info` is a pattern rather than a limit. */
-export interface Finding {
-  status: RuleStatus | 'info';
-  text: string;
-}
-
-/** Factors whose value is a share of days, where more before headache days is the pattern; for the others less is. */
-const SHARE_FACTORS: ComparisonKey[] = ['pressure', 'alcohol'];
-
-/** How much worse a factor was before headache days than before other days, as a ratio; 1 is no difference. */
-function factorStrength({ key, headache, clear }: Comparison): number {
-  if (SHARE_FACTORS.includes(key)) return headache - clear >= 0.1 ? headache / Math.max(clear, 0.05) : 1;
-  return clear > 0 && (clear - headache) / clear >= 0.1 ? clear / Math.max(headache, 0.01) : 1;
-}
-
-/**
- * Up to four points for the doctor, most important first: headache frequency against the chronic
- * criterion or its trend over the complete months, limits reached or close, a medication that rarely
- * helps, and the factor that differs most between headache days and other days.
- */
-export function findings(report: ReportData): Finding[] {
-  const result: Finding[] = [];
-  const month = (m: MonthRow) => fmt(m.month, 'MMMM');
-
-  const chronic = report.monthly.filter((m) => m.headache >= CHRONIC_DAYS).length;
-  if (chronic) result.push({ status: 'over', text: t('pdf.find.chronic', { n: chronic, m: report.monthly.filter((m) => m.logged).length }) });
-  const complete = report.monthly.filter((m) => m.complete && m.logged);
-  if (complete.length >= 2) {
-    const first = complete[0];
-    const last = complete[complete.length - 1];
-    const params = { a: first.headache, from: month(first), b: last.headache, to: month(last) };
-    if (last.headache - first.headache >= 3 && last.headache >= first.headache * 1.3) result.push({ status: 'caution', text: t('pdf.find.rising', params) });
-    else if (first.headache - last.headache >= 3 && first.headache >= last.headache * 1.3) result.push({ status: 'ok', text: t('pdf.find.falling', params) });
-    else if (!chronic) {
-      const counts = complete.map((m) => m.headache);
-      result.push({ status: 'ok', text: t('pdf.find.stable', { min: Math.min(...counts), max: Math.max(...counts) }) });
-    }
-  }
-
-  const reached = report.limits.filter((l) => l.status !== 'ok').sort((a, b) => Number(b.status === 'over') - Number(a.status === 'over'));
-  for (const l of reached.slice(0, 2)) {
-    const key = l.status === 'over' ? 'pdf.find.limitOver' : 'pdf.find.limitCaution';
-    result.push({ status: l.status, text: t(key, { name: l.title, count: l.count, limit: l.limit }) });
-  }
-  if (!reached.length) result.push({ status: 'ok', text: t('pdf.find.limitsOk', { count: report.rule.count, limit: report.rule.limit }) });
-
-  const helped = (m: MedicationEffect) => m.relief[2] / m.rated;
-  const weak = report.medications.filter((m) => m.category !== 'preventive' && m.rated >= 3 && helped(m) < 0.34).sort((a, b) => helped(a) - helped(b))[0];
-  if (weak) result.push({ status: 'caution', text: t('pdf.find.weakRelief', { name: `${weak.name} ${weak.dose}`.trim(), well: weak.relief[2], rated: weak.rated }) });
-
-  const strongest = report.triggers
-    .map((r) => r.comparison)
-    .filter((c): c is Comparison => c !== undefined && factorStrength(c) > 1)
-    .sort((a, b) => factorStrength(b) - factorStrength(a))[0];
-  if (strongest)
-    result.push({
-      status: 'info',
-      text: t('pdf.find.factor', { factor: t(`pdf.short.${strongest.key}`), a: formatComparison(strongest.key, strongest.headache), b: formatComparison(strongest.key, strongest.clear) })
-    });
-
-  return result.slice(0, 4);
-}
-
 /** Columns of the diary table that the cell hooks draw differently. */
 const INTENSITY_COLUMN = 3;
 const MEDICATION_COLUMN = 4;
@@ -370,9 +266,10 @@ interface Box {
 }
 
 /**
- * Doctor report in three parts: page 1 answers how often, how much medication and whether it helps;
- * page 2 shows the charts behind it; the pages after it list every headache and intake. Covers the
- * `months` calendar months up to and including the one with `now`.
+ * Doctor report in three parts: page 1 shows the course of headache and medication days, the limits
+ * and whether the medication helps; page 2 the attack profile and possible triggers; the pages after
+ * it list every headache and intake. Covers the `months` calendar months up to and including the one
+ * with `now`.
  */
 export function doctorReport(input: ReportInput, now: number, months: number): Uint8Array {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -380,13 +277,15 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   const H = doc.internal.pageSize.getHeight();
   const M = 14;
   const inner = W - 2 * M;
-  const contentTop = 34;
+  /** Height of the header band on page 1 and on the pages after it. */
+  const bandH = 32;
+  const slimBandH = 13;
+  const contentTop = 31;
   const footerY = H - 13;
   const contentBottom = footerY - 5;
 
   const report = reportData(input, now, months);
   const { from, stats } = report;
-  const points = findings(report);
   const period = `${fmt(from, 'd. MMM yyyy')} – ${fmt(now, 'd. MMM yyyy')}`;
 
   const font = (size: number, color: Rgb = FG, bold = false) => {
@@ -439,9 +338,9 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     }
   };
   const legendWidth = (labels: string[]) => labels.reduce((sum, label) => sum + 7.6 + width(label, SIZE.small), -4);
-  const pageTitle = (title: string) => text(title, M, 28, SIZE.page, FG, true);
+  const pageTitle = (title: string) => text(title, M, 24.5, SIZE.page, FG, true);
 
-  glancePage();
+  summaryPage();
   doc.addPage();
   detailsPage();
   doc.addPage();
@@ -450,7 +349,8 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   const pages = doc.getNumberOfPages();
   for (let page = 1; page <= pages; page++) {
     doc.setPage(page);
-    runningHeader();
+    if (page === 1) header();
+    else slimHeader();
     doc.setDrawColor(...LINE);
     doc.setLineWidth(0.2);
     doc.line(M, footerY, W - M, footerY);
@@ -460,106 +360,55 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
 
   return new Uint8Array(doc.output('arraybuffer'));
 
-  /** Logo, title and name on the left, period and creation date on the right, over a line in the primary colour. */
-  function runningHeader() {
-    let x = M;
-    if (input.logo) {
-      doc.addImage(input.logo, 'PNG', M, 8.6, 6.5, 6.5);
-      x += 8.5;
-    }
-    text(t('pdf.title'), x, 13, 10, FG, true);
-    if (input.name) text(input.name, x + width(t('pdf.title'), 10, true) + 3, 13, 10, MUTED);
-    text(period, W - M, 13, 8.5, FG, false, 'right');
-    text(t('pdf.created', { date: fmt(now, 'd. MMM yyyy') }), W - M, 16.6, SIZE.axis, MUTED, false, 'right');
-    fill(PRIMARY);
-    doc.rect(M, 18.8, inner, 0.6, 'F');
-  }
-
-  /** Page 1: three numbers with their trend, the limits, how well each medication helps and what is worth discussing. */
-  function glancePage() {
-    pageTitle(t('pdf.pageGlance'));
-    const parts: [number, (y: number) => void][] = [
-      [48, heroes],
-      [discussHeight(), discuss],
-      [56, limits],
-      [reliefHeight(), relief]
-    ];
-    const total = parts.reduce((sum, [h]) => sum + h, 0);
-    const gap = Math.min(14, (contentBottom - contentTop - total) / (parts.length - 1));
-    let y = contentTop;
-    for (const [h, draw] of parts) {
-      draw(y);
-      y += h + gap;
+  /** A band across the top of the page in the gradient of the app icon, drawn as thin strips. */
+  function band(h: number) {
+    const strips = 60;
+    for (let i = 0; i < strips; i++) {
+      const f = i / (strips - 1);
+      fill(BRAND[0].map((c, j) => Math.round(c + (BRAND[1][j] - c) * f)) as Rgb);
+      doc.rect((W * i) / strips, 0, W / strips + 0.2, h, 'F');
     }
   }
 
-  /** Headache days and acute medication days per month and the mean intensity, each with its trend and its months. */
-  function heroes(top: number) {
-    const gap = 4;
-    const w = (inner - 2 * gap) / 3;
-    const perMonth = (n: number) => (n / report.covered) * 30;
-    const logged = <T>(value: (m: MonthRow) => T) => report.monthly.map((m) => (m.logged ? value(m) : null));
-    const prev = report.previous;
-    const cards = [
-      { label: t('pdf.heroHeadache'), value: perMonth(stats.headacheDays), previous: prev?.headache, color: PAIN, months: logged((m) => m.headache), digits: 0 },
-      { label: t('pdf.heroMed'), value: perMonth(stats.medDays), previous: prev?.med, color: MED, months: logged((m) => m.med), digits: 0 },
-      {
-        label: t('pdf.heroIntensity'),
-        value: stats.avgIntensity,
-        previous: prev?.intensity ?? undefined,
-        color: FG,
-        unit: t('pdf.ofTen'),
-        months: logged((m) => m.intensity),
-        digits: 1
-      }
-    ];
-    cards.forEach((card, i) => {
-      const x = M + i * (w + gap);
-      panel(x, top, w, 48);
-      text(card.label, x + 4, top + 6.5, SIZE.body, MUTED);
-      const value = card.value === null ? '–' : num(card.value, 1);
-      text(value, x + 4, top + 17.5, SIZE.hero, card.color, true);
-      if (card.unit) text(card.unit, x + 5.5 + width(value, SIZE.hero, true), top + 17.5, SIZE.body, MUTED);
-      trend(x + 4, top + 24, w - 8, card.value, card.previous);
-      sparkline({ left: x + 4, right: x + w - 4, top: top + 30, bottom: top + 41.5 }, card.months, card.color, card.digits);
-    });
+  /** Page 1: the band with logo, title and name on the left, period and creation date on the right. */
+  function header() {
+    band(bandH);
+    doc.addImage(LOGO_PNG, 'PNG', M, 8, 16, 16);
+    const x = M + 21;
+    text(t('pdf.title'), x, input.name ? 15.5 : 18.5, SIZE.title, WHITE, true);
+    if (input.name) text(input.name, x, 22.5, 11, WHITE);
+    text(period, W - M, 15.5, 10.5, WHITE, true, 'right');
+    opacity(0.85);
+    text(t('pdf.created', { date: fmt(now, 'd. MMM yyyy') }), W - M, 21.5, SIZE.small, WHITE, false, 'right');
+    opacity(1);
   }
 
-  /** A triangle up or down with the change against the previous period, or why there is none. */
-  function trend(x: number, y: number, w: number, value: number | null, previous: number | undefined) {
-    const prev = report.previous;
-    if (!prev || previous === undefined || value === null) {
-      text(wrap(t('pdf.noPrevious'), w, SIZE.small)[0], x, y, SIZE.small, MUTED);
-      return;
-    }
-    const delta = value - previous;
-    const flat = Math.abs(delta) < 0.05;
-    fill(flat ? MUTED : delta > 0 ? OVER : OK);
-    if (flat) doc.rect(x, y - 1.6, 2.8, 0.8, 'F');
-    else if (delta > 0) doc.triangle(x, y - 0.2, x + 2.8, y - 0.2, x + 1.4, y - 2.6, 'F');
-    else doc.triangle(x, y - 2.6, x + 2.8, y - 2.6, x + 1.4, y - 0.2, 'F');
-    const sign = flat ? '±' : delta > 0 ? '+' : '–';
-    const span = months === 1 ? fmt(prev.from, 'MMM yyyy') : `${fmt(prev.from, 'MMM')} – ${fmt(prev.to, 'MMM yyyy')}`;
-    text(t('pdf.vsPrevious', { delta: `${sign}${num(Math.abs(delta), 1)}`, period: span }), x + 4.2, y, SIZE.small, MUTED);
+  /** Pages after the first: a slim band with logo, title, name and period. */
+  function slimHeader() {
+    band(slimBandH);
+    doc.addImage(LOGO_PNG, 'PNG', M, 2.5, 8, 8);
+    const x = M + 11;
+    text(t('pdf.title'), x, 8.1, 10, WHITE, true);
+    if (input.name) text(input.name, x + width(t('pdf.title'), 10, true) + 3, 8.1, 10, WHITE);
+    text(period, W - M, 8.1, SIZE.body, WHITE, false, 'right');
   }
 
-  /** One small bar per month with its value above and the month below. */
-  function sparkline(box: Box, values: (number | null)[], color: Rgb, digits: number) {
-    const slot = (box.right - box.left) / values.length;
-    const bw = Math.min(7, slot * 0.6);
-    const max = Math.max(1, ...values.map((v) => v ?? 0));
-    values.forEach((v, i) => {
-      const cx = box.left + slot * (i + 0.5);
-      text(fmt(addMonths(from, i), values.length > 6 ? 'MMMMM' : 'MMM'), cx, box.bottom + 3.4, SIZE.axis, MUTED, false, 'center');
-      fill(LINE);
-      doc.rect(cx - bw / 2, box.bottom - 0.3, bw, 0.3, 'F');
-      if (v === null) return;
-      const bh = Math.max(0.3, ((box.bottom - box.top - 3) * v) / max);
-      fill(color);
-      doc.rect(cx - bw / 2, box.bottom - bh, bw, bh, 'F');
-      const label = num(v, digits);
-      if (width(label, SIZE.axis) < slot - 1.2) text(label, cx, box.bottom - bh - 0.9, SIZE.axis, FG, false, 'center');
-    });
+  /**
+   * Page 1: headache and medication days per month and in the 30 days up to each day, the limits and
+   * how well each medication helps. The charts take the room the rest leaves, up to a height.
+   */
+  function summaryPage() {
+    const top = bandH + 9;
+    const limitsH = 56;
+    const reliefH = reliefHeight();
+    const room = contentBottom - top - limitsH - reliefH;
+    const chartsH = Math.min(100, room - 20);
+    const gap = Math.min(14, (room - chartsH) / 2);
+    const leftW = 62;
+    monthlyChart(M, top + 2, leftW, chartsH);
+    rollingChart(M + leftW + 8, top + 2, inner - leftW - 8, chartsH);
+    limits(top + chartsH + gap);
+    relief(top + chartsH + limitsH + 2 * gap);
   }
 
   /** One ring per limit, like the Meds tab: the 10/20 rule, the ICHD-3 classes used and the personal limits. */
@@ -681,41 +530,10 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     }
   }
 
-  /** The findings wrapped to the panel, with the height each takes. */
-  function findingLines() {
-    return points.map((f) => {
-      const lines = wrap(f.text, inner - 16, SIZE.body);
-      return { ...f, lines, height: lines.length * lineHeight(SIZE.body) * 1.15 + 2.8 };
-    });
-  }
-
-  function discussHeight() {
-    return 14 + findingLines().reduce((sum, f) => sum + f.height, 0);
-  }
-
-  /** The points worth discussing in a panel, each with a dot in its status colour. */
-  function discuss(top: number) {
-    panel(M, top, inner, discussHeight());
-    text(t('pdf.discuss'), M + 5, top + 8, SIZE.section, FG, true);
-    let y = top + 15;
-    for (const f of findingLines()) {
-      fill(f.status === 'info' ? PRIMARY : STATUS_COLOR[f.status]);
-      doc.circle(M + 7, y - 1.1, 1.2, 'F');
-      font(SIZE.body);
-      doc.text(f.lines, M + 11, y, { lineHeightFactor: 1.15 });
-      y += f.height;
-    }
-  }
-
-  /** Page 2: days per month, the 30-day counts, the attack profile and the possible triggers. */
+  /** Page 2: the attack profile, the possible triggers and the symptoms. */
   function detailsPage() {
     pageTitle(t('pdf.pageDetails'));
-    const gap = 8;
-    const leftW = 62;
-    monthlyChart(M, contentTop + 3, leftW, 78);
-    rollingChart(M + leftW + gap, contentTop + 3, inner - leftW - gap, 78);
-    profile(contentTop + 92);
-    triggers(contentTop + 152);
+    triggers(profile(contentTop + 3) + 10);
   }
 
   /** Stacked headache days by severity next to acute medication days per month, against the chronic line at 15. */
@@ -835,22 +653,23 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     doc.lines(segments, path[0][0], path[0][1], [1, 1], style, style === 'F');
   }
 
-  /** Three small bar charts: duration, time of day and weekday of onset. */
+  /** Two small bar charts side by side: time of day and weekday of onset. Returns where they end. */
   function profile(top: number) {
     const y = section(t('pdf.profile'), M, top, inner, t('pdf.profileHint', { n: report.episodes }));
     const gap = 4;
-    const w = (inner - 2 * gap) / 3;
+    const w = (inner - gap) / 2;
+    const h = 30;
     const charts: [string, number[], string[]][] = [
-      [t('pdf.duration'), report.durations, ['< 4 h', '4–24 h', '24–72 h', '> 72 h']],
       [t('pdf.onset'), stats.timeOfDay, stats.timeOfDay.map((_, i) => `${i * 3}`)],
       [t('pdf.onsetWeekday'), stats.weekday, weekdayShort()]
     ];
     charts.forEach(([title, values, labels], i) => {
       const x = M + i * (w + gap);
-      panel(x, y, w, 40);
-      text(title, x + 4, y + 6, SIZE.small, FG, true);
-      columns({ left: x + 4, right: x + w - 4, top: y + 12, bottom: y + 34 }, values, labels);
+      panel(x, y, w, h);
+      text(title, x + 4, y + 5.5, SIZE.small, FG, true);
+      columns({ left: x + 4, right: x + w - 4, top: y + 11, bottom: y + 24.5 }, values, labels);
     });
+    return y + h;
   }
 
   /** Vertical bars with their values above and labels below. */

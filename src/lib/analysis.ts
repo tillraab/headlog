@@ -462,21 +462,6 @@ export function severityDays(days: Map<string, number>, keys: string[]): [number
   return counts;
 }
 
-/** Upper ends of the duration buckets in hours: under 4 h, 4 to 24 h, 24 to 72 h, the rest longer. */
-const DURATION_BOUNDS = [4, 24, 72];
-
-/** Ended headaches by duration: under 4 h, 4 to 24 h, 24 to 72 h and over 72 h. Migraine lasts 4 to 72 h (ICHD-3 1.1). */
-export function durationBuckets(episodes: Pick<Episode, 'start' | 'end'>[]): number[] {
-  const counts = new Array(DURATION_BOUNDS.length + 1).fill(0);
-  for (const e of episodes) {
-    if (e.end === null) continue;
-    const hours = (e.end - e.start) / HOUR;
-    const bucket = DURATION_BOUNDS.findIndex((bound) => hours < bound);
-    counts[bucket === -1 ? DURATION_BOUNDS.length : bucket]++;
-  }
-  return counts;
-}
-
 /** Days with medication of each class in each of the `count` calendar months ending with `today`. */
 export function monthlyCategoryDays(intakes: Intake[], today: number, count: number): { month: Date; days: Map<MedCategory, number> }[] {
   const result = [];
