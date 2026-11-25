@@ -1,5 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { addDays, isSameMonth, startOfMonth } from 'date-fns';
+import { dayKey, keyToDate } from './days';
 import type { Theme } from './settings';
 import { t } from './i18n.svelte';
 
@@ -56,6 +58,21 @@ export const dayView = $state({ day: '' });
 export function openDay(day: string) {
   dayView.day = day;
   openSheet('day');
+}
+
+/** The month the Calendar tab shows. */
+export const calendarView = $state({ month: startOfMonth(Date.now()) });
+
+/**
+ * Moves the day sheet from `day` by `delta` days, never past `today`. When the calendar shows the month
+ * of `day`, it follows into the new day's month. Returns whether the sheet moved.
+ */
+export function stepDay(day: string, delta: number, today: string): boolean {
+  const next = dayKey(addDays(keyToDate(day), delta));
+  if (next > today) return false;
+  if (isSameMonth(calendarView.month, keyToDate(day))) calendarView.month = startOfMonth(keyToDate(next));
+  dayView.day = next;
+  return true;
 }
 
 export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor' | 'range' | 'calendarFilter';

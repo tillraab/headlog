@@ -10,10 +10,13 @@
   import { clock, data } from '$lib/store.svelte';
   import { hydrationBefore } from '$lib/analysis';
   import { factorIcon, prognosis, prognosisInput } from '$lib/prognosis';
-  import { openFactor, openSheet } from '$lib/ui.svelte';
+  import { dayView, openFactor, openSheet, stepDay, tap } from '$lib/ui.svelte';
+  import { swipeStep } from '$lib/swipe';
+  import { fly } from 'svelte/transition';
   import { dayKey } from '$lib/days';
   import { weatherEmoji } from '$lib/weather';
   import EntryRow from './EntryRow.svelte';
+  import PrevNextButtons from './PrevNextButtons.svelte';
   import SectionLabel from './SectionLabel.svelte';
   import Sheet from './Sheet.svelte';
 
@@ -69,6 +72,34 @@
     edit({ kind: 'intake', item: { time: noon, ...fromMedication(med), relief: null } });
   }
 
+  const today = $derived(dayKey(clock.now));
+  /** The day the sheet last stepped to and in which direction, so only a step slides the content in. */
+  let stepped = $state({ day: '', delta: 0 });
+
+  let content = $state<HTMLElement>();
+
+  /** Shows the day `delta` days away, from its top. */
+  function step(delta: number) {
+    if (!stepDay(day, delta, today)) return;
+    stepped = { day: dayView.day, delta };
+    content?.parentElement?.scrollTo({ top: 0 });
+    tap();
+  }
+
+  let touchStart: { x: number; y: number } | null = null;
+
+  function ontouchstart(e: TouchEvent) {
+    touchStart = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  }
+
+  function ontouchend(e: TouchEvent) {
+    if (!touchStart) return;
+    const touch = e.changedTouches[0];
+    const delta = swipeStep(touch.clientX - touchStart.x, touch.clientY - touchStart.y);
+    touchStart = null;
+    if (delta) step(delta);
+  }
+
   function addDrink() {
     const p = data.drinkPresets[0];
     if (!p) return openSheet('drinkList');
@@ -76,67 +107,80 @@
   }
 </script>
 
-<Sheet id="day" title={fmt(keyToDate(day), 'EEEE, d. MMMM yyyy')}>
-  <div class="flex flex-col gap-3">
-    <SectionLabel>{t('day.factors')}</SectionLabel>
-    <div class="flex flex-col overflow-hidden rounded-2xl bg-surface">
-      {#each factors as f (f.label)}
-        <button class="press flex min-h-12 items-center gap-3 border-b border-line px-3 py-2 text-left last:border-b-0" onclick={f.open}>
-          <span class="text-xl leading-none">{f.icon}</span>
-          <span class="flex-1 font-medium">{f.label}</span>
-          <span class="min-w-0 truncate text-muted tabular">{f.value}</span>
-          <span class="size-2.5 shrink-0 rounded-full" style:background-color={FACTOR_COLOR[f.status]}></span>
-          <ChevronRight size={18} class="shrink-0 text-muted" />
+<Sheet id="day" title={fmt(keyToDate(day), 'EEE, d. MMM yyyy')}>
+  {#snippet actions()}
+    <PrevNextButtons prevLabel={t('a11y.prevDay')} nextLabel={t('a11y.nextDay')} onprev={() => step(-1)} onnext={() => step(1)} nextDisabled={day >= today} />
+  {/snippet}
+  {#key day}
+    <div
+      class="flex flex-col gap-3"
+      role="group"
+      bind:this={content}
+      in:fly={{ x: stepped.day === day ? 48 * stepped.delta : 0, duration: stepped.day === day ? 180 : 0 }}
+      {ontouchstart}
+      {ontouchend}
+      ontouchcancel={() => (touchStart = null)}
+    >
+      <SectionLabel>{t('day.factors')}</SectionLabel>
+      <div class="flex flex-col overflow-hidden rounded-2xl bg-surface">
+        {#each factors as f (f.label)}
+          <button class="press flex min-h-12 items-center gap-3 border-b border-line px-3 py-2 text-left last:border-b-0" onclick={f.open}>
+            <span class="text-xl leading-none">{f.icon}</span>
+            <span class="flex-1 font-medium">{f.label}</span>
+            <span class="min-w-0 truncate text-muted tabular">{f.value}</span>
+            <span class="size-2.5 shrink-0 rounded-full" style:background-color={FACTOR_COLOR[f.status]}></span>
+            <ChevronRight size={18} class="shrink-0 text-muted" />
+          </button>
+        {/each}
+      </div>
+
+      <SectionLabel class="mt-2">{t('day.entries')}</SectionLabel>
+      <div class="flex flex-wrap gap-2">
+        <button
+          class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium"
+          onclick={addHeadache}
+        >
+          <Plus size={20} />{t('day.addHeadache')}
         </button>
+        <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addMed}><Plus size={20} />{t('day.addMed')}</button>
+        <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addDrink}><Plus size={20} />{t('day.addDrink')}</button>
+      </div>
+      {#if !entries.length}
+        <p class="text-muted">{t('day.empty')}</p>
+      {/if}
+
+      {#each entries as entry (entry.kind + entry.item.id)}
+        {#if entry.kind === 'episode'}
+          {@const ep = entry.item}
+          {@const before = hydrationBefore(data.drinks, ep.start)}
+          <EntryRow
+            kind="episode"
+            time={hm(ep.start)}
+            title={`${t('today.headache')} · ${ep.intensity}/10`}
+            lines={[
+              `${hm(ep.start)}–${ep.end ? hm(ep.end) : '…'} · ${formatDuration((ep.end ?? clock.now) - ep.start)}`,
+              ep.tags.join(' · '),
+              ep.note,
+              before.ml || before.usual
+                ? `💧 ${t('day.hydrationBefore', { ml: formatLiters(before.ml) })}${before.usual ? ` ${t('day.hydrationUsual', { ml: formatLiters(before.usual) })}` : ''}`
+                : ''
+            ].filter(Boolean)}
+            onclick={() => edit({ kind: 'episode', item: ep })}
+          />
+        {:else if entry.kind === 'intake'}
+          {@const intake = entry.item}
+          <EntryRow
+            kind="intake"
+            time={hm(intake.time)}
+            title={intake.name}
+            sub={intake.dose}
+            lines={[isAcute(intake.category) ? t('grid.counts') : t('grid.notCounted')]}
+            onclick={() => edit({ kind: 'intake', item: intake })}
+          />
+        {:else}
+          <EntryRow kind="drink" time={hm(entry.item.time)} title={entry.item.name} sub={`${entry.item.ml} ml`} emoji={entry.item.emoji} onclick={() => edit({ kind: 'drink', item: entry.item })} />
+        {/if}
       {/each}
     </div>
-
-    <SectionLabel class="mt-2">{t('day.entries')}</SectionLabel>
-    <div class="flex flex-wrap gap-2">
-      <button
-        class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium"
-        onclick={addHeadache}
-      >
-        <Plus size={20} />{t('day.addHeadache')}
-      </button>
-      <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addMed}><Plus size={20} />{t('day.addMed')}</button>
-      <button class="press flex min-h-11 items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 font-medium" onclick={addDrink}><Plus size={20} />{t('day.addDrink')}</button>
-    </div>
-    {#if !entries.length}
-      <p class="text-muted">{t('day.empty')}</p>
-    {/if}
-
-    {#each entries as entry (entry.kind + entry.item.id)}
-      {#if entry.kind === 'episode'}
-        {@const ep = entry.item}
-        {@const before = hydrationBefore(data.drinks, ep.start)}
-        <EntryRow
-          kind="episode"
-          time={hm(ep.start)}
-          title={`${t('today.headache')} · ${ep.intensity}/10`}
-          lines={[
-            `${hm(ep.start)}–${ep.end ? hm(ep.end) : '…'} · ${formatDuration((ep.end ?? clock.now) - ep.start)}`,
-            ep.tags.join(' · '),
-            ep.note,
-            before.ml || before.usual
-              ? `💧 ${t('day.hydrationBefore', { ml: formatLiters(before.ml) })}${before.usual ? ` ${t('day.hydrationUsual', { ml: formatLiters(before.usual) })}` : ''}`
-              : ''
-          ].filter(Boolean)}
-          onclick={() => edit({ kind: 'episode', item: ep })}
-        />
-      {:else if entry.kind === 'intake'}
-        {@const intake = entry.item}
-        <EntryRow
-          kind="intake"
-          time={hm(intake.time)}
-          title={intake.name}
-          sub={intake.dose}
-          lines={[isAcute(intake.category) ? t('grid.counts') : t('grid.notCounted')]}
-          onclick={() => edit({ kind: 'intake', item: intake })}
-        />
-      {:else}
-        <EntryRow kind="drink" time={hm(entry.item.time)} title={entry.item.name} sub={`${entry.item.ml} ml`} emoji={entry.item.emoji} onclick={() => edit({ kind: 'drink', item: entry.item })} />
-      {/if}
-    {/each}
-  </div>
+  {/key}
 </Sheet>
