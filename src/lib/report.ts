@@ -9,15 +9,15 @@ import {
   intakeDays,
   medicationEffect,
   medicationLimits,
+  medicationRule,
   monthlyCategoryDays,
   monthlyCounts,
   overuseRows,
   periodStats,
   rollingDays,
+  rollingMedication,
   ruleStatus,
   severityDays,
-  TEN_TWENTY_LIMIT,
-  tenTwenty,
   type Comparison,
   type ComparisonKey,
   type DayFactors,
@@ -26,7 +26,7 @@ import {
   type RuleStatus
 } from './analysis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
-import { formatComparison } from './format';
+import { formatComparison, limitReason } from './format';
 import { dayKey, dayRange, formatDuration, formatLiters, hm, HOUR, keyToDate } from './days';
 import { fmt, num, reliefLabels, t, weekdayShort } from './i18n.svelte';
 import { LOGO_PNG } from './logo';
@@ -145,10 +145,12 @@ export interface MonthRow {
   logged: boolean;
 }
 
-/** A day limit as the Meds tab shows it: the 10/20 rule, an ICHD-3 class limit or a personal limit. */
+/** A day limit as the Meds tab shows it: the medication days, an ICHD-3 class limit or a personal limit. */
 export interface LimitRow {
   kind: 'rule' | 'class' | 'personal';
   title: string;
+  /** Why the limit applies, for the medication days. */
+  note?: string;
   count: number;
   limit: number;
   status: RuleStatus;
@@ -170,11 +172,12 @@ export interface ReportData {
   headacheDays: Map<string, number>;
   medDays: Set<string>;
   monthly: MonthRow[];
-  /** The 10/20 rule, each ICHD-3 class used in the last 30 days and each personal limit. */
+  /** The medication days, each ICHD-3 class used in the last 30 days when several were, and each personal limit. */
   limits: LimitRow[];
   /** Headache days and acute medication days in the 30 days up to each day of the period. */
   rollingHeadache: { key: string; count: number }[];
-  rollingMed: { key: string; count: number }[];
+  /** Acute medication days in the 30 days up to each day of the period, with the limit for them. */
+  rollingMed: { key: string; count: number; limit: number }[];
   /** Medication used in the period, grouped by name and dose, with its list entry for the personal limit. */
   medications: (MedicationEffect & { med?: Medication })[];
   triggers: TriggerRow[];
@@ -210,10 +213,18 @@ export function reportData(input: ReportInput, now: number, months: number): Rep
     };
   });
   const categoryMonths = monthlyCategoryDays(input.intakes, now, months);
-  const rule = tenTwenty(medDays, now);
+  const rule = medicationRule(input.intakes, now);
   const limits: LimitRow[] = [
-    { kind: 'rule', title: t('tenTwenty.title'), count: rule.count, limit: rule.limit, status: rule.status, monthsAtLimit: monthly.filter((m) => m.med >= TEN_TWENTY_LIMIT).length },
-    ...overuseRows(input.intakes, now).map((row) => ({
+    {
+      kind: 'rule',
+      title: t('tenTwenty.title'),
+      note: limitReason(rule),
+      count: rule.count,
+      limit: rule.limit,
+      status: rule.status,
+      monthsAtLimit: monthly.filter((m) => m.med >= m.medLimit).length
+    },
+    ...(rule.classes.length > 1 ? overuseRows(input.intakes, now) : []).map((row) => ({
       kind: 'class' as const,
       title: t(`cat.${row.key}`),
       count: row.days,
@@ -242,7 +253,7 @@ export function reportData(input: ReportInput, now: number, months: number): Rep
     monthly,
     limits,
     rollingHeadache: rollingDays(new Set(hDays.keys()), now, span),
-    rollingMed: rollingDays(medDays, now, span),
+    rollingMed: rollingMedication(input.intakes, now, span),
     medications: medicationEffect(intakes, fromMs, now, (i) => `${i.name} ${i.dose}`.trim()).map((m) => ({
       ...m,
       med: input.medications.find((x) => x.id === m.medId)
@@ -504,7 +515,7 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     relief(top + chartsH + limitsH + 2 * gap);
   }
 
-  /** One ring per limit, like the Meds tab: the 10/20 rule, the ICHD-3 classes used and the personal limits. */
+  /** One ring per limit, like the Meds tab: the medication days, the ICHD-3 classes when several were used, and the personal limits. */
   function limits(top: number) {
     const y = section(t('pdf.limits'), M, top + 3, inner, t('pdf.limitsHint'));
     const rows = report.limits.slice(0, 6);
@@ -516,11 +527,12 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
       panel(x, y, w, 44);
       ring(x + w / 2, y + 14.5, 9.5, row);
       text(wrap(row.title, w - 4, SIZE.body)[0], x + w / 2, y + 30.5, SIZE.body, FG, true, 'center');
-      const source = row.kind === 'rule' ? t('pdf.ruleSource') : row.kind === 'class' ? t('pdf.classLimit') : t('pdf.personalLimit');
-      text(source, x + w / 2, y + 34.6, SIZE.axis, MUTED, false, 'center');
+      const source = row.note ?? (row.kind === 'class' ? t('pdf.classLimit') : t('pdf.personalLimit'));
+      const lines = wrap(source, w - 4, SIZE.axis).slice(0, 2);
+      text(lines, x + w / 2, y + 34.6, SIZE.axis, MUTED, false, 'center');
       if (row.monthsAtLimit !== null) {
         const note = wrap(t('pdf.monthsAtLimit', { n: row.monthsAtLimit, m: loggedMonths }), w - 4, SIZE.axis);
-        text(note, x + w / 2, y + 38.2, SIZE.axis, row.monthsAtLimit ? OVER : MUTED, false, 'center');
+        text(note, x + w / 2, y + 34.6 + 3.6 * lines.length, SIZE.axis, row.monthsAtLimit ? OVER : MUTED, false, 'center');
       }
     });
   }
@@ -817,18 +829,25 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     text(t('pdf.chronicLine'), right, py(CHRONIC_DAYS) - 1.2, SIZE.axis, OVER, false, 'right');
 
     const med = { top: pain.bottom + 12, bottom: pain.bottom + 12 + plotH, left, right };
-    const medMax = Math.max(TEN_TWENTY_LIMIT + 5, ...report.rollingMed.map((r) => r.count));
+    const medMax = Math.max(5 + Math.max(...report.rollingMed.map((r) => r.limit)), ...report.rollingMed.map((r) => r.count));
     plotLabel(t('pdf.rollingMed'), med, report.rollingMed, MED);
     axis(med, medMax);
     report.rollingMed.forEach((r, i) => {
       if (!r.count) return;
       const bh = ((med.bottom - med.top) * r.count) / medMax;
-      fill(RULE_COLOR[ruleStatus(r.count, TEN_TWENTY_LIMIT - 1)]);
+      fill(RULE_COLOR[ruleStatus(r.count, r.limit - 1)]);
       doc.rect(left + i * step + step * 0.1, med.bottom - bh, Math.max(0.15, step * 0.8), bh, 'F');
     });
-    const ly = med.bottom - ((med.bottom - med.top) * TEN_TWENTY_LIMIT) / medMax;
-    dashed(left, ly, right, ly, OVER);
-    text(t('pdf.limitLine'), right, ly - 1.2, SIZE.axis, OVER, false, 'right');
+    const ly = (limit: number) => med.bottom - ((med.bottom - med.top) * limit) / medMax;
+    let runStart = 0;
+    report.rollingMed.forEach((r, i) => {
+      const next = report.rollingMed[i + 1];
+      if (next && next.limit === r.limit) return;
+      dashed(left + runStart * step, ly(r.limit), left + (i + 1) * step, ly(r.limit), OVER);
+      runStart = i + 1;
+    });
+    const lastLimit = report.rollingMed[report.rollingMed.length - 1].limit;
+    text(`${lastLimit}: ${t('pdf.limitLine')}`, right, ly(lastLimit) - 1.2, SIZE.axis, OVER, false, 'right');
 
     for (let i = 0; i < months; i++) {
       const index = report.rollingMed.findIndex((r) => r.key === dayKey(addMonths(from, i)));

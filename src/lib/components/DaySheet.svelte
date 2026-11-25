@@ -1,7 +1,7 @@
 <script lang="ts">
   import { FACTOR_COLOR } from '$lib/colors';
   import { fromPreset } from '$lib/drinks';
-  import { ACUTE_CATEGORIES, fromMedication } from '$lib/medication';
+  import { fromMedication, isAcute } from '$lib/medication';
   import { ChevronRight, Plus } from '@lucide/svelte';
   import { addDays, endOfDay, setHours } from 'date-fns';
   import { formatDuration, formatLiters, hm, keyToDate } from '$lib/days';
@@ -131,7 +131,7 @@
           time={hm(intake.time)}
           title={intake.name}
           sub={intake.dose}
-          lines={[ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')]}
+          lines={[isAcute(intake.category) ? t('grid.counts') : t('grid.notCounted')]}
           onclick={() => edit({ kind: 'intake', item: intake })}
         />
       {:else}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, categoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay, firstEntryDay, severityDays, monthlyCategoryDays, isStreakMilestone } from './analysis';
+import { alcoholDays, alcoholPerDay, average, caffeineCurve, poorNight, pressureAround, sleepEfficiency, usualCaffeineCurve, monthlyCounts, conflictingOngoing, medicationEffect, overuseRows, hydrationCurve, caffeineByDay, compareDays, dayFactors, headacheDays, hydrationBefore, hydrationStreak, intakeDays, medicationLimits, medicationRule, rollingMedication, categoryDays, periodStats, rollingDays, ruleStatus, tenTwenty, timeline, usualCaffeine, waterByDay, waterOn, firstDrinkDay, firstEntryDay, severityDays, monthlyCategoryDays, isStreakMilestone } from './analysis';
 import { prognosis } from './prognosis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
 import type { MedCategory } from './medication';
@@ -46,30 +46,30 @@ describe('tenTwenty', () => {
 
   it('counts medication days in the 30 days ending today, today included', () => {
     const med = new Set(['2026-03-01', '2026-03-02', '2026-03-31']);
-    expect(tenTwenty(med, today).count).toBe(2);
+    expect(tenTwenty(med, today, 10).count).toBe(2);
   });
 
   it('predicts the count after taking medication today', () => {
-    expect(tenTwenty(new Set(['2026-03-10']), today).ifTakenToday).toBe(2);
+    expect(tenTwenty(new Set(['2026-03-10']), today, 10).ifTakenToday).toBe(2);
   });
 
   it('does not add today twice when today already counts', () => {
-    expect(tenTwenty(new Set(['2026-03-31']), today).ifTakenToday).toBe(1);
+    expect(tenTwenty(new Set(['2026-03-31']), today, 10).ifTakenToday).toBe(1);
   });
 
   it('names the day the oldest medication day leaves the window', () => {
-    expect(tenTwenty(new Set(['2026-03-05', '2026-03-20']), today).nextRelief).toBe('2026-04-04');
+    expect(tenTwenty(new Set(['2026-03-05', '2026-03-20']), today, 10).nextRelief).toBe('2026-04-04');
   });
 
   it('has no relief day without medication', () => {
-    expect(tenTwenty(new Set(), today).nextRelief).toBeNull();
+    expect(tenTwenty(new Set(), today, 10).nextRelief).toBeNull();
   });
 
   it.each([
     [9, 'caution'],
     [10, 'over']
   ] as const)('reports %i days as %s', (days, status) => {
-    expect(tenTwenty(new Set(lastDays(today, days)), today).status).toBe(status);
+    expect(tenTwenty(new Set(lastDays(today, days)), today, 10).status).toBe(status);
   });
 
   it('allows the full personal limit', () => {
@@ -122,12 +122,61 @@ describe('medicationLimits', () => {
   });
 });
 
+describe('medicationRule', () => {
+  const today = at('2026-03-31T12:00');
+
+  it.each([
+    ['only ibuprofen', [['2026-03-02', 'analgesic', 'Ibuprofen']], 15, ['analgesic']],
+    ['ibuprofen and metamizole', [['2026-03-02', 'analgesic', 'Ibuprofen'], ['2026-03-05', 'analgesic', 'Metamizol']], 15, ['analgesic']],
+    ['only a triptan', [['2026-03-02', 'triptan', 'Sumatriptan']], 10, ['triptan']],
+    ['ibuprofen and a triptan', [['2026-03-02', 'analgesic', 'Ibuprofen'], ['2026-03-05', 'triptan', 'Sumatriptan']], 10, ['analgesic', 'triptan']],
+    ['other medication', [['2026-03-02', 'other', 'Something']], 10, ['other']],
+    ['nothing', [], 10, []]
+  ] as const)('limits %s to fewer than %i days', (_, taken, limit, classes) => {
+    const intakes = taken.map(([day, category, name]) => intake(`${day}T08:00`, category, name));
+    expect([medicationRule(intakes, today).limit, medicationRule(intakes, today).classes]).toEqual([limit, classes]);
+  });
+
+  it('counts days with any acute medication, several on one day once', () => {
+    const intakes = [intake('2026-03-02T08:00'), intake('2026-03-02T12:00', 'triptan'), intake('2026-03-05T08:00', 'triptan'), intake('2026-03-06T08:00', 'preventive')];
+    expect(medicationRule(intakes, today).count).toBe(2);
+  });
+
+  it('leaves out classes taken before the last 30 days', () => {
+    const intakes = [intake('2026-02-20T08:00', 'triptan'), intake('2026-03-20T08:00')];
+    expect(medicationRule(intakes, today).limit).toBe(15);
+  });
+
+  it.each([
+    [13, 'caution'],
+    [14, 'caution'],
+    [15, 'over']
+  ] as const)('judges %i days of only pain relievers as %s', (n, status) => {
+    const intakes = lastDays(today, n).map((key) => intake(`${key}T08:00`));
+    expect(medicationRule(intakes, today).status).toBe(status);
+  });
+});
+
+describe('rollingMedication', () => {
+  it('sets the limit for each day by the classes in the 30 days up to it', () => {
+    const intakes = [intake('2026-03-01T08:00'), intake('2026-03-10T08:00', 'triptan')];
+    const rows = rollingMedication(intakes, at('2026-04-15T12:00'), 46);
+    const limitOn = (key: string) => rows.find((r) => r.key === key)!.limit;
+    expect(['2026-03-05', '2026-03-10', '2026-04-05', '2026-04-10'].map(limitOn)).toEqual([15, 10, 10, 10]);
+  });
+
+  it('counts like rollingDays', () => {
+    const intakes = [intake('2026-03-01T08:00'), intake('2026-03-10T08:00', 'triptan')];
+    expect(rollingMedication(intakes, at('2026-03-25T12:00'), 10).map((r) => r.count)).toEqual(Array(10).fill(2));
+  });
+});
+
 describe('rollingDays', () => {
   it('matches tenTwenty for every day', () => {
     const today = at('2026-03-31T12:00');
     const med = new Set(['2026-01-15', '2026-02-10', '2026-02-11', '2026-03-01', '2026-03-30']);
     const rolling = rollingDays(med, today, 60);
-    expect(rolling.map((r) => r.count)).toEqual(rolling.map((r) => tenTwenty(med, new Date(r.key)).count));
+    expect(rolling.map((r) => r.count)).toEqual(rolling.map((r) => tenTwenty(med, new Date(r.key), 10).count));
   });
 
   it('returns one entry per day of the span', () => {
@@ -436,7 +485,7 @@ describe('overuseRows', () => {
     [7, 'ok'],
     [8, 'caution'],
     [10, 'over']
-  ] as const)('judges %s triptan days like the 10/20 rule: %s', (n, status) => {
+  ] as const)('judges %s triptan days like the medication days: %s', (n, status) => {
     const intakes = Array.from({ length: n }, (_, i) => intake(`2026-03-${String(i + 2).padStart(2, '0')}T08:00`, 'triptan'));
     expect(overuseRows(intakes, month)[0].status).toBe(status);
   });

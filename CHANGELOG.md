@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The fixed 10/20 ring is now one "Medication days" wheel whose limit follows ICHD-3 8.2: fewer than 15 days in 30 while only simple pain relievers were taken (mixing ibuprofen, metamizole and the like included), otherwise fewer than 10 (triptans, ergotamines, combinations, opioids, other medication, or several classes together). A line under the wheel says why the limit applies. Today, the Meds tab, Insights and the doctor report use it. Each class gets its own row only when several were taken; personal limits show as rows under the wheel.
+
 ## [0.44.0] - 2026-11-23
 
 ### Changed

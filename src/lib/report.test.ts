@@ -104,13 +104,18 @@ describe('reportData', () => {
     expect(report.covered).toEqual(report.span);
   });
 
-  it('lists the 10/20 rule and each class used in the last 30 days as limits', () => {
+  it('lists the medication days and, with several classes in the last 30 days, each class as limits', () => {
     const data = input([], [intake('2026-03-10T08:00', 1), { ...intake('2026-03-11T08:00', 2), category: 'triptan' }]);
     expect(reportData(data, now, 1).limits.map((l) => [l.kind, l.count, l.limit])).toEqual([
       ['rule', 2, 10],
       ['class', 1, 15],
       ['class', 1, 10]
     ]);
+  });
+
+  it('lists only the medication days, at 15, when only pain relievers were taken', () => {
+    const data = input([], [intake('2026-03-10T08:00', 1), intake('2026-03-11T08:00', 2)]);
+    expect(reportData(data, now, 1).limits.map((l) => [l.kind, l.count, l.limit, l.note])).toEqual([['rule', 2, 15, 'Only pain relievers: fewer than 15 days']]);
   });
 });
 

@@ -3,9 +3,10 @@
   import { hydrationMl } from '$lib/drinks';
   import { ChevronDown, Droplets, Pencil, Pill, Zap } from '@lucide/svelte';
   import { isToday, startOfDay } from 'date-fns';
-  import { hydrationStreak, intakeDays, isStreakMilestone, medicationLimits, periodStats, tenTwenty, waterOn } from '$lib/analysis';
+  import { hydrationStreak, isStreakMilestone, medicationLimits, medicationRule, periodStats, waterOn } from '$lib/analysis';
   import { reliefQuestion } from '$lib/medication';
   import { DAY, formatDuration, formatLiters, hm } from '$lib/days';
+  import { ifTakenTodayLine } from '$lib/format';
   import { edit } from '$lib/editor.svelte';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data, logDrink, logIntake, ongoingEpisode, remove, saveEpisode, saveIntake, startHeadache, type EntryTable } from '$lib/store.svelte';
@@ -42,7 +43,7 @@
     forecastCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   const dayStart = $derived(startOfDay(clock.now).getTime());
-  const rule = $derived(tenTwenty(new Set(intakeDays(data.intakes).keys()), clock.now));
+  const rule = $derived(medicationRule(data.intakes, clock.now));
   const streak = $derived(periodStats(data, clock.now, 1).clearStreak);
   const meds = $derived(data.medications);
   const limits = $derived(new Map(medicationLimits(data.intakes, data.medications, clock.now).map((l) => [l.med.id, l.rule])));
@@ -197,7 +198,7 @@
         {/each}
       </div>
       {#if !rule.days[rule.days.length - 1].med}
-        <p class="text-sm text-muted">{t('tenTwenty.ifToday', { n: rule.ifTakenToday, limit: rule.limit })}</p>
+        <p class="text-sm text-muted">{ifTakenTodayLine(rule)}</p>
       {/if}
     {:else}
       <button class="press btn-primary self-start" onclick={() => openSheet('medList')}>{t('today.noMeds')}</button>

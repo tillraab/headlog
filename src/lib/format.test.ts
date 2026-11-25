@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { entryDetailLines, formatComparison } from './format';
+import { entryDetailLines, formatComparison, ifTakenTodayLine, limitReason } from './format';
+import { i18n } from './i18n.svelte';
 
 const at = (s: string) => new Date(s).getTime();
 
@@ -34,5 +35,34 @@ describe('entryDetailLines', () => {
       drinks: [drink(1, '2026-03-02T14:00', '💧'), drink(2, '2026-03-02T13:35', '🥛'), drink(3, '2026-03-02T14:00', '🍵')]
     });
     expect(lines).toEqual(['💊 14:00 Ibuprofen, Sumatriptan', '🥛 13:35 · 💧🍵 14:00']);
+  });
+});
+
+describe('limitReason', () => {
+  it.each([
+    [[], 10, 'No acute medication: fewer than 10 days'],
+    [['analgesic'], 15, 'Only pain relievers: fewer than 15 days'],
+    [['triptan'], 10, 'Triptan: fewer than 10 days'],
+    [['other'], 10, 'Other medication: fewer than 10 days'],
+    [['analgesic', 'triptan'], 10, 'Pain reliever and triptan: fewer than 10 days together'],
+    [['analgesic', 'triptan', 'opioid'], 10, '3 classes: fewer than 10 days together']
+  ] as const)('explains %j with limit %i', (classes, limit, text) => {
+    expect(limitReason({ classes: [...classes], limit })).toBe(text);
+  });
+
+  it('writes German when the app language is German', () => {
+    i18n.lang = 'de';
+    const text = limitReason({ classes: ['other', 'opioid'], limit: 10 });
+    i18n.lang = 'en';
+    expect(text).toBe('Sonstiges Mittel und Opioid: zusammen weniger als 10 Tage');
+  });
+});
+
+describe('ifTakenTodayLine', () => {
+  it.each([
+    [13, 15, 'A pain reliever today makes it 13 of 15, any other class 13 of 10.'],
+    [7, 10, 'Taking medication today makes it 7 of 10.']
+  ])('writes %i against %i', (n, limit, text) => {
+    expect(ifTakenTodayLine({ ifTakenToday: n, limit })).toBe(text);
   });
 });

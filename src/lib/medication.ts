@@ -7,10 +7,16 @@ export const CATEGORIES = ['analgesic', 'triptan', 'ergotamine', 'combination', 
 export type MedCategory = (typeof CATEGORIES)[number];
 
 /**
- * Acute headache medication: counts toward the 10/20 rule. Preventive medication and medicine
+ * Acute headache medication: counts toward the medication days. Preventive medication and medicine
  * against nausea do not; "other" counts, to stay on the safe side.
  */
-export const ACUTE_CATEGORIES: readonly MedCategory[] = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'other'];
+export const ACUTE_CATEGORIES = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'other'] as const satisfies readonly MedCategory[];
+
+export type AcuteCategory = (typeof ACUTE_CATEGORIES)[number];
+
+export function isAcute(category: MedCategory): category is AcuteCategory {
+  return (ACUTE_CATEGORIES as readonly MedCategory[]).includes(category);
+}
 
 /**
  * Days per month from which ICHD-3 (8.2, medication-overuse headache) speaks of overuse, when it
@@ -23,6 +29,9 @@ export const MONTHLY_LIMITS: Partial<Record<MedCategory, number>> = {
   combination: 10,
   opioid: 10
 };
+
+/** Days per month from which ICHD-3 8.2.6 speaks of overuse for several classes together, even when none is over its own limit. */
+export const MULTIPLE_CLASSES_LIMIT = 10;
 
 /** Common active ingredients and brands per category, lower case, for recognising a medication by its name. */
 const KNOWN: Partial<Record<MedCategory, string[]>> = {

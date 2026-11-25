@@ -3,20 +3,22 @@
   import { edit } from '$lib/editor.svelte';
   import { openSheet } from '$lib/ui.svelte';
   import CardHeading from './CardHeading.svelte';
+  import LimitBar from './LimitBar.svelte';
   import LimitWheel from './LimitWheel.svelte';
   import EntryRow from './EntryRow.svelte';
-  import { intakeDays, medicationEffect, medicationLimits, overuseRows, tenTwenty } from '$lib/analysis';
+  import { medicationEffect, medicationLimits, medicationRule, overuseRows } from '$lib/analysis';
   import { medColor, RELIEF_COLOR, STATUS_COLOR } from '$lib/colors';
   import { DAY, hm, keyToDate } from '$lib/days';
+  import { ifTakenTodayLine, limitReason } from '$lib/format';
   import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { SOURCES } from '$lib/sources';
 
   /** Days the effect of each medication looks back on. */
   const EFFECT_WINDOW_DAYS = 90;
-  const medDays = $derived(new Set(intakeDays(data.intakes).keys()));
-  const rule = $derived(tenTwenty(medDays, clock.now));
-  const overuse = $derived(overuseRows(data.intakes, clock.now));
+  const rule = $derived(medicationRule(data.intakes, clock.now));
+  /** Each class against its own limit, only when several were taken: with one, the main limit already is that class's. */
+  const classRows = $derived(rule.classes.length > 1 ? overuseRows(data.intakes, clock.now) : []);
   /** Intakes and relief ratings per medication name over the last 90 days. */
   const effect = $derived(medicationEffect(data.intakes, clock.now - EFFECT_WINDOW_DAYS * DAY, clock.now, (i) => i.name));
   const recent = $derived([...data.intakes].sort((a, b) => b.time - a.time).slice(0, 8));
@@ -36,56 +38,58 @@
 
   <section class="card flex flex-col gap-3 p-4">
     <CardHeading title={t('meds.limits')} />
-    <div class="grid grid-cols-2 gap-2">
-      <LimitWheel
-        count={rule.count}
-        limit={rule.limit}
-        title={t('tenTwenty.title')}
-        period={t('meds.inDays', { n: rule.window })}
-        color={STATUS_COLOR[rule.status]}
-        info={[
-          { title: t('info.rule'), body: t('tenTwenty.rule') },
-          { title: t('info.evidence'), body: t('tenTwenty.evidence') }
-        ]}
-        sources={SOURCES.medication}
-      />
-      {#each overuse as row (row.key)}
-        <LimitWheel
-          count={row.days}
-          limit={row.limit}
-          title={t(`cat.${row.key}`)}
-          period={t('meds.inDays', { n: 30 })}
-          color={STATUS_COLOR[row.status]}
-          info={[
-            { title: t('info.rule'), body: t('overuse.classRule', { cls: t(`cat.${row.key}`), limit: row.limit }) },
-            { title: t('info.which'), body: t(`catDesc.${row.key}`) },
-            { title: t('info.evidence'), body: t('overuse.hint') }
-          ]}
-          sources={SOURCES.medication}
-        />
-      {/each}
-      {#each personal as { med, rule: r } (med.id)}
-        <LimitWheel
-          count={r.count}
-          limit={r.limit}
-          title={med.name}
-          period={t('meds.inDays', { n: r.window })}
-          color={STATUS_COLOR[r.status]}
-          info={[{ title: t('info.rule'), body: t('tenTwenty.personalRule', { name: med.name, limit: r.limit, window: r.window }) }]}
-        />
-      {/each}
-    </div>
+    <LimitWheel
+      count={rule.count}
+      limit={rule.limit}
+      title={t('tenTwenty.title')}
+      note={limitReason(rule)}
+      color={STATUS_COLOR[rule.status]}
+      info={[
+        { title: t('info.rule'), body: t('tenTwenty.rule') },
+        { title: t('info.evidence'), body: t('tenTwenty.evidence') }
+      ]}
+      sources={SOURCES.medication}
+    />
     <div class="flex flex-col items-center gap-0.5 text-center text-sm">
-      <p class="rounded-full px-3 py-1 font-semibold" style:color={tone} style:background-color="color-mix(in oklab, {tone} 14%, transparent)">{label} · {t('tenTwenty.freeDays', { n: rule.freeDays })}</p>
+      <p class="rounded-2xl px-3 py-1 font-semibold" style:color={tone} style:background-color="color-mix(in oklab, {tone} 14%, transparent)"><span class="whitespace-nowrap">{label} ·</span> <span class="whitespace-nowrap">{t('tenTwenty.freeDays', { n: rule.freeDays })}</span></p>
       {#if rule.days[rule.days.length - 1].med}
         <p class="text-muted">{t('tenTwenty.alreadyToday')}</p>
       {:else}
-        <p class="text-muted">{t('tenTwenty.ifToday', { n: rule.ifTakenToday, limit: rule.limit })}</p>
+        <p class="text-muted">{ifTakenTodayLine(rule)}</p>
       {/if}
       {#if rule.nextRelief}
         <p class="text-muted">{t('tenTwenty.nextRelief', { date: fmt(keyToDate(rule.nextRelief), 'EEE d. MMM') })}</p>
       {/if}
     </div>
+    {#if classRows.length || personal.length}
+      <div class="flex flex-col border-t border-line pt-2">
+        {#each classRows as row (row.key)}
+          <LimitBar
+            count={row.days}
+            limit={row.limit}
+            title={t(`cat.${row.key}`)}
+            sub={t('meds.classLimit')}
+            color={STATUS_COLOR[row.status]}
+            info={[
+              { title: t('info.rule'), body: t('overuse.classRule', { cls: t(`cat.${row.key}`), limit: row.limit }) },
+              { title: t('info.which'), body: t(`catDesc.${row.key}`) },
+              { title: t('info.evidence'), body: t('overuse.hint') }
+            ]}
+            sources={SOURCES.medication}
+          />
+        {/each}
+        {#each personal as { med, rule: r } (med.id)}
+          <LimitBar
+            count={r.count}
+            limit={r.limit}
+            title={med.name}
+            sub={t('meds.personalLimit', { n: r.window })}
+            color={STATUS_COLOR[r.status]}
+            info={[{ title: t('info.rule'), body: t('tenTwenty.personalRule', { name: med.name, limit: r.limit, window: r.window }) }]}
+          />
+        {/each}
+      </div>
+    {/if}
   </section>
 
   {#if effect.length}
