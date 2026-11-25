@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Naming a medication recognises about 80 active ingredients and brands (German OTC brands included) from an offline table and sets its class.
+
 ## [0.44.0] - 2026-11-23
 
 ### Changed
