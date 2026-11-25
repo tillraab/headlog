@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { entryDetailLines, formatComparison, ifTakenTodayLine, limitReason, pressureLine } from './format';
+import { entryDetailLines, formatComparison, ifTakenTodayLine, limitReason, onsetText, pressureLine } from './format';
+import { prognosis } from './prognosis';
+import type { Drink, Night, WeatherDay } from './db';
 import { i18n } from './i18n.svelte';
 
 const at = (s: string) => new Date(s).getTime();
@@ -75,5 +77,21 @@ describe('pressureLine', () => {
     [1010, null, '1010 hPa']
   ])('writes %i with change %s', (pressure, change, text) => {
     expect(pressureLine(pressure, change)).toBe(text);
+  });
+});
+
+describe('onsetText', () => {
+  const now = new Date('2026-03-10T14:30').getTime();
+  const shortNight: Night = { day: '2026-03-10', start: 0, end: 0, asleepMs: 4 * 3600000, breaks: [], source: 'screen' };
+  const drop: WeatherDay = { day: '2026-03-11', pressure: 1000, pressureDrop: 8, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 };
+  const water: Drink = { id: 1, time: new Date('2026-03-10T09:00').getTime(), presetId: 1, name: 'Glass', emoji: '🥛', ml: 1500 };
+  const at = (sleep: Map<string, Night>, weather: Map<string, WeatherDay>, drinks: Drink[] = []) => onsetText(prognosis({ drinks, sleep, weather, goalMl: 2000 }, now));
+
+  it.each([
+    ['nothing without any data', at(new Map(), new Map()), ''],
+    ['that no factor was unfavourable', at(new Map(), new Map(), [water]), 'no unfavourable factor'],
+    ['the unfavourable factors', at(new Map([['2026-03-10', shortNight]]), new Map([['2026-03-11', drop]])), 'pressure drop the next day, short night']
+  ])('writes %s', (_, text, expected) => {
+    expect(text).toBe(expected);
   });
 });

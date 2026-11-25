@@ -2,7 +2,7 @@ import { addDays, getDay, getHours, startOfDay, startOfMonth } from 'date-fns';
 import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
 import { hydrationMl } from './drinks';
 import { ACUTE_CATEGORIES, isAcute, MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type AcuteCategory, type MedCategory } from './medication';
-import { DAY, dayKey, dayRange, HOUR, keyToDate, lastDays } from './days';
+import { dayKey, dayRange, HOUR, keyToDate, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_CAFFEINE_DAYS, MIN_SLEEP_EFFICIENCY, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { dropToNextDay, isPressureDrop } from './weather';
 
@@ -92,23 +92,6 @@ export function hydrationCurve(drinks: Drink[], keys: string[], now: number): { 
       points.push({ time: Math.min(addDays(start, 1).getTime(), now), ml });
       return { key, points };
     });
-}
-
-/** Days `hydrationBefore` looks back on for what is usual, and how many of them need drinks. */
-const USUAL_HYDRATION_DAYS = 30;
-const MIN_USUAL_HYDRATION_DAYS = 7;
-
-/**
- * Hydration in the `hours` before `time`, and what is usual for that many hours: the average over the
- * 30 days before, scaled to the same length. Usual is null without at least 7 days with drinks.
- */
-export function hydrationBefore(drinks: Drink[], time: number, hours = 72): { ml: number; usual: number | null } {
-  const from = time - hours * HOUR;
-  const ml = drinks.filter((d) => d.time >= from && d.time < time).reduce((sum, d) => sum + hydrationMl(d), 0);
-  const water = waterByDay(drinks.filter((d) => d.time < from && d.time >= from - USUAL_HYDRATION_DAYS * DAY));
-  const mean = water.size >= MIN_USUAL_HYDRATION_DAYS ? average([...water.values()]) : null;
-  const usual = mean === null ? null : mean * (hours / 24);
-  return { ml, usual };
 }
 
 /** Caffeine in mg per day, for days with any caffeinated drink. */

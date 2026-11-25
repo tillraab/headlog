@@ -164,3 +164,32 @@ export function tomorrowRisk(input: PrognosisInput, at: number): TomorrowRisk {
   const factors = statuses.filter(([, s]) => s === 'bad').map(([k]) => k);
   return { light: factors.length >= 2 ? 'red' : factors.length === 1 ? 'yellow' : 'green', factors, statuses };
 }
+
+/**
+ * The traffic light as it stood at `at`, from what was known then: drinks up to `at`, and only
+ * nights that had ended by then (a headache during the night or before waking leaves the sleep
+ * factor unknown). The forecast for the next day already existed, so the weather stays.
+ */
+export function prognosisAt(input: PrognosisInput, at: number): Prognosis {
+  const sleep = new Map([...input.sleep].filter(([, night]) => night.end <= at));
+  return prognosis({ ...input, drinks: input.drinks.filter((d) => d.time <= at), sleep }, at);
+}
+
+/** Why a factor was unfavourable, one reason per factor, in the order of `FACTOR_ICONS`. */
+export type Reason = 'weather' | 'sleepShort' | 'sleepFragmented' | 'hydrationBehind' | 'hydrationYesterday' | 'caffeine' | 'alcoholToday' | 'alcoholYesterday';
+
+export function reasons(p: Prognosis): Reason[] {
+  const byFactor: Record<FactorKey, Reason> = {
+    weather: 'weather',
+    sleep: p.sleep.short ? 'sleepShort' : 'sleepFragmented',
+    hydration: p.hydration.behind ? 'hydrationBehind' : 'hydrationYesterday',
+    caffeine: 'caffeine',
+    alcohol: p.alcohol.today ? 'alcoholToday' : 'alcoholYesterday'
+  };
+  return FACTOR_ICONS.filter(([key]) => p[key].status === 'bad').map(([key]) => byFactor[key]);
+}
+
+/** Whether any factor had data. */
+export function anyKnown(p: Prognosis): boolean {
+  return FACTOR_ICONS.some(([key]) => p[key].status !== 'unknown');
+}

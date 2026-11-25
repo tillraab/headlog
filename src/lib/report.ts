@@ -26,7 +26,8 @@ import {
   type RuleStatus
 } from './analysis';
 import type { Drink, Episode, Intake, Medication, Night, Relief, WeatherDay } from './db';
-import { formatComparison, limitReason } from './format';
+import { formatComparison, limitReason, onsetText } from './format';
+import { prognosisAt, type Light, type Prognosis } from './prognosis';
 import { dayKey, dayRange, formatDuration, formatLiters, hm, HOUR, keyToDate } from './days';
 import { fmt, num, reliefLabels, t, weekdayShort } from './i18n.svelte';
 import { LOGO_PNG } from './logo';
@@ -56,6 +57,8 @@ const OVER: Rgb = [201, 47, 47];
 /** Headache days as mild (1–3), moderate (4–7) and severe (8–10): light to dark, so they stay apart in black and white. */
 const SEVERITY: Rgb[] = [[245, 170, 188], PAIN, [146, 22, 54]];
 const STATUS_COLOR: Record<RuleStatus, Rgb> = { ok: OK, caution: CAUTION, over: OVER };
+/** The traffic light as the app shows it. */
+const LIGHT_COLOR: Record<Light, Rgb> = { green: OK, yellow: CAUTION, red: OVER };
 /** Medication-day bars: in the medication colour while within the limit. */
 const RULE_COLOR: Record<RuleStatus, Rgb> = { ok: MED, caution: CAUTION, over: OVER };
 /** Relief ratings, indexed by `Relief`, then the unrated intakes. */
@@ -118,13 +121,11 @@ function matchIntakes(episodes: Episode[], intakes: Intake[], now: number): { ma
   return { matched, unmatched: intakes.filter((i) => !used.has(i.id)) };
 }
 
-/** One row of the table of entries: a headache with its intakes, or an intake without a headache. */
-export interface EntryRow {
-  time: number;
-  episode?: Episode;
-  intakes: Intake[];
-  factors: DayFactors;
-}
+/**
+ * One row of the table of entries: a headache with its intakes and the traffic light at its onset,
+ * or an intake without a headache with the factors of its day.
+ */
+export type EntryRow = { time: number; intakes: Intake[] } & ({ episode: Episode; onset: Prognosis } | { episode?: undefined; factors: DayFactors });
 
 /** One row of the possible triggers: how a factor compares, and with how many headaches it came. */
 export interface TriggerRow {
@@ -199,7 +200,8 @@ export function reportData(input: ReportInput, now: number, months: number): Rep
   const hDays = headacheDays(input.episodes, now);
   const episodes = input.episodes.filter((e) => e.start >= fromMs && e.start <= now).sort((a, b) => a.start - b.start);
   const factorsOn = (time: number) => dayFactors(input, dayKey(time), input.waterGoalMl);
-  const factors = new Map(episodes.map((e) => [e.id, factorsOn(e.start)]));
+  const factors = episodes.map((e) => factorsOn(e.start));
+  const light = { drinks: input.drinks, sleep: input.sleep, weather: input.weather, goalMl: input.waterGoalMl };
   const comparisons = new Map(compareDays(input, dayRange(from, now), now).map((c) => [c.key, c]));
   const { matched, unmatched } = matchIntakes(episodes, intakes, now);
   const first = firstEntryDay(input);
@@ -261,11 +263,11 @@ export function reportData(input: ReportInput, now: number, months: number): Rep
     triggers: TRIGGERS.map((key) => ({
       key,
       comparison: comparisons.get(key),
-      withFactor: [...factors.values()].filter((f) => f[key] !== undefined).length
+      withFactor: factors.filter((f) => f[key] !== undefined).length
     })),
     episodes: episodes.length,
     entries: [
-      ...matched.map(({ episode, intakes: own }) => ({ time: episode.start, episode, intakes: own, factors: factors.get(episode.id)! })),
+      ...matched.map(({ episode, intakes: own }) => ({ time: episode.start, episode, intakes: own, onset: prognosisAt(light, episode.start) })),
       ...unmatched.map((i) => ({ time: i.time, intakes: [i], factors: factorsOn(i.time) }))
     ].sort((a, b) => a.time - b.time)
   };
@@ -317,6 +319,7 @@ const ONSETS_H = 26;
 /** Columns of the diary table that the cell hooks draw differently. */
 const INTENSITY_COLUMN = 3;
 const MEDICATION_COLUMN = 4;
+const NOTES_COLUMN = 5;
 
 interface Box {
   top: number;
@@ -973,12 +976,14 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
     text(hint, M, contentTop, SIZE.small, MUTED);
     const firstPage = doc.getNumberOfPages();
 
-    const rows: { cells: string[]; intensity?: number; month?: true }[] = [];
+    /** `light`: the traffic light at a headache's onset, drawn as a dot before its notes when any factor had data. */
+    const rows: { cells: string[]; intensity?: number; light?: Light; month?: true }[] = [];
     for (const m of report.monthly) {
       const own = report.entries.filter((e) => e.time >= m.month.getTime() && e.time <= endOfMonth(m.month).getTime());
       if (!own.length) continue;
       rows.push({ cells: [t('pdf.monthRow', { month: fmt(m.month, 'MMMM yyyy'), h: m.headache, m: m.med })], month: true });
-      for (const entry of own) rows.push({ cells: entryCells(entry), intensity: entry.episode?.intensity });
+      for (const entry of own)
+        rows.push({ cells: entryCells(entry), intensity: entry.episode?.intensity, light: entry.episode && onsetText(entry.onset) ? entry.onset.light : undefined });
     }
 
     autoTable(doc, {
@@ -997,10 +1002,16 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
         if (row.month) Object.assign(data.cell.styles, { fontStyle: 'bold', fontSize: SIZE.body, fillColor: PANEL, cellPadding: { top: 2.2, bottom: 2.2, left: 1.6, right: 1.6 } });
         else if (data.column.index === INTENSITY_COLUMN && row.intensity) data.cell.text = [''];
         else if (!row.intensity && data.column.index !== MEDICATION_COLUMN) data.cell.styles.textColor = MUTED;
+        else if (data.column.index === NOTES_COLUMN && row.light) data.cell.styles.cellPadding = { top: 1.5, bottom: 1.5, left: 4.4, right: 1.6 };
       },
       didDrawCell: (data: CellHookData) => {
-        const intensity = rows[data.row.index]?.intensity;
-        if (data.section !== 'body' || data.column.index !== INTENSITY_COLUMN || !intensity) return;
+        if (data.section !== 'body') return;
+        const { intensity, light } = rows[data.row.index] ?? {};
+        if (data.column.index === NOTES_COLUMN && light) {
+          fill(LIGHT_COLOR[light]);
+          doc.circle(data.cell.x + 2.4, data.cell.y + 3.1, 1.1, 'F');
+        }
+        if (data.column.index !== INTENSITY_COLUMN || !intensity) return;
         const s = severity(intensity);
         const cx = data.cell.x + data.cell.width / 2;
         fill(SEVERITY[s]);
@@ -1017,9 +1028,9 @@ export function doctorReport(input: ReportInput, now: number, months: number): U
   function entryCells(row: EntryRow): string[] {
     const reliefText = (r: Relief | null) => (r === null ? '' : ` (${reliefLabels()[r].toLowerCase()})`);
     const medLine = (i: Intake) => `${hm(i.time)} ${i.name} ${i.dose}`.trim() + reliefText(i.relief);
+    if (!row.episode) return [fmt(row.time, 'EEE d. MMM'), '–', '', '–', medLine(row.intakes[0]), [t('pdf.noHeadache'), ...factorText(row.factors)].join('; ')];
     const e = row.episode;
-    if (!e) return [fmt(row.time, 'EEE d. MMM'), '–', '', '–', medLine(row.intakes[0]), [t('pdf.noHeadache'), ...factorText(row.factors)].join('; ')];
-    const notes = [...factorText(row.factors), ...e.tags, e.note ? `“${e.note}”` : ''].filter(Boolean);
+    const notes = [onsetText(row.onset), ...e.tags, e.note ? `“${e.note}”` : ''].filter(Boolean);
     return [
       fmt(e.start, 'EEE d. MMM'),
       `${hm(e.start)}–${e.end ? hm(e.end) : '…'}`,
