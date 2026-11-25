@@ -316,15 +316,15 @@
             {#if entry.kind === 'episode'}
               <EntryRow
                 kind="episode"
-                time={hm(entry.time)}
+                lead={hm(entry.time)}
                 title={`${t('today.headache')} · ${entry.item.intensity}/10`}
                 sub={entry.item.end ? `· ${formatDuration(entry.item.end - entry.item.start)}` : `· ${t('edit.ongoing').toLowerCase()}`}
                 onclick={() => edit(entry)}
               />
             {:else if entry.kind === 'intake'}
-              <EntryRow kind="intake" time={hm(entry.time)} title={entry.item.name} sub={entry.item.dose} onclick={() => edit(entry)} />
+              <EntryRow kind="intake" lead={hm(entry.time)} title={entry.item.name} sub={entry.item.dose} onclick={() => edit(entry)} />
             {:else}
-              <EntryRow kind="drink" time={hm(entry.time)} title={entry.item.name} sub={`${entry.item.ml} ml`} emoji={entry.item.emoji} onclick={() => edit(entry)} />
+              <EntryRow kind="drink" lead={hm(entry.time)} title={entry.item.name} sub={`${entry.item.ml} ml`} emoji={entry.item.emoji} onclick={() => edit(entry)} />
             {/if}
           </li>
         {/each}

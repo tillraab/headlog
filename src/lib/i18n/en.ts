@@ -1,5 +1,7 @@
 /** English texts. The keys are the source of truth; `de.ts` must have the same ones. */
 export const en = {
+  'date.today': 'Today',
+  'date.yesterday': 'Yesterday',
   'tab.today': 'Today',
   'tab.calendar': 'Calendar',
   'tab.meds': 'Meds',
@@ -521,8 +523,6 @@ export const en = {
   'versions.open': 'Restore an earlier state',
   'versions.title': 'Earlier states',
   'versions.hint': 'Every backup is kept as its own version. Tap one to see what it contains, then restore it if it is the right one.',
-  'versions.today': 'Today',
-  'versions.yesterday': 'Yesterday',
   'versions.current': 'latest',
   'versions.counts': '{e} headaches · {i} medication intakes · {d} drinks',
   'versions.latest': 'Latest entry: {time}',
