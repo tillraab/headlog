@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-11-25
+
+### Added
+
+- The day view steps to the previous or next day with arrow buttons or a sideways swipe, up to today. The calendar behind follows into the day's month. The title shows the date in short form.
+
+### Changed
+
+- The fixed 10/20 ring is now one "Medication days" wheel whose limit follows ICHD-3 8.2: fewer than 15 days in 30 while only simple pain relievers were taken (mixing ibuprofen, metamizole and the like included), otherwise fewer than 10 (triptans, ergotamines, combinations, opioids, other medication, or several classes together). A line under the wheel says why the limit applies. Today, the Meds tab, Insights and the doctor report use it. Each class gets its own row only when several were taken; personal limits show as rows under the wheel.
+- Under the medication days wheel: the status, and while only pain relievers were taken, a note that another class switches to the combined limit of fewer than 10 days. A single class is named with "Only".
+- Day view: the weather row shows the day's pressure and its change to the next day, which decides the weather factor, instead of the temperature.
+- Recent intakes show the date on the left and the time under the medication.
+- Naming a medication recognises about 80 active ingredients and brands (German OTC brands included) from an offline table and sets its class.
+
 ## [0.44.0] - 2026-11-23
 
 ### Changed

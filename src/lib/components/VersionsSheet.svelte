@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { isToday, isYesterday, startOfDay } from 'date-fns';
+  import { startOfDay } from 'date-fns';
   import { untrack } from 'svelte';
   import type { Backup } from '$lib/backup';
   import type { Drink, Episode, Intake } from '$lib/db';
   import { listVersions, pull, VERSIONS_PER_PAGE, type GistVersion } from '$lib/gist';
-  import { fmt, t } from '$lib/i18n.svelte';
+  import { fmt, relativeDay, t } from '$lib/i18n.svelte';
   import { restoreFromGist, sync } from '$lib/sync.svelte';
   import { closeSheet, sheets, toast } from '$lib/ui.svelte';
   import SectionLabel from './SectionLabel.svelte';
@@ -98,18 +98,13 @@
     }
   }
 
-  function dayLabel(day: number): string {
-    if (isToday(day)) return t('versions.today');
-    if (isYesterday(day)) return t('versions.yesterday');
-    return fmt(day, 'EEEE, d. MMMM yyyy');
-  }
 </script>
 
 <Sheet id="versions" title={t('versions.title')}>
   <p class="mb-4 text-sm text-muted">{t('versions.hint')}</p>
 
   {#each days as group (group.day)}
-    <SectionLabel class="mt-4 mb-1">{dayLabel(group.day)}</SectionLabel>
+    <SectionLabel class="mt-4 mb-1">{relativeDay(group.day, Date.now(), 'EEEE, d. MMMM yyyy')}</SectionLabel>
     <ul class="card flex flex-col p-1">
       {#each group.items as v (v.version)}
         {@const preview = previews[v.version]}

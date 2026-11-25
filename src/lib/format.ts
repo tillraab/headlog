@@ -1,7 +1,8 @@
-import type { ComparisonKey } from './analysis';
+import type { ComparisonKey, MedicationRule } from './analysis';
 import type { Drink, Episode, Intake } from './db';
 import { formatDuration, formatLiters, hm, HOUR } from './days';
 import { t } from './i18n.svelte';
+import { MULTIPLE_CLASSES_LIMIT, type AcuteCategory } from './medication';
 
 /** A compared value as Insights and the report write it: litres, hours, mg, or a share in %. */
 export function formatComparison(key: ComparisonKey, value: number): string {
@@ -37,4 +38,41 @@ function byTime<T extends { time: number }>(items: T[], label: (item: T) => stri
     groups.set(time, [...(groups.get(time) ?? []), label(item)]);
   }
   return [...groups].map(([time, labels]) => write(time, labels)).join(' · ');
+}
+
+/**
+ * Why the medication days have the limit they have, in one short line: "Only pain relievers: fewer
+ * than 15 days", "Triptan: fewer than 10 days", "Pain reliever and triptan: fewer than 10 days together".
+ */
+export function limitReason(rule: Pick<MedicationRule, 'classes' | 'limit'>): string {
+  const { classes, limit } = rule;
+  const name = (c: AcuteCategory) => t(`limitCls.${c}`);
+  const line =
+    classes.length === 0
+      ? t('limit.none', { limit })
+      : classes.length === 1 && classes[0] === 'analgesic'
+        ? t('limit.analgesic', { limit })
+        : classes.length === 1
+          ? t('limit.one', { cls: name(classes[0]), limit })
+          : classes.length === 2
+            ? t('limit.two', { a: name(classes[0]), b: name(classes[1]), limit })
+            : t('limit.many', { n: classes.length, limit });
+  return line.charAt(0).toUpperCase() + line.slice(1);
+}
+
+/**
+ * What taking medication today does to the medication days. While only pain relievers were taken,
+ * another class would lower the limit to 10, so the line names both.
+ */
+export function ifTakenTodayLine(rule: Pick<MedicationRule, 'ifTakenToday' | 'limit'>): string {
+  return rule.limit > MULTIPLE_CLASSES_LIMIT
+    ? t('tenTwenty.ifTodayAnalgesic', { n: rule.ifTakenToday, limit: rule.limit, strict: MULTIPLE_CLASSES_LIMIT })
+    : t('tenTwenty.ifToday', { n: rule.ifTakenToday, limit: rule.limit });
+}
+
+/** A day's mean pressure and its change to the next day, which decides the weather factor; the change is left out when unknown. */
+export function pressureLine(pressure: number, change: number | null): string {
+  if (change === null) return `${pressure} hPa`;
+  const signed = change > 0 ? `+${change}` : change < 0 ? `−${-change}` : '±0';
+  return `${pressure} hPa · ${t('day.pressureNext', { d: signed })}`;
 }

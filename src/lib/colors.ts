@@ -1,12 +1,12 @@
 import type { RuleStatus } from './analysis';
 import type { Intake, Medication } from './db';
-import { ACUTE_CATEGORIES } from './medication';
+import { isAcute } from './medication';
 import type { Status } from './prognosis';
 
 /** A forecast factor's status as a colour. */
 export const FACTOR_COLOR: Record<Status, string> = { ok: 'var(--color-ok)', bad: 'var(--color-over)', unknown: 'var(--color-muted)' };
 
-/** A day limit's status as a colour, e.g. the 10/20 rule. */
+/** A day limit's status as a colour, e.g. the medication days. */
 export const STATUS_COLOR: Record<RuleStatus, string> = { ok: 'var(--color-ok)', caution: 'var(--color-caution)', over: 'var(--color-over)' };
 
 /** Medication-day bars: in the medication colour while within the limit. */
@@ -27,8 +27,8 @@ export function medColor(intake: Pick<Intake, 'medId' | 'name'>, medications: Me
   return med?.color ?? 'var(--color-med)';
 }
 
-/** Colour of an intake's medication; grey when it does not count for the 10/20 rule. */
+/** Colour of an intake's medication; grey when it does not count as a medication day. */
 export function intakeColor(intake: Pick<Intake, 'medId' | 'name' | 'category'>, medications: Medication[]): string {
-  if (!ACUTE_CATEGORIES.includes(intake.category)) return 'var(--color-muted)';
+  if (!isAcute(intake.category)) return 'var(--color-muted)';
   return medColor(intake, medications);
 }

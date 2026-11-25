@@ -1,7 +1,7 @@
 import { addDays, getDay, getHours, startOfDay, startOfMonth } from 'date-fns';
 import type { Drink, Episode, Intake, Medication, Night, WeatherDay } from './db';
 import { hydrationMl } from './drinks';
-import { ACUTE_CATEGORIES, MONTHLY_LIMITS, type MedCategory } from './medication';
+import { ACUTE_CATEGORIES, isAcute, MONTHLY_LIMITS, MULTIPLE_CLASSES_LIMIT, type AcuteCategory, type MedCategory } from './medication';
 import { DAY, dayKey, dayRange, HOUR, keyToDate, lastDays } from './days';
 import { CAFFEINE_DROP, LOW_HYDRATION, MIN_CAFFEINE_DAYS, MIN_SLEEP_EFFICIENCY, MIN_USUAL_CAFFEINE, SHORT_SLEEP_HOURS } from './thresholds';
 import { dropToNextDay, isPressureDrop } from './weather';
@@ -30,7 +30,7 @@ export function conflictingOngoing(episodes: Episode[], episode: { id?: number; 
 export function intakeDays(intakes: Intake[], acuteOnly = true): Map<string, Intake[]> {
   const days = new Map<string, Intake[]>();
   for (const intake of intakes) {
-    if (acuteOnly && !ACUTE_CATEGORIES.includes(intake.category)) continue;
+    if (acuteOnly && !isAcute(intake.category)) continue;
     const key = dayKey(intake.time);
     const list = days.get(key);
     if (list) list.push(intake);
@@ -231,24 +231,18 @@ export interface TenTwenty {
   days: { key: string; med: boolean }[];
   /** Count after taking medication today, if none was taken yet. */
   ifTakenToday: number;
-  /** First day on which the count drops, or null without medication days in the window. */
-  nextRelief: string | null;
   /** Medication-free days left in the window. */
   freeDays: number;
 }
 
-/** The 10/20 rule's limit: acute headache medication on fewer than 10 days in 30. */
-export const TEN_TWENTY_LIMIT = 10;
-
 /**
- * The 10/20 rule: within any 30 consecutive days, take acute headache medication on fewer than
- * `limit` days. `allowed` is the most days still within it; a personal limit allows `limit` days.
+ * Within `window` consecutive days ending today, medication on fewer than `limit` days. `allowed` is
+ * the most days still within it; a personal limit allows `limit` days.
  */
-export function tenTwenty(medDays: Set<string>, today: number | Date, limit = TEN_TWENTY_LIMIT, window = 30, allowed = limit - 1): TenTwenty {
+export function tenTwenty(medDays: Set<string>, today: number | Date, limit: number, window = 30, allowed = limit - 1): TenTwenty {
   const days = lastDays(today, window).map((key) => ({ key, med: medDays.has(key) }));
   const count = days.filter((d) => d.med).length;
   const todayTaken = days[days.length - 1].med;
-  const first = days.find((d) => d.med);
   return {
     count,
     limit,
@@ -257,7 +251,6 @@ export function tenTwenty(medDays: Set<string>, today: number | Date, limit = TE
     status: ruleStatus(count, allowed),
     days,
     ifTakenToday: todayTaken ? count : count + 1,
-    nextRelief: first ? dayKey(addDays(keyToDate(first.key), window)) : null,
     freeDays: window - count
   };
 }
@@ -271,12 +264,11 @@ export function ruleStatus(count: number, allowed: number): RuleStatus {
 
 /** The 30-day count for each medication that has a personal limit. */
 export function medicationLimits(intakes: Intake[], medications: Medication[], today: number | Date) {
-  return medications
-    .filter((m) => m.limitDays)
-    .map((med) => {
-      const days = new Set(intakes.filter((i) => i.medId === med.id).map((i) => dayKey(i.time)));
-      return { med, rule: tenTwenty(days, today, med.limitDays, med.limitWindow ?? 30, med.limitDays) };
-    });
+  return medications.flatMap((med) => {
+    if (!med.limitDays) return [];
+    const days = new Set(intakes.filter((i) => i.medId === med.id).map((i) => dayKey(i.time)));
+    return [{ med, rule: tenTwenty(days, today, med.limitDays, med.limitWindow ?? 30, med.limitDays) }];
+  });
 }
 
 /** For each of the `span` days ending today, how many of `days` fall in the `window` days up to it. */
@@ -302,6 +294,42 @@ function inOveruseWindow(intakes: Intake[], today: number | Date): Intake[] {
   return intakes.filter((i) => i.time >= from && i.time <= to);
 }
 
+/**
+ * The ICHD-3 8.2 limit for acute medication days in 30 for the classes taken in them: fewer than 15
+ * when only simple pain relievers were taken (8.2.3), otherwise fewer than 10: for triptans,
+ * ergotamines, combinations and opioids each (8.2.1, 8.2.2, 8.2.4, 8.2.5), for several classes
+ * together (8.2.6), and for "other" medication, to stay on the safe side. Without any, the stricter 10.
+ */
+export function overuseLimit(classes: readonly AcuteCategory[]): number {
+  return classes.length === 1 && classes[0] === 'analgesic' ? MONTHLY_LIMITS.analgesic! : MULTIPLE_CLASSES_LIMIT;
+}
+
+/** The acute classes among `intakes`, in the order of `ACUTE_CATEGORIES`. */
+function acuteClasses(intakes: Intake[]): AcuteCategory[] {
+  const used = new Set(intakes.map((i) => i.category));
+  return ACUTE_CATEGORIES.filter((c) => used.has(c));
+}
+
+export interface MedicationRule extends TenTwenty {
+  /** The acute classes taken in the window; they decide the limit. */
+  classes: AcuteCategory[];
+}
+
+/** Days with any acute medication in the last 30 against the limit the classes taken in them set (`overuseLimit`). */
+export function medicationRule(intakes: Intake[], today: number | Date): MedicationRule {
+  const classes = acuteClasses(inOveruseWindow(intakes, today));
+  return { ...tenTwenty(new Set(intakeDays(intakes).keys()), today, overuseLimit(classes)), classes };
+}
+
+/** For each of the `span` days ending today, the acute medication days in the 30 up to it and the limit for them. */
+export function rollingMedication(intakes: Intake[], today: number | Date, span: number): { key: string; count: number; limit: number }[] {
+  const byDay = intakeDays(intakes);
+  return rollingDays(new Set(byDay.keys()), today, span).map((r) => {
+    const window = lastDays(keyToDate(r.key), OVERUSE_WINDOW_DAYS).flatMap((k) => byDay.get(k) ?? []);
+    return { ...r, limit: overuseLimit(acuteClasses(window)) };
+  });
+}
+
 /** Days in the last 30 with medication of each class. */
 export function categoryDays(intakes: Intake[], today: number | Date): Map<MedCategory, number> {
   const sets = new Map<MedCategory, Set<string>>();
@@ -318,7 +346,7 @@ export interface OveruseRow {
   key: MedCategory;
   days: number;
   limit: number;
-  /** Judged like the 10/20 rule: under the limit is allowed, caution from 80 % of it. */
+  /** Judged like the medication days: under the limit is allowed, caution from 80 % of it. */
   status: RuleStatus;
 }
 
@@ -436,22 +464,27 @@ export function periodStats(
   };
 }
 
-/** Headache and medication days per calendar month, for the `count` months ending with `today`. */
+/**
+ * Headache and acute medication days per calendar month, for the `count` months ending with `today`,
+ * and the limit for the medication days by the classes taken that month (`overuseLimit`).
+ */
 export function monthlyCounts(
   data: { episodes: Episode[]; intakes: Intake[] },
   today: number,
   count: number
-): { month: Date; headache: number; med: number }[] {
+): { month: Date; headache: number; med: number; medLimit: number }[] {
   const hDays = headacheDays(data.episodes, today);
   const mDays = intakeDays(data.intakes);
   const result = [];
   for (let i = count - 1; i >= 0; i--) {
     const month = startOfMonth(addMonthsSafe(today, -i));
     const prefix = dayKey(month).slice(0, 7);
+    const medKeys = [...mDays.keys()].filter((k) => k.startsWith(prefix));
     result.push({
       month,
       headache: [...hDays.keys()].filter((k) => k.startsWith(prefix)).length,
-      med: [...mDays.keys()].filter((k) => k.startsWith(prefix)).length
+      med: medKeys.length,
+      medLimit: overuseLimit(acuteClasses(medKeys.flatMap((k) => mDays.get(k)!)))
     });
   }
   return result;

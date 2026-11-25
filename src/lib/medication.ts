@@ -1,5 +1,6 @@
 import type { Intake, Medication } from './db';
 import { HOUR, MINUTE } from './days';
+import { CAFFEINE_NAMES, MEDICINES, type Medicine } from './medicines';
 
 /** Medication classes, in the order the medication list offers them. */
 export const CATEGORIES = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'antiemetic', 'preventive', 'other'] as const;
@@ -7,10 +8,16 @@ export const CATEGORIES = ['analgesic', 'triptan', 'ergotamine', 'combination', 
 export type MedCategory = (typeof CATEGORIES)[number];
 
 /**
- * Acute headache medication: counts toward the 10/20 rule. Preventive medication and medicine
+ * Acute headache medication: counts toward the medication days. Preventive medication and medicine
  * against nausea do not; "other" counts, to stay on the safe side.
  */
-export const ACUTE_CATEGORIES: readonly MedCategory[] = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'other'];
+export const ACUTE_CATEGORIES = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'other'] as const satisfies readonly MedCategory[];
+
+export type AcuteCategory = (typeof ACUTE_CATEGORIES)[number];
+
+export function isAcute(category: MedCategory): category is AcuteCategory {
+  return (ACUTE_CATEGORIES as readonly MedCategory[]).includes(category);
+}
 
 /**
  * Days per month from which ICHD-3 (8.2, medication-overuse headache) speaks of overuse, when it
@@ -24,26 +31,46 @@ export const MONTHLY_LIMITS: Partial<Record<MedCategory, number>> = {
   opioid: 10
 };
 
-/** Common active ingredients and brands per category, lower case, for recognising a medication by its name. */
-const KNOWN: Partial<Record<MedCategory, string[]>> = {
-  triptan: ['triptan', 'imigran', 'maxalt', 'ascotop', 'relpax', 'naramig', 'allegro', 'formigran', 'dolortriptan'],
-  ergotamine: ['ergotamin', 'ergotamine', 'dihydroergotamin', 'migrexa'],
-  combination: ['thomapyrin', 'neuralgin', 'dolomo', 'titralgan', 'excedrin', 'spalt plus', 'ratiopyrin', 'migräne-kranit'],
-  opioid: ['tramadol', 'tilidin', 'codein', 'tapentadol', 'oxycodon', 'morphin', 'hydromorphon', 'tramal', 'valoron'],
-  antiemetic: ['metoclopramid', 'mcp', 'domperidon', 'motilium', 'vomex', 'dimenhydrinat', 'ondansetron'],
-  preventive: ['topiramat', 'propranolol', 'metoprolol', 'amitriptylin', 'flunarizin', 'valproat', 'candesartan', 'botox', 'erenumab', 'aimovig', 'fremanezumab', 'ajovy', 'galcanezumab', 'emgality', 'eptinezumab', 'vyepti', 'magnesium'],
-  analgesic: ['ibuprofen', 'paracetamol', 'acetaminophen', 'aspirin', 'acetylsalicyl', 'ass ', 'naproxen', 'diclofenac', 'metamizol', 'novalgin', 'dexketoprofen', 'ketoprofen', 'celecoxib', 'etoricoxib', 'nurofen', 'dolormin', 'voltaren', 'aleve', 'ben-u-ron', 'phenazon']
-};
+/** Days per month from which ICHD-3 8.2.6 speaks of overuse for several classes together, even when none is over its own limit. */
+export const MULTIPLE_CLASSES_LIMIT = 10;
+
+/** Lower case, dose numbers and units dropped, everything but letters a space, padded with spaces for whole-word matching. */
+function normalise(name: string): string {
+  const words = name
+    .toLowerCase()
+    .replace(/(?<![\p{L}\d])\d+([.,]\d+)?\s*(mg|µg|mcg|g|ml|%)?(?![\p{L}\d])/gu, ' ')
+    .replace(/[^\p{L}\d]+/gu, ' ')
+    .trim();
+  return ` ${words} `;
+}
+
+/** Every name of the table with its entry, longest first, so "thomapyrin tension duo" wins over "thomapyrin". */
+const NAMES = MEDICINES.flatMap((medicine) => medicine.names.map((name) => ({ name: normalise(name), medicine }))).sort(
+  (a, b) => b.name.length - a.name.length
+);
+
+/** Ingredients that are pain relievers on their own. */
+const SIMPLE_ANALGESICS = new Set(MEDICINES.filter((m) => m.category === 'analgesic' && m.ingredients.length === 1).flatMap((m) => m.ingredients));
+
+/** The order in which a name with several medicines picks its class: the one with the stricter overuse limit first. */
+const PRECEDENCE: readonly MedCategory[] = ['opioid', 'ergotamine', 'triptan', 'combination', 'analgesic', 'other', 'antiemetic', 'preventive'];
 
 /** The category a medication name points to, or null when it is not known. */
 export function guessCategory(name: string): MedCategory | null {
-  const n = ` ${name.toLowerCase()} `;
-  // Two or more pain relievers in one name, e.g. "ASS + Paracetamol + Coffein", make a combination.
-  if ((KNOWN.analgesic ?? []).filter((w) => n.includes(w)).length >= 2) return 'combination';
-  for (const [category, words] of Object.entries(KNOWN) as [MedCategory, string[]][]) {
-    if (words.some((w) => n.includes(w))) return category;
+  let text = normalise(name);
+  const found: Medicine[] = [];
+  for (const { name: n, medicine } of NAMES) {
+    if (!text.includes(n)) continue;
+    found.push(medicine);
+    text = text.replaceAll(n, ' | ');
   }
-  return null;
+  if (found.length === 0) return null;
+  const categories = new Set(found.map((m) => m.category));
+  // Two pain relievers, or one with caffeine, typed in one name ("ASS + Paracetamol + Coffein") make a combination.
+  const analgesics = new Set(found.flatMap((m) => m.ingredients).filter((i) => SIMPLE_ANALGESICS.has(i)));
+  const caffeine = CAFFEINE_NAMES.some((c) => text.includes(` ${c} `));
+  if (!categories.has('opioid') && (analgesics.size >= 2 || (analgesics.size === 1 && caffeine))) return 'combination';
+  return PRECEDENCE.find((c) => categories.has(c)) ?? null;
 }
 
 /** The parts of a medication copied onto an intake, so history survives edits and deletes of the list. */

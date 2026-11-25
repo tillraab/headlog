@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HeadLogDb } from './db';
-import { dropToNextDay, isPressureDrop, syncWeather, toWeatherDays } from './weather';
+import { dropToNextDay, isPressureDrop, pressureChange, syncWeather, toWeatherDays } from './weather';
 
 /** Three days of hourly data: steady 1015 hPa on the first two, falling 0.5 hPa per hour on the third. */
 function sample(days = ['2026-03-01', '2026-03-02', '2026-03-03']) {
@@ -95,5 +95,18 @@ describe('dropToNextDay', () => {
 
   it('is null when the next day is unknown', () => {
     expect(dropToNextDay(weather, '2026-03-11')).toBeNull();
+  });
+});
+
+describe('pressureChange', () => {
+  const day = (key: string, pressure: number) => [key, { day: key, pressure, pressureDrop: 0, tempMax: 10, tempMin: 2, humidity: 70, precipitation: 0, code: 0 }] as const;
+  const weather = new Map([day('2026-03-10', 1011.4), day('2026-03-11', 1005.2)]);
+
+  it('gives the change from the day to the next day', () => {
+    expect(pressureChange(weather, '2026-03-10')).toBe(-6);
+  });
+
+  it('is null when the next day is unknown', () => {
+    expect(pressureChange(weather, '2026-03-11')).toBeNull();
   });
 });

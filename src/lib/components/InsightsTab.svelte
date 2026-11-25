@@ -1,7 +1,7 @@
 <script lang="ts">
   import { RULE_COLOR } from '$lib/colors';
   import { FileText } from '@lucide/svelte';
-  import { average, caffeineByDay, compareDays, firstEntryDay, headacheDays, intakeDays, monthlyCounts, periodStats, rollingDays, ruleStatus, TEN_TWENTY_LIMIT, tenTwenty, timeline } from '$lib/analysis';
+  import { average, caffeineByDay, compareDays, firstEntryDay, headacheDays, medicationRule, monthlyCounts, periodStats, rollingDays, rollingMedication, ruleStatus, timeline } from '$lib/analysis';
   import { entryDetailLines, formatComparison } from '$lib/format';
   import { addDays, endOfDay } from 'date-fns';
   import { dayKey, dayRange, formatDuration, formatLiters, HOUR, keyToDate, lastDays } from '$lib/days';
@@ -60,6 +60,8 @@
   const chartKeys = $derived([...keys, ...forecastKeys]);
   const series = $derived(timeline(data, chartKeys, clock.now));
   const months = $derived(monthlyCounts(data, end, span > 180 ? 12 : 6));
+  /** The medication limit today, for the line in the monthly chart. */
+  const rule = $derived(medicationRule(data.intakes, clock.now));
   const hasData = $derived(stats.episodes > 0 || stats.intakes > 0 || stats.avgWaterMl !== null);
   const maxTag = $derived(Math.max(1, ...stats.tags.map((x) => x.count)));
 
@@ -73,11 +75,9 @@
   /** Headache and acute medication days in the 30 days up to each day, over the same days as the other charts. */
   const rollingRows = $derived.by((): Row[] => {
     const last = keyToDate(keys[keys.length - 1]);
-    /** Preventive medication does not count for the 10/20 rule. */
-    const acuteDays = new Set(intakeDays(data.intakes).keys());
-    const rule = tenTwenty(acuteDays, clock.now);
     const headache = rollingDays(new Set(headacheDays(data.episodes, clock.now).keys()), last, span).map((r) => r.count);
-    const med = rollingDays(acuteDays, last, span).map((r) => r.count);
+    const rolling = rollingMedication(data.intakes, last, span);
+    const med = rolling.map((r) => r.count);
     const ahead = forecastKeys.map(() => null);
     /** Days before the first entry are before the app was in use; their counts are left out of the average. */
     const first = firstEntryDay(data);
@@ -101,17 +101,17 @@
         summary: lastCount(med),
         average: average(inUse(med)),
         values: [...med, ...ahead],
-        colors: [...med.map((n) => RULE_COLOR[ruleStatus(n, rule.allowed)]), ...ahead.map(() => 'var(--color-med)')],
+        colors: [...rolling.map((r) => RULE_COLOR[ruleStatus(r.count, r.limit - 1)]), ...ahead.map(() => 'var(--color-med)')],
         color: 'var(--color-med)',
         kind: 'bars',
         format: (v) => num(v, 0, 1),
-        reference: rule.limit
+        reference: rolling[rolling.length - 1].limit
       }
     ];
   });
 
   /** What the two rows of days in 30 mean, for the timeline's (i). */
-  const rollingInfo = $derived([t('cal.rollingHint', { n: CHRONIC_DAYS }), t('cal.rollingMedHint', { n: TEN_TWENTY_LIMIT })]);
+  const rollingInfo = $derived([t('cal.rollingHint', { n: CHRONIC_DAYS }), t('cal.rollingMedHint')]);
   const rollingSources = [...SOURCES.chronic, ...SOURCES.medication];
 
   const rows = $derived.by(() => {
@@ -274,7 +274,7 @@
         <BarChart
           color="var(--color-med)"
           height={64}
-          limit={{ value: TEN_TWENTY_LIMIT, color: 'var(--color-over)' }}
+          limit={{ value: rule.limit, color: 'var(--color-over)' }}
           bars={months.map((m) => ({ label: fmt(m.month, 'MMM'), value: m.med }))}
         />
       </div>

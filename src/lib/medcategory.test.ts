@@ -6,16 +6,34 @@ import { fromMedication, guessCategory, personalLimit, reliefQuestion } from './
 describe('guessCategory', () => {
   it.each([
     ['Ibuprofen', 'analgesic'],
+    ['ibuprofen 400 akut', 'analgesic'],
     ['ASS 500', 'analgesic'],
+    ['Novalgin', 'analgesic'],
+    ['Metamizol 500mg', 'analgesic'],
+    ['Migräne-Kranit', 'analgesic'],
+    ['ben-u-ron 1000 mg', 'analgesic'],
+    ['Migpriv', 'analgesic'],
+    ['Paracetamol + MCP', 'analgesic'],
     ['Sumatriptan', 'triptan'],
     ['Maxalt lingua', 'triptan'],
+    ['Sumatriptan + Naproxen', 'triptan'],
     ['Thomapyrin', 'combination'],
+    ['Thomapyrin Tension Duo', 'combination'],
     ['ASS + Paracetamol + Coffein', 'combination'],
+    ['Ibuprofen mit Koffein', 'combination'],
     ['Tramadol', 'opioid'],
+    ['Paracetamol + Codein', 'opioid'],
+    ['Talvosilen forte', 'opioid'],
     ['MCP Tropfen', 'antiemetic'],
     ['Topiramat', 'preventive'],
+    ['Aimovig 140 mg', 'preventive'],
+    ['Coenzym Q10', 'preventive'],
     ['Ergotamin', 'ergotamine'],
-    ['Pfefferminzöl', null]
+    ['Vydura', 'other'],
+    ['Rimegepant', 'other'],
+    ['Lasmiditan', 'other'],
+    ['Pfefferminzöl', null],
+    ['Glass of water', null]
   ])('%s is %s', (name, category) => {
     expect(guessCategory(name)).toBe(category);
   });
