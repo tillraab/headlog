@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Drink, Night, WeatherDay } from './db';
 import { dayKey as dayKeyOf } from './days';
-import { expectedByNow, prognosis, tomorrowRisk, type PrognosisInput } from './prognosis';
+import { anyKnown, expectedByNow, prognosis, prognosisAt, reasons, tomorrowRisk, type FactorKey, type PrognosisInput, type Status } from './prognosis';
 
 const at = (s: string) => new Date(s).getTime();
 const now = at('2026-03-10T14:30');
@@ -218,5 +218,60 @@ describe('sleep', () => {
   it('names why: fragmented, not short', () => {
     const s = sleepFor(night('2026-03-09T22:00', '2026-03-10T06:00', [['2026-03-10T02:00', '2026-03-10T03:30']]));
     expect([s.short, s.fragmented, Math.round((s.efficiency ?? 0) * 100)]).toEqual([false, true, 81]);
+  });
+});
+
+describe('prognosisAt', () => {
+  const onset = at('2026-03-10T10:00');
+  const nightEnding = (end: string, hours: number): Night => ({ day: '2026-03-10', start: at(end) - hours * 3600000, end: at(end), asleepMs: hours * 3600000, breaks: [], source: 'screen' });
+  const fine = { drinks: [drink('2026-03-09T12:00', 2200), drink('2026-03-10T09:00', 600)], sleep: new Map([['2026-03-10', nightEnding('2026-03-10T07:00', 7.5)]]) };
+
+  it.each([
+    ['drinks after onset are ignored', { drinks: [drink('2026-03-09T12:00', 2200), drink('2026-03-10T09:00', 100), drink('2026-03-10T11:00', 2000)] }, 'hydration', 'bad'],
+    ['alcohol after onset is ignored', { drinks: [...fine.drinks, drink('2026-03-10T20:00', 150, { alcohol: true })] }, 'alcohol', 'unknown'],
+    ['a night ending after onset is unknown', { sleep: new Map([['2026-03-10', nightEnding('2026-03-10T11:00', 4)]]) }, 'sleep', 'unknown'],
+    ['a night ended before onset counts', { sleep: new Map([['2026-03-10', nightEnding('2026-03-10T07:00', 4)]]) }, 'sleep', 'bad'],
+    ["the next day's forecast is kept", { weather: new Map([['2026-03-11', weather('2026-03-11', 8)]]) }, 'weather', 'bad']
+  ] satisfies [string, Partial<PrognosisInput>, FactorKey, Status][])('%s', (_, overrides, factor, status) => {
+    expect(prognosisAt(input({ ...fine, ...overrides }), onset)[factor].status).toBe(status);
+  });
+
+  it.each([
+    ['no bad factor', {}, 'green', []],
+    ['a short night', { sleep: new Map([['2026-03-10', nightEnding('2026-03-10T07:00', 4)]]) }, 'yellow', ['sleepShort']],
+    [
+      'a short night and a pressure drop the next day',
+      { sleep: new Map([['2026-03-10', nightEnding('2026-03-10T07:00', 4)]]), weather: new Map([['2026-03-11', weather('2026-03-11', 8)]]) },
+      'red',
+      ['weather', 'sleepShort']
+    ]
+  ])('is %s with %s', (_, overrides, light, why) => {
+    const p = prognosisAt(input({ ...fine, ...overrides }), onset);
+    expect([p.light, reasons(p)]).toEqual([light, why]);
+  });
+});
+
+describe('reasons', () => {
+  it.each([
+    ['behind today', [drink('2026-03-09T12:00', 2200), drink('2026-03-10T09:00', 100)], 'hydrationBehind'],
+    ['little the day before', [drink('2026-03-09T12:00', 500), drink('2026-03-10T09:00', 1200)], 'hydrationYesterday'],
+    ['alcohol the same day', [drink('2026-03-09T12:00', 2200), drink('2026-03-10T09:00', 1200), drink('2026-03-10T12:00', 150, { alcohol: true })], 'alcoholToday'],
+    ['alcohol the day before', [drink('2026-03-09T12:00', 2200), drink('2026-03-09T20:00', 150, { alcohol: true }), drink('2026-03-10T09:00', 1200)], 'alcoholYesterday']
+  ])('names %s', (_, drinks, reason) => {
+    expect(reasons(prognosis(input({ drinks }), now))).toEqual([reason]);
+  });
+
+  it('names a fragmented night', () => {
+    const fragmented: Night = { day: '2026-03-10', start: 0, end: 10 * 3600000, asleepMs: 6 * 3600000, breaks: [], source: 'screen' };
+    expect(reasons(prognosis(input({ sleep: new Map([['2026-03-10', fragmented]]) }), now))).toEqual(['sleepFragmented']);
+  });
+});
+
+describe('anyKnown', () => {
+  it.each([
+    ['no data at all', { drinks: [], sleep: new Map(), weather: new Map() }, false],
+    ['only a forecast', { drinks: [], sleep: new Map() }, true]
+  ])('is %s with %s', (_, overrides, known) => {
+    expect(anyKnown(prognosis(input(overrides), now))).toBe(known);
   });
 });

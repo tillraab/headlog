@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Day view and PDF diary: a headache shows the forecast light as it stood at its onset, with the factors that were unfavourable then (drinks up to the onset, a night only once it had ended). The "72 h before" hydration line is gone.
+
 ## [0.46.0] - 2026-11-25
 
 ### Added

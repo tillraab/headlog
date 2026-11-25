@@ -8,14 +8,14 @@
   import { edit, openNight } from '$lib/editor.svelte';
   import { fmt, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
-  import { hydrationBefore } from '$lib/analysis';
-  import { factorIcon, prognosis, prognosisInput } from '$lib/prognosis';
+  import { factorIcon, prognosis, prognosisAt, prognosisInput } from '$lib/prognosis';
   import { dayView, openFactor, openSheet, stepDay, tap } from '$lib/ui.svelte';
   import { swipeStep } from '$lib/swipe';
   import { fly } from 'svelte/transition';
   import { dayKey } from '$lib/days';
   import { pressureChange } from '$lib/weather';
-  import { pressureLine } from '$lib/format';
+  import { onsetText, pressureLine } from '$lib/format';
+  import { LIGHT_COLOR } from './TrafficLight.svelte';
   import EntryRow from './EntryRow.svelte';
   import PrevNextButtons from './PrevNextButtons.svelte';
   import SectionLabel from './SectionLabel.svelte';
@@ -153,7 +153,8 @@
       {#each entries as entry (entry.kind + entry.item.id)}
         {#if entry.kind === 'episode'}
           {@const ep = entry.item}
-          {@const before = hydrationBefore(data.drinks, ep.start)}
+          {@const onset = prognosisAt(prognosisInput(data), ep.start)}
+          {@const onsetLine = onsetText(onset)}
           <EntryRow
             kind="episode"
             lead={hm(ep.start)}
@@ -161,13 +162,18 @@
             lines={[
               `${hm(ep.start)}–${ep.end ? hm(ep.end) : '…'} · ${formatDuration((ep.end ?? clock.now) - ep.start)}`,
               ep.tags.join(' · '),
-              ep.note,
-              before.ml || before.usual
-                ? `💧 ${t('day.hydrationBefore', { ml: formatLiters(before.ml) })}${before.usual ? ` ${t('day.hydrationUsual', { ml: formatLiters(before.usual) })}` : ''}`
-                : ''
+              ep.note
             ].filter(Boolean)}
             onclick={() => edit({ kind: 'episode', item: ep })}
-          />
+          >
+            {#snippet below()}
+              {#if onsetLine}
+                <span class="flex items-start gap-1.5 text-xs text-muted">
+                  <span class="mt-1 size-2.5 shrink-0 rounded-full" style:background-color={LIGHT_COLOR[onset.light]}></span><span class="sr-only">{t(`prog.${onset.light}`)}: </span>{onsetLine}
+                </span>
+              {/if}
+            {/snippet}
+          </EntryRow>
         {:else if entry.kind === 'intake'}
           {@const intake = entry.item}
           <EntryRow

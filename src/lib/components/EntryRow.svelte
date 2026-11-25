@@ -10,6 +10,7 @@
     sub = '',
     lines = [],
     emoji = '',
+    below,
     trailing,
     onclick
   }: {
@@ -23,6 +24,8 @@
     lines?: string[];
     /** The drink's emoji as its icon. */
     emoji?: string;
+    /** Shown under the lines. */
+    below?: Snippet;
     /** Shown at the right end. */
     trailing?: Snippet;
     onclick: () => void;
@@ -39,6 +42,7 @@
   <span class="flex min-w-0 flex-1 flex-col">
     <span>{title}{#if sub}<span class="whitespace-nowrap text-muted tabular">{` ${sub}`}</span>{/if}</span>
     {#each lines as line, i (i)}<span class="text-xs text-muted">{line}</span>{/each}
+    {#if below}{@render below()}{/if}
   </span>
   {#if trailing}{@render trailing()}{/if}
 </button>

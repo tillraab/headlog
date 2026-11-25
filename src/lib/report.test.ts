@@ -94,6 +94,12 @@ describe('reportData', () => {
     ]);
   });
 
+  it('gives a headache the traffic light at its onset, without drinks logged after it', () => {
+    const drinks: Drink[] = [{ id: 1, time: at('2026-03-10T09:00'), presetId: 1, name: 'Glass', emoji: '🥛', ml: 100 }, { id: 2, time: at('2026-03-10T13:00'), presetId: 1, name: 'Glass', emoji: '🥛', ml: 2000 }];
+    const [row] = reportData({ ...input([episode('2026-03-10T12:00', '2026-03-10T15:00')], []), drinks }, now, 1).entries;
+    expect(row.episode && [row.onset.light, row.onset.hydration.status]).toEqual(['yellow', 'bad']);
+  });
+
   it('counts the rates and the months only from the first diary entry on', () => {
     const report = reportData(input([episode('2026-03-02T09:00', '2026-03-02T12:00')], []), now, 3);
     expect([report.first, report.covered, report.monthly.map((m) => m.logged)]).toEqual(['2026-03-02', 30, [false, false, true]]);

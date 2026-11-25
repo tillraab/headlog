@@ -3,6 +3,7 @@ import type { Drink, Episode, Intake } from './db';
 import { formatDuration, formatLiters, hm, HOUR } from './days';
 import { t } from './i18n.svelte';
 import { MULTIPLE_CLASSES_LIMIT, type AcuteCategory } from './medication';
+import { anyKnown, reasons, type Prognosis } from './prognosis';
 
 /** A compared value as Insights and the report write it: litres, hours, mg, or a share in %. */
 export function formatComparison(key: ComparisonKey, value: number): string {
@@ -75,4 +76,11 @@ export function pressureLine(pressure: number, change: number | null): string {
   if (change === null) return `${pressure} hPa`;
   const signed = change > 0 ? `+${change}` : change < 0 ? `−${-change}` : '±0';
   return `${pressure} hPa · ${t('day.pressureNext', { d: signed })}`;
+}
+
+/** The light at a headache's onset in words: the unfavourable factors, or that there were none; empty when no factor had data. */
+export function onsetText(p: Prognosis): string {
+  if (!anyKnown(p)) return '';
+  const bad = reasons(p);
+  return bad.length ? bad.map((r) => t(`onset.${r}`)).join(', ') : t('onset.none');
 }
