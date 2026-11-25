@@ -2,6 +2,8 @@ import type { en } from './en';
 
 /** German texts, typed against the English keys, so a missing key is a type error. */
 export const de: Record<keyof typeof en, string> = {
+  'date.today': 'Heute',
+  'date.yesterday': 'Gestern',
   'tab.today': 'Heute',
   'tab.calendar': 'Kalender',
   'tab.meds': 'Medis',
@@ -509,8 +511,6 @@ export const de: Record<keyof typeof en, string> = {
   'versions.open': 'Früheren Stand wiederherstellen',
   'versions.title': 'Frühere Stände',
   'versions.hint': 'Jedes Backup bleibt als eigene Version erhalten. Tippe auf eine, um zu sehen, was sie enthält, und stelle sie wieder her, wenn es die richtige ist.',
-  'versions.today': 'Heute',
-  'versions.yesterday': 'Gestern',
   'versions.current': 'neuester',
   'versions.counts': '{e} Kopfschmerzen · {i} Medikamenten-Einnahmen · {d} Getränke',
   'versions.latest': 'Letzter Eintrag: {time}',

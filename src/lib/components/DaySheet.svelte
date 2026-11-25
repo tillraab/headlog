@@ -112,7 +112,7 @@
         {@const before = hydrationBefore(data.drinks, ep.start)}
         <EntryRow
           kind="episode"
-          time={hm(ep.start)}
+          lead={hm(ep.start)}
           title={`${t('today.headache')} · ${ep.intensity}/10`}
           lines={[
             `${hm(ep.start)}–${ep.end ? hm(ep.end) : '…'} · ${formatDuration((ep.end ?? clock.now) - ep.start)}`,
@@ -128,14 +128,14 @@
         {@const intake = entry.item}
         <EntryRow
           kind="intake"
-          time={hm(intake.time)}
+          lead={hm(intake.time)}
           title={intake.name}
           sub={intake.dose}
           lines={[ACUTE_CATEGORIES.includes(intake.category) ? t('grid.counts') : t('grid.notCounted')]}
           onclick={() => edit({ kind: 'intake', item: intake })}
         />
       {:else}
-        <EntryRow kind="drink" time={hm(entry.item.time)} title={entry.item.name} sub={`${entry.item.ml} ml`} emoji={entry.item.emoji} onclick={() => edit({ kind: 'drink', item: entry.item })} />
+        <EntryRow kind="drink" lead={hm(entry.item.time)} title={entry.item.name} sub={`${entry.item.ml} ml`} emoji={entry.item.emoji} onclick={() => edit({ kind: 'drink', item: entry.item })} />
       {/if}
     {/each}
   </div>

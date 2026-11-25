@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { differenceInCalendarDays, format } from 'date-fns';
 import { de as deLocale, enGB } from 'date-fns/locale';
 import type { Relief } from './db';
 import { de } from './i18n/de';
@@ -59,6 +59,14 @@ function dateLocale() {
 /** Formats a date with a pattern written German-style (`d. MMM`); English drops the dot after the day. */
 export function fmt(date: number | Date, pattern: string): string {
   return format(date, i18n.lang === 'de' ? pattern : pattern.replace('d. ', 'd '), { locale: dateLocale() });
+}
+
+/** "Today", "Yesterday" or the date in `pattern` (see `fmt`), seen from `now`. */
+export function relativeDay(date: number | Date, now: number | Date, pattern: string): string {
+  const days = differenceInCalendarDays(now, date);
+  if (days === 0) return t('date.today');
+  if (days === 1) return t('date.yesterday');
+  return fmt(date, pattern);
 }
 
 export function weekdayShort(): string[] {

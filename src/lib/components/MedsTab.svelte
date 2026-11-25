@@ -8,7 +8,7 @@
   import { intakeDays, medicationEffect, medicationLimits, overuseRows, tenTwenty } from '$lib/analysis';
   import { medColor, RELIEF_COLOR, STATUS_COLOR } from '$lib/colors';
   import { DAY, hm, keyToDate } from '$lib/days';
-  import { fmt, reliefLabels, t } from '$lib/i18n.svelte';
+  import { fmt, relativeDay, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { SOURCES } from '$lib/sources';
 
@@ -120,15 +120,15 @@
   {#if recent.length}
     <section class="card p-2">
       <h2 class="px-2 pt-2 pb-1 text-lg font-semibold">{t('meds.recent')}</h2>
-      <ul>
+      <ul style:--lead-width="calc(var(--spacing) * 19)">
         {#each recent as intake (intake.id)}
           <li>
             <EntryRow
               kind="intake"
-              time={hm(intake.time)}
+              lead={relativeDay(intake.time, clock.now, 'd. MMM')}
               title={intake.name}
               sub={intake.dose}
-              lines={[fmt(intake.time, 'EEE d. MMM')]}
+              lines={[hm(intake.time)]}
               onclick={() => edit({ kind: 'intake', item: intake })}
             >
               {#snippet trailing()}
