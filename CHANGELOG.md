@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-11-25
+
+### Added
+
+- Medication list: typing a name suggests known medications with their ingredients and class; a tap sets name and class at once. Under the name field a line says what the name is recognised as.
+- "Known medications": the table of recognised medications by class, with brands, ingredients and ATC code, searchable, with an Add button per entry; medications already in the list are marked.
+- New class "Not classified" for names the table does not know. New medications start with it; it counts toward the medication days with the stricter limit of 10 until a class is picked. Renaming to an unknown name sets it only when the class was not picked by hand.
+
 ## [0.45.0] - 2026-11-25
 
 ### Added

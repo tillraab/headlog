@@ -1,22 +1,23 @@
 <script lang="ts">
+  import { BookOpen } from '@lucide/svelte';
   import { MED_COLORS } from '$lib/colors';
   import type { Medication } from '$lib/db';
-  import { CATEGORIES, guessCategory, personalLimit, type MedCategory } from '$lib/medication';
-  import { toast } from '$lib/ui.svelte';
+  import { CATEGORIES, personalLimit, renamedCategory, type MedCategory } from '$lib/medication';
+  import { openSheet, toast } from '$lib/ui.svelte';
   import { t } from '$lib/i18n.svelte';
-  import { addToList, data, updateInList } from '$lib/store.svelte';
+  import { addMedication, data, updateInList } from '$lib/store.svelte';
   import EditableList from './EditableList.svelte';
+  import MedNameField from './MedNameField.svelte';
   import Sheet from './Sheet.svelte';
 
   function addMed() {
-    return addToList('medications', { name: t('set.name'), dose: '', category: 'analgesic', color: MED_COLORS[data.medications.length % MED_COLORS.length] });
+    return addMedication(t('set.name'), 'unknown');
   }
 
-  /** Renames, and picks the category when the name is a known active ingredient or brand. */
-  async function rename(med: Medication, name: string) {
-    const category = guessCategory(name);
-    await updateMed(med, category ? { name, category } : { name });
-    if (category && category !== med.category) toast(t('set.categoryGuessed', { category: t(`cat.${category}`) }));
+  /** Renames and sets the class in one update; a toast says when the name changed the class to a known one. */
+  async function rename(med: Medication, name: string, category: MedCategory) {
+    await updateMed(med, { name, category });
+    if (category !== med.category && category !== 'unknown') toast(t('set.categoryGuessed', { category: t(`cat.${category}`) }));
   }
 
   function updateMed(med: Medication, patch: Partial<Medication>) {
@@ -34,22 +35,19 @@
     <span class="size-4 shrink-0 rounded-full" style:background-color={med.color}></span>
     <span class="flex min-w-0 flex-col">
       <span class="text-body font-medium">{med.name} <span class="text-muted">{med.dose}</span></span>
-      <span class="text-sm text-muted">
+      <span class="text-sm {med.category === 'unknown' ? 'text-caution' : 'text-muted'}">
         {t(`cat.${med.category}`)}{med.limitDays ? ` · ${t('set.limitOption', { n: med.limitDays, m: med.limitWindow ?? 30 })}` : ''}
       </span>
     </span>
     {/snippet}
     {#snippet details(med: Medication)}
-    <div class="grid grid-cols-2 gap-2">
-      <label class="flex flex-col gap-1 text-xs text-muted">
-        {t('set.name')}
-        <input class="bg-surface" value={med.name} onchange={(e) => (e.currentTarget.value.trim() ? rename(med, e.currentTarget.value.trim()) : (e.currentTarget.value = med.name))} />
-      </label>
+    <div class="grid grid-cols-[2fr_3fr] gap-2">
+      <MedNameField {med} onrename={(name) => rename(med, name, renamedCategory(med.name, med.category, name))} onpick={(name, category) => rename(med, name, category)} />
       <label class="flex flex-col gap-1 text-xs text-muted">
         {t('set.dose')}
         <input class="bg-surface" value={med.dose} placeholder="400 mg" onchange={(e) => updateMed(med, { dose: e.currentTarget.value.trim() })} />
       </label>
-      <label class="col-span-2 flex flex-col gap-1 text-xs text-muted">
+      <label class="flex flex-col gap-1 text-xs text-muted">
         {t('set.category')}
         <select class="bg-surface" value={med.category} onchange={(e) => updateMed(med, { category: e.currentTarget.value as MedCategory })}>
           {#each CATEGORIES as c (c)}<option value={c}>{t(`cat.${c}`)}</option>{/each}
@@ -100,4 +98,7 @@
     </div>
     {/snippet}
   </EditableList>
+  <button class="press btn-quiet mt-2 flex items-center gap-2 text-primary" onclick={() => openSheet('medLookup')}>
+    <BookOpen size={20} />{t('lookup.open')}
+  </button>
 </Sheet>

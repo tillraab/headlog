@@ -3,15 +3,16 @@ import { HOUR, MINUTE } from './days';
 import { CAFFEINE_NAMES, MEDICINES, type Medicine } from './medicines';
 
 /** Medication classes, in the order the medication list offers them. */
-export const CATEGORIES = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'antiemetic', 'preventive', 'other'] as const;
+export const CATEGORIES = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'antiemetic', 'preventive', 'other', 'unknown'] as const;
 
 export type MedCategory = (typeof CATEGORIES)[number];
 
 /**
  * Acute headache medication: counts toward the medication days. Preventive medication and medicine
- * against nausea do not; "other" counts, to stay on the safe side.
+ * against nausea do not; "other" and "unknown" (a name the table does not know and no class picked yet) count, to stay on
+ * the safe side.
  */
-export const ACUTE_CATEGORIES = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'other'] as const satisfies readonly MedCategory[];
+export const ACUTE_CATEGORIES = ['analgesic', 'triptan', 'ergotamine', 'combination', 'opioid', 'other', 'unknown'] as const satisfies readonly MedCategory[];
 
 export type AcuteCategory = (typeof ACUTE_CATEGORIES)[number];
 
@@ -55,8 +56,14 @@ const SIMPLE_ANALGESICS = new Set(MEDICINES.filter((m) => m.category === 'analge
 /** The order in which a name with several medicines picks its class: the one with the stricter overuse limit first. */
 const PRECEDENCE: readonly MedCategory[] = ['opioid', 'ergotamine', 'triptan', 'combination', 'analgesic', 'other', 'antiemetic', 'preventive'];
 
-/** The category a medication name points to, or null when it is not known. */
-export function guessCategory(name: string): MedCategory | null {
+/** What a medication name is recognised as: the class and the active ingredients of every medicine it names. */
+export interface Recognised {
+  category: MedCategory;
+  ingredients: string[];
+}
+
+/** The class and ingredients a medication name points to, or null when it is not known. */
+export function recognise(name: string): Recognised | null {
   let text = normalise(name);
   const found: Medicine[] = [];
   for (const { name: n, medicine } of NAMES) {
@@ -66,11 +73,29 @@ export function guessCategory(name: string): MedCategory | null {
   }
   if (found.length === 0) return null;
   const categories = new Set(found.map((m) => m.category));
+  const ingredients = [...new Set(found.flatMap((m) => m.ingredients))];
   // Two pain relievers, or one with caffeine, typed in one name ("ASS + Paracetamol + Coffein") make a combination.
-  const analgesics = new Set(found.flatMap((m) => m.ingredients).filter((i) => SIMPLE_ANALGESICS.has(i)));
+  const analgesics = ingredients.filter((i) => SIMPLE_ANALGESICS.has(i));
   const caffeine = CAFFEINE_NAMES.some((c) => text.includes(` ${c} `));
-  if (!categories.has('opioid') && (analgesics.size >= 2 || (analgesics.size === 1 && caffeine))) return 'combination';
-  return PRECEDENCE.find((c) => categories.has(c)) ?? null;
+  if (caffeine && !ingredients.includes('caffeine')) ingredients.push('caffeine');
+  const category =
+    !categories.has('opioid') && (analgesics.length >= 2 || (analgesics.length === 1 && caffeine)) ? 'combination' : PRECEDENCE.find((c) => categories.has(c))!;
+  return { category, ingredients };
+}
+
+/** The category a medication name points to, or null when it is not known. */
+export function guessCategory(name: string): MedCategory | null {
+  return recognise(name)?.category ?? null;
+}
+
+/**
+ * The class after a rename: the class the new name points to; otherwise "unknown" when the old class was unknown or came
+ * from the old name (a guess), so a class picked by hand stays.
+ */
+export function renamedCategory(oldName: string, oldCategory: MedCategory, newName: string): MedCategory {
+  const guess = guessCategory(newName);
+  if (guess) return guess;
+  return oldCategory === 'unknown' || guessCategory(oldName) === oldCategory ? 'unknown' : oldCategory;
 }
 
 /** The parts of a medication copied onto an intake, so history survives edits and deletes of the list. */

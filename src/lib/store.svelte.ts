@@ -1,9 +1,10 @@
 import { restoreBackup, type Backup } from './backup';
+import { MED_COLORS } from './colors';
 import { db, seed, type Draft, type Drink, type DrinkPreset, type Episode, type Intake, type Medication, type Night, type Relief, type WeatherDay } from './db';
 import { DAY, dayKey, HOUR, MINUTE } from './days';
 import { fromPreset } from './drinks';
 import { i18n } from './i18n.svelte';
-import { fromMedication } from './medication';
+import { fromMedication, type MedCategory } from './medication';
 import { migrate } from './migrations';
 import { cancelReliefCheck, scheduleReliefCheck } from './reminders';
 import { DEFAULT_SETTINGS, mergeSettings, type Settings } from './settings';
@@ -165,6 +166,11 @@ export async function addToList(table: ListTable, item: Omit<Draft<ListRow>, 'or
   const id = (await db.table(table).add({ ...$state.snapshot(item), order })) as number;
   await load();
   return id;
+}
+
+/** Adds a medication at the end of the list with the next colour in turn. Returns its id. */
+export function addMedication(name: string, category: MedCategory): Promise<number> {
+  return addToList('medications', { name, dose: '', category, color: MED_COLORS[data.medications.length % MED_COLORS.length] });
 }
 
 /** Changes only the given fields, so two quick edits in a row cannot undo each other. */

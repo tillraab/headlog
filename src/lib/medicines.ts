@@ -116,3 +116,116 @@ export const MEDICINES: readonly Medicine[] = [
 
 /** Words for caffeine in a typed name; with one pain reliever it makes a combination. */
 export const CAFFEINE_NAMES = ['coffein', 'koffein', 'caffeine', 'coffeinum'];
+
+/** Names written differently from "first letter upper case": abbreviations and brands as their makers write them. */
+const DISPLAY_NAMES: Record<string, string> = {
+  ass: 'ASS',
+  mcp: 'MCP',
+  dhe: 'DHE',
+  mst: 'MST',
+  ibu: 'IBU',
+  'ben-u-ron': 'ben-u-ron',
+  'beloc-zok': 'Beloc-Zok',
+  'migräne-kranit': 'Migräne-Kranit',
+  'ergo-kranit': 'Ergo-Kranit',
+  'spalt forte': 'Spalt Forte',
+  'spalt plus': 'Spalt Plus',
+  'spalt plus coffein': 'Spalt plus Coffein',
+  'doppel spalt': 'Doppel Spalt',
+  'thomapyrin classic': 'Thomapyrin Classic',
+  'thomapyrin intensiv': 'Thomapyrin Intensiv',
+  'thomapyrin tension duo': 'Thomapyrin Tension Duo',
+  'neuralgin pac': 'Neuralgin PAC',
+  onabotulinumtoxina: 'OnabotulinumtoxinA',
+  'coenzym q10': 'Coenzym Q10',
+  'coenzyme q10': 'Coenzyme Q10',
+  q10: 'Q10',
+  'vitamin b2': 'Vitamin B2'
+};
+
+/** A name of the table as it is written on the pack. */
+export function displayName(name: string): string {
+  return DISPLAY_NAMES[name] ?? name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/** Ingredients whose German name is not the English INN without its final "e". */
+const GERMAN_INGREDIENTS: Record<string, string> = {
+  'acetylsalicylic acid': 'ASS',
+  caffeine: 'Coffein',
+  'mefenamic acid': 'Mefenaminsäure',
+  'tolfenamic acid': 'Tolfenaminsäure',
+  'valproic acid': 'Valproinsäure',
+  onabotulinumtoxinA: 'Botulinumtoxin A'
+};
+
+/**
+ * An ingredient in the app language: English INN in lower case ("aspirin" for acetylsalicylic acid), German INN as a
+ * noun, which drops the final "e" ("metamizole" is "Metamizol").
+ */
+export function ingredientName(inn: string, lang: 'en' | 'de'): string {
+  if (lang === 'en') return inn === 'acetylsalicylic acid' ? 'aspirin' : inn;
+  const de = GERMAN_INGREDIENTS[inn] ?? inn.replace(/e$/, '');
+  return de.charAt(0).toUpperCase() + de.slice(1);
+}
+
+/** Lower case with umlauts and ß spelled out plainly and everything but letters and digits dropped: "Migräne-Kranit" is "migranekranit". */
+function searchKey(text: string): string {
+  return text
+    .toLowerCase()
+    .replaceAll('ß', 'ss')
+    .normalize('NFD')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/** A medicine with the name a search found it by. */
+export interface MedicineMatch {
+  name: string;
+  medicine: Medicine;
+}
+
+/**
+ * Up to `limit` medicines for a typed name, one per medicine with its best name: names that start with the text before
+ * names that only contain it, within each the name closest in length to the text first. Needs two letters.
+ */
+export function suggestMedicines(query: string, limit = 6): MedicineMatch[] {
+  const q = searchKey(query);
+  if (q.length < 2) return [];
+  const ranked: (MedicineMatch & { rank: number; extra: number })[] = [];
+  for (const medicine of MEDICINES) {
+    let best: (MedicineMatch & { rank: number; extra: number }) | undefined;
+    for (const name of medicine.names) {
+      const key = searchKey(name);
+      const at = key.indexOf(q);
+      if (at < 0) continue;
+      const candidate = { name, medicine, rank: at === 0 ? 0 : 1, extra: key.length - q.length };
+      if (!best || candidate.rank < best.rank || (candidate.rank === best.rank && candidate.extra < best.extra)) best = candidate;
+    }
+    if (best) ranked.push(best);
+  }
+  return ranked
+    .sort((a, b) => a.rank - b.rank || a.extra - b.extra || a.name.localeCompare(b.name))
+    .slice(0, limit)
+    .map(({ name, medicine }) => ({ name, medicine }));
+}
+
+/** The medicines whose names or ingredients contain the text, in table order; all of them for an empty text. */
+export function searchMedicines(query: string): Medicine[] {
+  const q = searchKey(query);
+  return MEDICINES.filter((m) => [...m.names, ...m.ingredients].some((n) => searchKey(n).includes(q)));
+}
+
+/** The name an entry is listed under: the English INN in English when the entry has one, else its first name. */
+export function mainName(medicine: Medicine, lang: 'en' | 'de'): string {
+  const inn = medicine.ingredients.length === 1 ? medicine.ingredients[0] : '';
+  return lang === 'en' && medicine.names.includes(inn) ? inn : medicine.names[0];
+}
+
+/**
+ * The other names of an entry, each spelling once: a name that differs from the main name or an earlier one only by a
+ * final "e", spaces or hyphens ("metamizole" for "metamizol", "botulinum toxin" for "botulinumtoxin") is left out.
+ */
+export function otherNames(medicine: Medicine, main: string): string[] {
+  const stem = (name: string) => searchKey(name).replace(/e$/, '');
+  const seen = new Set([stem(main)]);
+  return medicine.names.filter((n) => !seen.has(stem(n)) && seen.add(stem(n)));
+}

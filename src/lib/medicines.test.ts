@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MedCategory } from './medication';
-import { MEDICINES, type Medicine } from './medicines';
+import { displayName, ingredientName, mainName, otherNames, MEDICINES, searchMedicines, suggestMedicines, type Medicine } from './medicines';
 
 /** Non-opioid analgesics as ICHD-3 8.2 groups them: NSAIDs, salicylates, pyrazolones, anilides, other analgesics. */
 const ANALGESIC_ATC = /^(M01A|N02BA|N02BB|N02BE|N02BG)/;
@@ -40,5 +40,112 @@ describe('MEDICINES', () => {
   it('gives every name to one entry only', () => {
     const names = MEDICINES.flatMap((m) => m.names);
     expect(names.filter((n, i) => names.indexOf(n) !== i)).toEqual([]);
+  });
+});
+
+describe('suggestMedicines', () => {
+  const names = (query: string, limit?: number) => suggestMedicines(query, limit).map((m) => m.name);
+
+  it.each([
+    ['t', []],
+    ['', []],
+    ['thom', ['thomapyrin', 'thomapyrin tension duo']],
+    ['Thom', ['thomapyrin', 'thomapyrin tension duo']],
+    ['ibu', ['ibu', 'dexibuprofen']],
+    ['sumat', ['sumatriptan']],
+    ['migrane', ['migräne-kranit']],
+    ['MIGRÄNE', ['migräne-kranit']],
+    ['benuron', ['ben-u-ron']],
+    ['xyzzol', []]
+  ])('%s suggests %j', (query, expected) => {
+    expect(names(query)).toEqual(expected);
+  });
+
+  it('lists a name that only contains the text after every prefix match', () => {
+    const result = suggestMedicines('pro', 20).map((m) => m.name);
+    const firstInside = result.findIndex((n) => !n.startsWith('pro'));
+    expect(result.slice(firstInside).every((n) => !n.startsWith('pro'))).toBe(true);
+  });
+
+  it('puts the shortest prefix match first', () => {
+    expect(names('ass')[0]).toBe('ass');
+  });
+
+  it('gives each medicine once, with its best name', () => {
+    expect(names('thomapyrin')).toEqual(['thomapyrin', 'thomapyrin tension duo']);
+  });
+
+  it.each([1, 3, 6])('returns at most %i', (limit) => {
+    expect(suggestMedicines('in', limit)).toHaveLength(limit);
+  });
+
+  it('returns six by default', () => {
+    expect(suggestMedicines('in')).toHaveLength(6);
+  });
+});
+
+describe('searchMedicines', () => {
+  it('returns the whole table for an empty text', () => {
+    expect(searchMedicines('')).toHaveLength(MEDICINES.length);
+  });
+
+  it.each([
+    ['sumat', ['sumatriptan']],
+    ['säure', ['mefenaminsäure', 'tolfenaminsäure', 'acetylsalicylsäure', 'valproat']],
+    ['naloxone', ['tilidin', 'targin']]
+  ])('finds %s by name or ingredient', (query, expected) => {
+    expect(searchMedicines(query).map((m) => m.names[0])).toEqual(expected);
+  });
+});
+
+describe('displayName', () => {
+  it.each([
+    ['thomapyrin', 'Thomapyrin'],
+    ['ass', 'ASS'],
+    ['ben-u-ron', 'ben-u-ron'],
+    ['thomapyrin tension duo', 'Thomapyrin Tension Duo'],
+    ['acetylsalicylic acid', 'Acetylsalicylic acid']
+  ])('writes %s as %s', (name, expected) => {
+    expect(displayName(name)).toBe(expected);
+  });
+});
+
+describe('ingredientName', () => {
+  it.each([
+    ['acetylsalicylic acid', 'en', 'aspirin'],
+    ['acetylsalicylic acid', 'de', 'ASS'],
+    ['caffeine', 'en', 'caffeine'],
+    ['caffeine', 'de', 'Coffein'],
+    ['metamizole', 'de', 'Metamizol'],
+    ['paracetamol', 'de', 'Paracetamol'],
+    ['valproic acid', 'de', 'Valproinsäure']
+  ] as const)('writes %s in %s as %s', (inn, lang, expected) => {
+    expect(ingredientName(inn, lang)).toBe(expected);
+  });
+});
+
+describe('mainName', () => {
+  const ass = MEDICINES.find((m) => m.names.includes('ass'))!;
+
+  it.each([
+    ['en', 'acetylsalicylic acid'],
+    ['de', 'acetylsalicylsäure']
+  ] as const)('lists aspirin in %s as %s', (lang, expected) => {
+    expect(mainName(ass, lang)).toBe(expected);
+  });
+});
+
+describe('otherNames', () => {
+  const find = (name: string) => MEDICINES.find((m) => m.names.includes(name))!;
+
+  it.each([
+    ['metamizol', ['dipyrone', 'novaminsulfon', 'novalgin']],
+    ['metamizole', ['dipyrone', 'novaminsulfon', 'novalgin']],
+    ['ibuprofen', ['ibu', 'nurofen', 'dolormin', 'aktren', 'spalt forte']],
+    ['acetylsalicylic acid', ['acetylsalicylsäure', 'ass', 'aspirin']],
+    ['valproic acid', ['valproat', 'valproinsäure']],
+    ['botox', ['onabotulinumtoxina', 'botulinumtoxin']]
+  ])('lists %s with %j', (main, expected) => {
+    expect(otherNames(find(main), main)).toEqual(expected);
   });
 });

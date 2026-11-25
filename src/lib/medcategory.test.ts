@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { medColor } from './colors';
 import type { Intake, Medication } from './db';
-import { fromMedication, guessCategory, personalLimit, reliefQuestion } from './medication';
+import { fromMedication, guessCategory, personalLimit, recognise, reliefQuestion, renamedCategory, type MedCategory } from './medication';
 
 describe('guessCategory', () => {
   it.each([
@@ -92,5 +92,29 @@ describe('personalLimit', () => {
     ['2.6', '7', { limitDays: 3, limitWindow: 7 }]
   ])('reads %j days in %j as %j', (days, window, limit) => {
     expect(personalLimit(days, window)).toEqual(limit);
+  });
+});
+
+describe('recognise', () => {
+  it.each([
+    ['Thomapyrin', { category: 'combination', ingredients: ['acetylsalicylic acid', 'paracetamol', 'caffeine'] }],
+    ['Ibuprofen mit Koffein', { category: 'combination', ingredients: ['ibuprofen', 'caffeine'] }],
+    ['Paracetamol + MCP', { category: 'analgesic', ingredients: ['paracetamol', 'metoclopramide'] }],
+    ['Xyzzol', null]
+  ])('recognises %s as %j', (name, expected) => {
+    expect(recognise(name)).toEqual(expected);
+  });
+});
+
+describe('renamedCategory', () => {
+  it.each<[string, MedCategory, string, MedCategory]>([
+    ['Name', 'unknown', 'Sumatriptan', 'triptan'],
+    ['Ibuprofen', 'preventive', 'Sumatriptan', 'triptan'],
+    ['Name', 'unknown', 'Xyzzol', 'unknown'],
+    ['Ibuprofen', 'analgesic', 'Xyzzol', 'unknown'],
+    ['Xyzzol', 'triptan', 'Xyzzol forte', 'triptan'],
+    ['Ibuprofen', 'preventive', 'Xyzzol', 'preventive']
+  ])('%s (%s) renamed to %s is %s', (oldName, oldCategory, newName, expected) => {
+    expect(renamedCategory(oldName, oldCategory, newName)).toBe(expected);
   });
 });

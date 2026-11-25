@@ -123,6 +123,8 @@ describe('medicationRule', () => {
     ['only a triptan', [['2026-03-02', 'triptan', 'Sumatriptan']], 10, ['triptan']],
     ['ibuprofen and a triptan', [['2026-03-02', 'analgesic', 'Ibuprofen'], ['2026-03-05', 'triptan', 'Sumatriptan']], 10, ['analgesic', 'triptan']],
     ['other medication', [['2026-03-02', 'other', 'Something']], 10, ['other']],
+    ['an unclassified medication', [['2026-03-02', 'unknown', 'Xyzzol']], 10, ['unknown']],
+    ['ibuprofen and an unclassified medication', [['2026-03-02', 'analgesic', 'Ibuprofen'], ['2026-03-05', 'unknown', 'Xyzzol']], 10, ['analgesic', 'unknown']],
     ['nothing', [], 10, []]
   ] as const)('limits %s to fewer than %i days', (_, taken, limit, classes) => {
     const intakes = taken.map(([day, category, name]) => intake(`${day}T08:00`, category, name));
