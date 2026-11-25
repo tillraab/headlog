@@ -75,7 +75,7 @@ export function stepDay(day: string, delta: number, today: string): boolean {
   return true;
 }
 
-export type SheetId = 'editor' | 'settings' | 'medList' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor' | 'range' | 'calendarFilter';
+export type SheetId = 'editor' | 'settings' | 'medList' | 'medLookup' | 'drinkList' | 'versions' | 'report' | 'day' | 'factor' | 'range' | 'calendarFilter';
 
 /** The date range the range picker edits, and what receives the chosen range. */
 export const rangePicker = $state<{ from: string; to: string; onpick: (range: { from: string; to: string }) => void }>({ from: '', to: '', onpick: () => {} });

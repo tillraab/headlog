@@ -6,6 +6,7 @@
   import CalendarTab from '$lib/components/CalendarTab.svelte';
   import DrinkListSheet from '$lib/components/DrinkListSheet.svelte';
   import MedListSheet from '$lib/components/MedListSheet.svelte';
+  import MedLookupSheet from '$lib/components/MedLookupSheet.svelte';
   import Celebration from '$lib/components/Celebration.svelte';
   import EditorSheet from '$lib/components/EditorSheet.svelte';
   import CalendarFilterSheet from '$lib/components/CalendarFilterSheet.svelte';
@@ -191,6 +192,7 @@
 <RangeSheet />
 <SettingsSheet />
 <MedListSheet />
+<MedLookupSheet />
 <DrinkListSheet />
 <VersionsSheet />
 <InfoPopover />
