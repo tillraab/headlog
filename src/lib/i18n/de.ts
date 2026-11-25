@@ -9,6 +9,8 @@ export const de: Record<keyof typeof en, string> = {
   'a11y.close': 'Schließen',
   'a11y.prevMonth': 'Vorheriger Monat',
   'a11y.nextMonth': 'Nächster Monat',
+  'a11y.prevDay': 'Vorheriger Tag',
+  'a11y.nextDay': 'Nächster Tag',
   'a11y.info': 'Erklärung',
   'info.sources': 'Quellen',
   'a11y.up': 'Nach oben',

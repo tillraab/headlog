@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- The day view steps to the previous or next day with arrow buttons or a sideways swipe, up to today. The calendar behind follows into the day's month. The title shows the date in short form.
+
 ## [0.44.0] - 2026-11-23
 
 ### Changed

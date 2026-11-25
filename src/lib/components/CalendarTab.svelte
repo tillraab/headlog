@@ -1,16 +1,17 @@
 <script lang="ts">
-  import { ChevronDown, ChevronLeft, ChevronRight, SlidersHorizontal } from '@lucide/svelte';
-  import { addMonths, endOfDay, endOfMonth, getDay, isAfter, startOfMonth } from 'date-fns';
+  import { ChevronDown, SlidersHorizontal } from '@lucide/svelte';
+  import { addMonths, endOfDay, endOfMonth, getDay, isAfter } from 'date-fns';
   import { headacheDays, intakeDays } from '$lib/analysis';
   import { FACTOR_ICONS, prognosis, prognosisInput } from '$lib/prognosis';
   import { dayKey, dayRange, keyToDate } from '$lib/days';
   import { fmt, t, weekdayShort } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
-  import { openDay, openSheet, tap } from '$lib/ui.svelte';
+  import { calendarView, openDay, openSheet, tap } from '$lib/ui.svelte';
   import { intakeColor } from '$lib/colors';
   import InfoButton from './InfoButton.svelte';
+  import PrevNextButtons from './PrevNextButtons.svelte';
 
-  let month = $state(startOfMonth(Date.now()));
+  const month = $derived(calendarView.month);
 
   const hDays = $derived(headacheDays(data.episodes, clock.now));
   const mDays = $derived(intakeDays(data.intakes, false));
@@ -56,19 +57,13 @@
 <div class="flex flex-col gap-3 pb-6">
   <header class="flex items-center justify-between pt-2">
     <h1 class="text-3xl font-semibold capitalize">{fmt(month, 'LLLL yyyy')}</h1>
-    <div class="flex gap-1">
-      <button class="press grid size-11 place-items-center rounded-full bg-surface-2" onclick={() => (month = addMonths(month, -1))} aria-label={t('a11y.prevMonth')}>
-        <ChevronLeft size={24} />
-      </button>
-      <button
-        class="press grid size-11 place-items-center rounded-full bg-surface-2 disabled:opacity-40"
-        disabled={isAfter(addMonths(month, 1), clock.now)}
-        onclick={() => (month = addMonths(month, 1))}
-        aria-label={t('a11y.nextMonth')}
-      >
-        <ChevronRight size={24} />
-      </button>
-    </div>
+    <PrevNextButtons
+      prevLabel={t('a11y.prevMonth')}
+      nextLabel={t('a11y.nextMonth')}
+      onprev={() => (calendarView.month = addMonths(month, -1))}
+      onnext={() => (calendarView.month = addMonths(month, 1))}
+      nextDisabled={isAfter(addMonths(month, 1), clock.now)}
+    />
   </header>
 
   <button class="press flex min-h-11 items-center gap-2 rounded-xl bg-surface-2 px-3 text-left text-sm" aria-haspopup="dialog" onclick={() => (tap(), openSheet('calendarFilter'))}>

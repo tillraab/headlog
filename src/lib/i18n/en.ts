@@ -7,6 +7,8 @@ export const en = {
   'a11y.close': 'Close',
   'a11y.prevMonth': 'Previous month',
   'a11y.nextMonth': 'Next month',
+  'a11y.prevDay': 'Previous day',
+  'a11y.nextDay': 'Next day',
   'a11y.info': 'Explanation',
   'info.sources': 'Sources',
   'a11y.up': 'Move up',

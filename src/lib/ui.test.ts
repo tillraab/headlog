@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AWAY_RESET_MS, awayLongEnough, busyInSheet, closeAllSheets, factorSheet, openFactor, closeTopSheet, fromLocalInput, info, openSheet, requestClose, sheets, showInfo, toLocalInput, trackUnsaved } from './ui.svelte';
+import { AWAY_RESET_MS, awayLongEnough, busyInSheet, calendarView, dayView, stepDay, closeAllSheets, factorSheet, openFactor, closeTopSheet, fromLocalInput, info, openSheet, requestClose, sheets, showInfo, toLocalInput, trackUnsaved } from './ui.svelte';
 
 describe('fromLocalInput', () => {
   it.each(['', 'garbage', '2026-13-40T99:99'])('returns null for %j', (value) => {
@@ -114,5 +114,28 @@ describe('busyInSheet', () => {
     const result = busyInSheet();
     untrack();
     expect(result).toBe(busy);
+  });
+});
+
+describe('stepDay', () => {
+  it.each([
+    { day: '2026-03-10', delta: -1, today: '2026-03-20', moved: true, shown: '2026-03-09' },
+    { day: '2026-03-10', delta: 1, today: '2026-03-20', moved: true, shown: '2026-03-11' },
+    { day: '2026-03-20', delta: 1, today: '2026-03-20', moved: false, shown: '2026-03-20' },
+    { day: '2026-03-19', delta: 1, today: '2026-03-20', moved: true, shown: '2026-03-20' }
+  ])('$day by $delta with today $today shows $shown', ({ day, delta, today, moved, shown }) => {
+    dayView.day = day;
+    expect({ moved: stepDay(day, delta, today), shown: dayView.day }).toEqual({ moved, shown });
+  });
+
+  it.each([
+    { calendar: '2026-03-01', day: '2026-03-01', delta: -1, month: '2026-02-01', why: 'follows into the previous month' },
+    { calendar: '2026-02-01', day: '2026-02-28', delta: 1, month: '2026-03-01', why: 'follows into the next month' },
+    { calendar: '2026-03-01', day: '2026-03-10', delta: 1, month: '2026-03-01', why: 'stays within the month' },
+    { calendar: '2025-12-01', day: '2026-03-01', delta: -1, month: '2025-12-01', why: 'leaves another month alone' }
+  ])('calendar $why', ({ calendar, day, delta, month }) => {
+    calendarView.month = new Date(`${calendar}T00:00`);
+    stepDay(day, delta, '2026-12-31');
+    expect(calendarView.month).toEqual(new Date(`${month}T00:00`));
   });
 });
