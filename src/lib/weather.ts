@@ -26,6 +26,13 @@ export function dropToNextDay(weather: Map<string, WeatherDay>, key: string): nu
   return weather.get(dayKey(addDays(keyToDate(key), 1)))?.pressureDrop ?? null;
 }
 
+/** How the daily mean pressure changes from day `key` to the next day, in hPa, or null when either day is unknown. */
+export function pressureChange(weather: Map<string, WeatherDay>, key: string): number | null {
+  const today = weather.get(key);
+  const next = weather.get(dayKey(addDays(keyToDate(key), 1)));
+  return today && next ? Math.round(next.pressure - today.pressure) : null;
+}
+
 /** localStorage key holding the time of the last weather sync. */
 export const WEATHER_SYNC_KEY = 'headlog.weatherSync';
 

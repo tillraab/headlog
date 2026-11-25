@@ -14,7 +14,8 @@
   import { swipeStep } from '$lib/swipe';
   import { fly } from 'svelte/transition';
   import { dayKey } from '$lib/days';
-  import { weatherEmoji } from '$lib/weather';
+  import { pressureChange } from '$lib/weather';
+  import { pressureLine } from '$lib/format';
   import EntryRow from './EntryRow.svelte';
   import PrevNextButtons from './PrevNextButtons.svelte';
   import SectionLabel from './SectionLabel.svelte';
@@ -44,7 +45,7 @@
       icon: factorIcon('weather'),
       label: t('prog.weather'),
       status: p.weather.status,
-      value: weather ? `${weatherEmoji(weather.code)} ${Math.round(weather.tempMin)}–${Math.round(weather.tempMax)} °C · ${Math.round(weather.pressure)} hPa` : '–',
+      value: weather ? pressureLine(Math.round(weather.pressure), pressureChange(data.weather, day)) : '–',
       open: () => openFactor('weather', day)
     },
     {

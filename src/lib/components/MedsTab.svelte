@@ -8,11 +8,12 @@
   import EntryRow from './EntryRow.svelte';
   import { medicationEffect, medicationLimits, medicationRule, overuseRows } from '$lib/analysis';
   import { medColor, RELIEF_COLOR, STATUS_COLOR } from '$lib/colors';
-  import { DAY, hm, keyToDate } from '$lib/days';
-  import { ifTakenTodayLine, limitReason } from '$lib/format';
-  import { fmt, relativeDay, reliefLabels, t } from '$lib/i18n.svelte';
+  import { DAY, hm } from '$lib/days';
+  import { limitReason } from '$lib/format';
+  import { relativeDay, reliefLabels, t } from '$lib/i18n.svelte';
   import { clock, data } from '$lib/store.svelte';
   import { SOURCES } from '$lib/sources';
+  import { MULTIPLE_CLASSES_LIMIT } from '$lib/medication';
 
   /** Days the effect of each medication looks back on. */
   const EFFECT_WINDOW_DAYS = 90;
@@ -52,13 +53,8 @@
     />
     <div class="flex flex-col items-center gap-0.5 text-center text-sm">
       <p class="rounded-2xl px-3 py-1 font-semibold" style:color={tone} style:background-color="color-mix(in oklab, {tone} 14%, transparent)"><span class="whitespace-nowrap">{label} ·</span> <span class="whitespace-nowrap">{t('tenTwenty.freeDays', { n: rule.freeDays })}</span></p>
-      {#if rule.days[rule.days.length - 1].med}
-        <p class="text-muted">{t('tenTwenty.alreadyToday')}</p>
-      {:else}
-        <p class="text-muted">{ifTakenTodayLine(rule)}</p>
-      {/if}
-      {#if rule.nextRelief}
-        <p class="text-muted">{t('tenTwenty.nextRelief', { date: fmt(keyToDate(rule.nextRelief), 'EEE d. MMM') })}</p>
+      {#if rule.limit > MULTIPLE_CLASSES_LIMIT}
+        <p class="text-muted">{t('tenTwenty.otherClass', { strict: MULTIPLE_CLASSES_LIMIT })}</p>
       {/if}
     </div>
     {#if classRows.length || personal.length}

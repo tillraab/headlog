@@ -231,8 +231,6 @@ export interface TenTwenty {
   days: { key: string; med: boolean }[];
   /** Count after taking medication today, if none was taken yet. */
   ifTakenToday: number;
-  /** First day on which the count drops, or null without medication days in the window. */
-  nextRelief: string | null;
   /** Medication-free days left in the window. */
   freeDays: number;
 }
@@ -245,7 +243,6 @@ export function tenTwenty(medDays: Set<string>, today: number | Date, limit: num
   const days = lastDays(today, window).map((key) => ({ key, med: medDays.has(key) }));
   const count = days.filter((d) => d.med).length;
   const todayTaken = days[days.length - 1].med;
-  const first = days.find((d) => d.med);
   return {
     count,
     limit,
@@ -254,7 +251,6 @@ export function tenTwenty(medDays: Set<string>, today: number | Date, limit: num
     status: ruleStatus(count, allowed),
     days,
     ifTakenToday: todayTaken ? count : count + 1,
-    nextRelief: first ? dayKey(addDays(keyToDate(first.key), window)) : null,
     freeDays: window - count
   };
 }

@@ -69,3 +69,10 @@ export function ifTakenTodayLine(rule: Pick<MedicationRule, 'ifTakenToday' | 'li
     ? t('tenTwenty.ifTodayAnalgesic', { n: rule.ifTakenToday, limit: rule.limit, strict: MULTIPLE_CLASSES_LIMIT })
     : t('tenTwenty.ifToday', { n: rule.ifTakenToday, limit: rule.limit });
 }
+
+/** A day's mean pressure and its change to the next day, which decides the weather factor; the change is left out when unknown. */
+export function pressureLine(pressure: number, change: number | null): string {
+  if (change === null) return `${pressure} hPa`;
+  const signed = change > 0 ? `+${change}` : change < 0 ? `−${-change}` : '±0';
+  return `${pressure} hPa · ${t('day.pressureNext', { d: signed })}`;
+}

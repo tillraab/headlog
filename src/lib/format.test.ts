@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { entryDetailLines, formatComparison, ifTakenTodayLine, limitReason } from './format';
+import { entryDetailLines, formatComparison, ifTakenTodayLine, limitReason, pressureLine } from './format';
 import { i18n } from './i18n.svelte';
 
 const at = (s: string) => new Date(s).getTime();
@@ -42,8 +42,8 @@ describe('limitReason', () => {
   it.each([
     [[], 10, 'No acute medication: fewer than 10 days'],
     [['analgesic'], 15, 'Only pain relievers: fewer than 15 days'],
-    [['triptan'], 10, 'Triptan: fewer than 10 days'],
-    [['other'], 10, 'Other medication: fewer than 10 days'],
+    [['triptan'], 10, 'Only triptan: fewer than 10 days'],
+    [['other'], 10, 'Only other medication: fewer than 10 days'],
     [['analgesic', 'triptan'], 10, 'Pain reliever and triptan: fewer than 10 days together'],
     [['analgesic', 'triptan', 'opioid'], 10, '3 classes: fewer than 10 days together']
   ] as const)('explains %j with limit %i', (classes, limit, text) => {
@@ -64,5 +64,16 @@ describe('ifTakenTodayLine', () => {
     [7, 10, 'Taking medication today makes it 7 of 10.']
   ])('writes %i against %i', (n, limit, text) => {
     expect(ifTakenTodayLine({ ifTakenToday: n, limit })).toBe(text);
+  });
+});
+
+describe('pressureLine', () => {
+  it.each([
+    [1011, -6, '1011 hPa · −6 next day'],
+    [1004, 3, '1004 hPa · +3 next day'],
+    [1010, 0, '1010 hPa · ±0 next day'],
+    [1010, null, '1010 hPa']
+  ])('writes %i with change %s', (pressure, change, text) => {
+    expect(pressureLine(pressure, change)).toBe(text);
   });
 });

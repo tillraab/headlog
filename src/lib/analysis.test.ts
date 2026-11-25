@@ -57,14 +57,6 @@ describe('tenTwenty', () => {
     expect(tenTwenty(new Set(['2026-03-31']), today, 10).ifTakenToday).toBe(1);
   });
 
-  it('names the day the oldest medication day leaves the window', () => {
-    expect(tenTwenty(new Set(['2026-03-05', '2026-03-20']), today, 10).nextRelief).toBe('2026-04-04');
-  });
-
-  it('has no relief day without medication', () => {
-    expect(tenTwenty(new Set(), today, 10).nextRelief).toBeNull();
-  });
-
   it.each([
     [9, 'caution'],
     [10, 'over']
